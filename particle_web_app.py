@@ -5,6 +5,7 @@ import argparse
 import json
 import mimetypes
 import re
+import sys
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -17,7 +18,7 @@ import numpy as np
 from analyze_particles import circle_rect_visible_fraction, detect_particles, detect_scale_bar
 
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 STATIC_DIR = ROOT / "static"
 
 

@@ -66,3 +66,22 @@ After that you can:
 - inspect live count/mean/median/range and the histogram in the right drawer;
 - export the corrected CSV and annotated image together with `Export CSV + Image`;
 - CSV includes `particle_id`, `center_x_px`, `center_y_px`, `radius_px`, `radius_micrometer`, and `diameter_micrometer`.
+
+## Windows release build
+
+Build a click-to-run Windows release ZIP:
+
+```powershell
+.\scripts\build_windows_release.ps1
+```
+
+The build creates:
+
+```text
+release/ParticleSizeAnnotator-Windows-v0.1.0.zip
+release/SHA256SUMS.txt
+```
+
+Users can extract the ZIP and double-click `Particle Size Annotator.exe`. The
+launcher starts the local app, opens it in the default browser, and provides a
+small window with `Open App` and `Quit` buttons.
