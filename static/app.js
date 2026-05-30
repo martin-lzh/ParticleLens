@@ -19,10 +19,12 @@ const state = {
   ui: {
     leftCollapsed: false,
     rightOpen: false,
+    dragDepth: 0,
   },
 };
 
 const els = {
+  appShell: document.querySelector(".app-shell"),
   leftPanel: document.getElementById("leftPanel"),
   leftToggle: document.getElementById("leftToggle"),
   rightPanel: document.getElementById("rightPanel"),
@@ -91,6 +93,7 @@ const messages = {
     "status.loaded": "已加载",
     "status.loading": "载入中",
     "status.loadFail": "载入失败",
+    "errors.imageOnly": "请拖放图片文件。",
     "tabs.toolsAria": "工具分类",
     "tabs.detect": "检测",
     "tabs.edit": "编辑",
@@ -160,6 +163,7 @@ const messages = {
     "status.loaded": "Loaded",
     "status.loading": "Loading",
     "status.loadFail": "Load failed",
+    "errors.imageOnly": "Drop an image file.",
     "tabs.toolsAria": "Tool categories",
     "tabs.detect": "Detect",
     "tabs.edit": "Edit",
@@ -403,8 +407,9 @@ function draw(targetCtx = ctx, options = {}) {
   targetCtx.fillRect(0, 0, canvas.width, canvas.height);
   if (!state.image) return;
 
+  const exportPadding = options.exportPadding || 0;
   const t = options.export
-    ? { scale: 1, ox: 0, oy: 0 }
+    ? { scale: 1, ox: exportPadding, oy: exportPadding }
     : fitTransform();
 
   targetCtx.drawImage(
@@ -415,7 +420,17 @@ function draw(targetCtx = ctx, options = {}) {
     state.image.naturalHeight * t.scale
   );
 
-  const sorted = [...activeParticles()].sort((a, b) => b.r - a.r);
+  if (options.export && exportPadding > 0) {
+    targetCtx.save();
+    targetCtx.strokeStyle = "#4b535c";
+    targetCtx.lineWidth = 1;
+    targetCtx.strokeRect(t.ox + 0.5, t.oy + 0.5, state.image.naturalWidth - 1, state.image.naturalHeight - 1);
+    targetCtx.restore();
+  }
+
+  const sorted = activeParticles()
+    .filter(includedInDistribution)
+    .sort((a, b) => b.r - a.r);
   const labelLimit = Number(els.labelLimit.value || 0);
   const labelIds = new Set(sorted.slice(0, labelLimit).map((p) => p.id));
 
@@ -478,6 +493,8 @@ function drawParticle(targetCtx, particle, transform, showLabel, ghost = false) 
   targetCtx.fill();
 
   if (showLabel && state.micronsPerPx) {
+    const label = `${diameterUm(particle).toFixed(1)} ${t("unit.um")}`;
+    const fontSize = Math.max(12, 13 * transform.scale);
     targetCtx.strokeStyle = "#ff3b30";
     targetCtx.lineWidth = 1;
     targetCtx.beginPath();
@@ -485,8 +502,21 @@ function drawParticle(targetCtx, particle, transform, showLabel, ghost = false) 
     targetCtx.lineTo(x + r, y);
     targetCtx.stroke();
     targetCtx.fillStyle = "#ff3b30";
-    targetCtx.font = `${Math.max(12, 13 * transform.scale)}px Segoe UI, sans-serif`;
-    targetCtx.fillText(`${diameterUm(particle).toFixed(1)} ${t("unit.um")}`, x + 5, y - r - 6);
+    targetCtx.font = `${fontSize}px Segoe UI, sans-serif`;
+    const metrics = targetCtx.measureText(label);
+    const margin = 4;
+    const labelX = Math.min(
+      Math.max(x + 5, margin),
+      Math.max(margin, targetCtx.canvas.width - metrics.width - margin)
+    );
+    const preferredY = y - r - 6;
+    const alternateY = y + r + fontSize + 6;
+    const unclampedY = preferredY >= fontSize + margin ? preferredY : alternateY;
+    const labelY = Math.min(
+      Math.max(unclampedY, fontSize + margin),
+      targetCtx.canvas.height - margin
+    );
+    targetCtx.fillText(label, labelX, labelY);
   }
   targetCtx.restore();
 }
@@ -751,6 +781,54 @@ function loadImage(file) {
   reader.readAsDataURL(file);
 }
 
+function isImageFile(file) {
+  return file && file.type.startsWith("image/");
+}
+
+function droppedImageFile(event) {
+  return Array.from(event.dataTransfer?.files || []).find(isImageFile) || null;
+}
+
+function setDragOver(active) {
+  els.appShell.classList.toggle("drag-over", active);
+}
+
+function handleFileDrag(event) {
+  const hasFiles = Array.from(event.dataTransfer?.types || []).includes("Files");
+  if (!hasFiles) return false;
+  event.preventDefault();
+  event.dataTransfer.dropEffect = "copy";
+  return true;
+}
+
+function handleDragEnter(event) {
+  if (!handleFileDrag(event)) return;
+  state.ui.dragDepth += 1;
+  setDragOver(true);
+}
+
+function handleDragOver(event) {
+  handleFileDrag(event);
+}
+
+function handleDragLeave(event) {
+  if (!handleFileDrag(event)) return;
+  state.ui.dragDepth = Math.max(0, state.ui.dragDepth - 1);
+  if (state.ui.dragDepth === 0) setDragOver(false);
+}
+
+function handleDrop(event) {
+  if (!handleFileDrag(event)) return;
+  state.ui.dragDepth = 0;
+  setDragOver(false);
+  const file = droppedImageFile(event);
+  if (!file) {
+    alert(t("errors.imageOnly"));
+    return;
+  }
+  loadImage(file);
+}
+
 function loadImageData(imageData, imageName) {
   state.imageData = imageData;
   state.imageName = imageName;
@@ -838,10 +916,11 @@ function exportCsv() {
 
 function exportPng() {
   if (!state.image) return;
+  const exportPadding = 96;
   const out = document.createElement("canvas");
-  out.width = state.image.naturalWidth;
-  out.height = state.image.naturalHeight;
-  draw(out.getContext("2d"), { export: true });
+  out.width = state.image.naturalWidth + exportPadding * 2;
+  out.height = state.image.naturalHeight + exportPadding * 2;
+  draw(out.getContext("2d"), { export: true, exportPadding });
   out.toBlob((blob) => {
     if (blob) downloadBlob(`${state.imageName || "image"}_annotated.png`, blob);
   }, "image/png");
@@ -856,6 +935,11 @@ els.imageInput.addEventListener("change", (event) => {
   const file = event.target.files?.[0];
   if (file) loadImage(file);
 });
+
+window.addEventListener("dragenter", handleDragEnter);
+window.addEventListener("dragover", handleDragOver);
+window.addEventListener("dragleave", handleDragLeave);
+window.addEventListener("drop", handleDrop);
 
 els.runDetect.addEventListener("click", runDetection);
 els.deleteSelected.addEventListener("click", deleteSelectedParticles);

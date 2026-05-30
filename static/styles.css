@@ -124,6 +124,17 @@ label span,
   display: none;
 }
 
+.app-shell.drag-over .empty-state {
+  display: grid;
+  inset: 72px 18px 18px;
+  border: 1px dashed var(--accent);
+  border-radius: 8px;
+  background: rgba(11, 13, 15, 0.68);
+  color: var(--accent);
+  font-weight: 700;
+  z-index: 6;
+}
+
 .topbar {
   position: absolute;
   top: 0;
