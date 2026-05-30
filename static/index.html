@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Particle Size Annotator</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar" role="banner">
+        <div class="nav-brand">
+          <span class="brand-mark">PS</span>
+          <div>
+            <strong data-i18n="brand.title">粒径标注</strong>
+            <span data-i18n="brand.subtitle">自动识别后人工校正</span>
+          </div>
+        </div>
+
+        <button id="leftToggle" class="nav-button" type="button" data-i18n="nav.toolsPanel" data-i18n-title="nav.toolsPanel">工具</button>
+
+        <div class="nav-divider" aria-hidden="true"></div>
+
+          <div class="image-meta">
+          <strong id="imageName" data-i18n="image.none">未选择图片</strong>
+          <span id="scaleReadout" data-i18n="scale.unset">比例尺未设置</span>
+          </div>
+
+        <span id="hintText" data-i18n="hint.initial">选择图片后可自动识别，也可手动画圆补充。</span>
+
+        <div class="view-controls" aria-label="观察窗缩放" data-i18n-aria="zoom.aria">
+            <button id="zoomOut" type="button" title="缩小" data-i18n-title="zoom.outTitle">−</button>
+            <span id="zoomReadout">100%</span>
+            <button id="zoomIn" type="button" title="放大" data-i18n-title="zoom.inTitle">+</button>
+          <button id="resetZoom" type="button" title="重置视图" data-i18n="zoom.fit" data-i18n-title="zoom.resetTitle">适配</button>
+          </div>
+
+        <button id="languageToggle" class="language-toggle" type="button" aria-label="切换到 English" title="切换到 English" data-i18n-aria="nav.languageToggle" data-i18n-title="nav.languageToggle">
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M2 12h20"></path>
+            <path d="M12 2a15.3 15.3 0 0 1 0 20"></path>
+            <path d="M12 2a15.3 15.3 0 0 0 0 20"></path>
+          </svg>
+          <span id="languageToggleText">EN</span>
+        </button>
+
+        <button id="rightToggle" class="nav-button" type="button" data-i18n="nav.dataPanel" data-i18n-title="nav.dataPanel">数据</button>
+      </header>
+
+      <section class="workspace" aria-label="图像观察窗" data-i18n-aria="workspace.aria">
+        <div class="canvas-wrap">
+          <canvas id="imageCanvas"></canvas>
+          <div id="emptyState" class="empty-state" data-i18n="emptyState">Drop or choose a microscope image</div>
+        </div>
+      </section>
+
+      <aside id="leftPanel" class="left-panel">
+        <div class="panel-inner">
+          <div class="brand">
+            <div>
+              <h1 data-i18n="brand.title">粒径标注</h1>
+              <p data-i18n="brand.subtitle">自动识别后人工校正</p>
+            </div>
+            <span id="statusBadge" class="status" data-i18n="status.idle">待加载</span>
+          </div>
+
+          <nav class="tabs" aria-label="工具分类" data-i18n-aria="tabs.toolsAria">
+            <button class="tab active" data-left-tab="detect" type="button" data-i18n="tabs.detect">检测</button>
+            <button class="tab" data-left-tab="edit" type="button" data-i18n="tabs.edit">编辑</button>
+            <button class="tab" data-left-tab="export" type="button" data-i18n="tabs.export">导出</button>
+          </nav>
+
+          <section class="tab-panel active" data-left-panel="detect">
+            <label class="file-picker">
+              <input id="imageInput" type="file" accept="image/*" />
+              <span data-i18n="upload.choose">选择显微图片</span>
+            </label>
+
+            <div class="control-group">
+              <h2 data-i18n="groups.detectParams">检测参数</h2>
+              <div class="grid-two">
+                <label>
+                  <span data-i18n="labels.scaleLength">比例尺长度 (微米)</span>
+                  <input id="scaleUm" type="number" min="0.1" step="0.1" value="50" />
+                </label>
+                <label>
+                  <span data-i18n="labels.sensitivity">灵敏度</span>
+                  <input id="sensitivity" type="number" min="0.75" max="0.98" step="0.01" value="0.88" />
+                </label>
+                <label>
+                  <span data-i18n="labels.minDiameter">最小直径 (微米)</span>
+                  <input id="minDiameter" type="number" min="0.1" step="0.1" value="2.0" />
+                </label>
+                <label>
+                  <span data-i18n="labels.maxDiameter">最大直径 (微米)</span>
+                  <input id="maxDiameter" type="number" min="1" step="1" value="95" />
+                </label>
+              </div>
+              <label>
+                <span data-i18n="labels.contrast">对比度预处理</span>
+                <select id="contrastMode">
+                  <option value="clahe">CLAHE</option>
+                  <option value="background" data-i18n="contrast.background">背景校正</option>
+                  <option value="none" data-i18n="contrast.none">不处理</option>
+                </select>
+              </label>
+              <button id="runDetect" class="primary" type="button" data-i18n="buttons.runDetect">自动识别</button>
+            </div>
+          </section>
+
+          <section class="tab-panel" data-left-panel="edit">
+            <div class="control-group first">
+              <h2 data-i18n="groups.editTools">编辑工具</h2>
+              <button class="tool" id="scaleTool" data-mode="scale" type="button" data-i18n="buttons.redrawScale">重画比例尺</button>
+              <div class="button-row">
+                <button id="deleteSelected" type="button" data-i18n="buttons.deleteSelected">删除选中</button>
+                <button id="clearManual" type="button" data-i18n="buttons.clearManual">清除手绘</button>
+              </div>
+            </div>
+            <div class="note" data-i18n="edit.note">
+              左键选择，Shift + 左键多选，右键从颗粒一侧边缘拖到另一侧边缘画圆。Delete 删除选中圆，方向键移动选中圆，Shift + 方向键大步移动。滚轮缩放，中键拖动画布。
+            </div>
+          </section>
+
+          <section class="tab-panel" data-left-panel="export">
+            <div class="control-group first">
+              <h2 data-i18n="groups.export">导出</h2>
+              <label>
+                <span data-i18n="labels.labelLimit">图片标注数量</span>
+                <input id="labelLimit" type="number" min="0" step="1" value="80" />
+              </label>
+              <div class="button-row">
+                <button id="exportCsv" type="button">CSV</button>
+                <button id="exportPng" type="button" data-i18n="buttons.annotatedImage">标注图</button>
+              </div>
+              <button id="exportAll" class="primary export-all" type="button" data-i18n="buttons.exportAll">导出 CSV + 标注图</button>
+            </div>
+          </section>
+        </div>
+      </aside>
+
+      <aside id="rightPanel" class="right-panel">
+        <div class="panel-inner">
+          <section class="stats">
+            <h2 data-i18n="stats.title">统计</h2>
+            <dl>
+              <div><dt data-i18n="stats.count">主分布颗粒</dt><dd id="countStat">0</dd></div>
+              <div><dt data-i18n="stats.mean">平均直径</dt><dd id="meanStat">-</dd></div>
+              <div><dt data-i18n="stats.median">中位数</dt><dd id="medianStat">-</dd></div>
+              <div><dt data-i18n="stats.range">范围</dt><dd id="rangeStat">-</dd></div>
+            </dl>
+          </section>
+
+          <nav class="tabs" aria-label="数据视图" data-i18n-aria="tabs.dataAria">
+            <button class="tab active" data-right-tab="table" type="button" data-i18n="tabs.dataPoints">数据点</button>
+            <button class="tab" data-right-tab="histogram" type="button" data-i18n="tabs.histogram">柱状图</button>
+          </nav>
+
+          <section class="right-tab-panel active" data-right-panel="table">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th data-i18n="table.source">来源</th>
+                    <th>X</th>
+                    <th>Y</th>
+                    <th data-i18n="table.radius">半径(微米)</th>
+                    <th data-i18n="table.diameter">直径(微米)</th>
+                    <th data-i18n="table.visible">可见面积</th>
+                  </tr>
+                </thead>
+                <tbody id="particleTable"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="right-tab-panel" data-right-panel="histogram">
+            <canvas id="histogramCanvas" class="histogram" aria-label="粒径分布柱状图" data-i18n-aria="histogram.aria"></canvas>
+          </section>
+        </div>
+      </aside>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>
