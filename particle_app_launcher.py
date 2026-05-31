@@ -2,15 +2,22 @@ from __future__ import annotations
 
 import os
 import socket
+import sys
 import threading
 import tkinter as tk
 import webbrowser
 from http.server import ThreadingHTTPServer
+from pathlib import Path
 
 from particle_web_app import ParticleHandler
 
 
 HOST = "127.0.0.1"
+
+
+def resource_path(*parts: str) -> Path:
+    root = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
+    return root.joinpath(*parts)
 
 
 def find_free_port() -> int:
@@ -36,6 +43,10 @@ def main() -> None:
     root.title("ParticleLens")
     root.geometry("420x170")
     root.resizable(False, False)
+    try:
+        root.iconbitmap(str(resource_path("static", "favicon.ico")))
+    except tk.TclError:
+        pass
 
     tk.Label(root, text="ParticleLens is running.", font=("Segoe UI", 11, "bold")).pack(pady=(18, 4))
     tk.Label(root, text="Use the browser window to analyze and export particle sizes.").pack()

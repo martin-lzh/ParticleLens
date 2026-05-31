@@ -162,16 +162,10 @@ label span,
 }
 
 .brand-mark {
-  display: grid;
-  place-items: center;
   width: 36px;
   height: 36px;
-  border: 1px solid rgba(230, 213, 74, 0.5);
-  border-radius: 6px;
-  color: var(--accent);
-  font-size: 13px;
-  font-weight: 800;
-  letter-spacing: 0;
+  object-fit: contain;
+  flex: 0 0 auto;
 }
 
 .nav-brand strong {

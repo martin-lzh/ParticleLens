@@ -1,5 +1,9 @@
 # ParticleLens
 
+<p align="center">
+  <img src="static/particlelens-logo.png" alt="ParticleLens logo" width="160">
+</p>
+
 ParticleLens is an open-source tool for measuring particle-size distributions
 from microscope images. It was originally built for counting droplets in optical
 microscope images, then expanded into a lightweight workflow for automatic

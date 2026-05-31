@@ -32,6 +32,7 @@ exe = EXE(
     strip=False,
     upx=True,
     console=False,
+    icon=str(ROOT / "static" / "favicon.ico"),
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
