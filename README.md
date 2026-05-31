@@ -79,9 +79,20 @@ The build creates:
 
 ```text
 release/ParticleSizeAnnotator-Windows-v0.1.0.zip
+release/ParticleSizeAnnotator-Windows-OneFile-v0.1.0.exe
 release/SHA256SUMS.txt
 ```
 
 Users can extract the ZIP and double-click `Particle Size Annotator.exe`. The
 launcher starts the local app, opens it in the default browser, and provides a
 small window with `Open App` and `Quit` buttons.
+The one-file EXE provides the same app as a single executable.
+
+## Citation
+
+If you use this project in academic work, cite it with the BibTeX entry in
+[`CITATION.bib`](CITATION.bib).
+
+## License
+
+This project is licensed under the MIT License. See [`LICENSE`](LICENSE).
