@@ -1,7 +1,7 @@
 [project]
-name = "particle-size-distribution"
+name = "particlelens"
 version = "0.1.0"
-description = "Analyze microscope images and annotate particle size distributions."
+description = "Analyze microscope images and export particle size distributions."
 license = "MIT"
 requires-python = ">=3.11"
 dependencies = [

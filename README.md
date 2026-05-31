@@ -1,8 +1,8 @@
-# Particle size distribution
+# ParticleLens
 
-Python script for detecting approximately circular microscope particles, reading the
-scale bar in the lower-right corner, annotating particle diameters, and exporting
-summary tables/plots.
+ParticleLens detects approximately circular microscope particles, reads the
+scale bar in the lower-right corner, annotates particle diameters, and exports
+particle-size distribution tables and plots.
 
 ## Setup
 
@@ -78,12 +78,12 @@ Build a click-to-run Windows release ZIP:
 The build creates:
 
 ```text
-release/ParticleSizeAnnotator-Windows-v0.1.0.zip
-release/ParticleSizeAnnotator-Windows-OneFile-v0.1.0.exe
+release/ParticleLens-Windows-v0.1.0.zip
+release/ParticleLens-Windows-OneFile-v0.1.0.exe
 release/SHA256SUMS.txt
 ```
 
-Users can extract the ZIP and double-click `Particle Size Annotator.exe`. The
+Users can extract the ZIP and double-click `ParticleLens.exe`. The
 launcher starts the local app, opens it in the default browser, and provides a
 small window with `Open App` and `Quit` buttons.
 The one-file EXE provides the same app as a single executable.

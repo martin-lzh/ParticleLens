@@ -1,5 +1,5 @@
 const state = {
-  lang: localStorage.getItem("particleAnnotatorLang") || "zh",
+  lang: localStorage.getItem("particleLensLang") || localStorage.getItem("particleAnnotatorLang") || "zh",
   statusKey: "status.idle",
   image: null,
   imageName: "",
@@ -67,10 +67,10 @@ const ctx = els.canvas.getContext("2d");
 
 const messages = {
   zh: {
-    "app.title": "粒径标注",
+    "app.title": "ParticleLens",
     "workspace.aria": "图像观察窗",
-    "brand.title": "粒径标注",
-    "brand.subtitle": "自动识别后人工校正",
+    "brand.title": "ParticleLens",
+    "brand.subtitle": "显微粒径识别与校正",
     "nav.toolsPanel": "工具",
     "nav.dataPanel": "数据",
     "nav.languageToggle": "切换到 English",
@@ -137,10 +137,10 @@ const messages = {
     "source.manual": "手绘",
   },
   en: {
-    "app.title": "Particle Size Annotator",
+    "app.title": "ParticleLens",
     "workspace.aria": "Image viewport",
-    "brand.title": "Particle Size",
-    "brand.subtitle": "Auto detection with manual correction",
+    "brand.title": "ParticleLens",
+    "brand.subtitle": "Microscope particle sizing and correction",
     "nav.toolsPanel": "Tools",
     "nav.dataPanel": "Data",
     "nav.languageToggle": "Switch to Chinese",
@@ -241,7 +241,8 @@ function applyTranslations() {
 
 function setLanguage(lang) {
   state.lang = lang === "en" ? "en" : "zh";
-  localStorage.setItem("particleAnnotatorLang", state.lang);
+  localStorage.setItem("particleLensLang", state.lang);
+  localStorage.removeItem("particleAnnotatorLang");
   applyTranslations();
 }
 

@@ -2,14 +2,14 @@ $ErrorActionPreference = "Stop"
 
 $Root = Split-Path -Parent $PSScriptRoot
 $ReleaseDir = Join-Path $Root "release"
-$BuildRoot = Join-Path "C:\tmp" ("ParticleSizeAnnotatorBuild-" + (Get-Date -Format "yyyyMMdd-HHmmss"))
+$BuildRoot = Join-Path "C:\tmp" ("ParticleLensBuild-" + (Get-Date -Format "yyyyMMdd-HHmmss"))
 $DistDir = Join-Path $BuildRoot "dist"
 $WorkDir = Join-Path $BuildRoot "build"
-$AppDir = Join-Path $DistDir "Particle Size Annotator"
+$AppDir = Join-Path $DistDir "ParticleLens"
 $Version = "0.1.0"
-$ZipPath = Join-Path $ReleaseDir "ParticleSizeAnnotator-Windows-v$Version.zip"
-$OneFileDistPath = Join-Path $DistDir "Particle Size Annotator.exe"
-$OneFileReleasePath = Join-Path $ReleaseDir "ParticleSizeAnnotator-Windows-OneFile-v$Version.exe"
+$ZipPath = Join-Path $ReleaseDir "ParticleLens-Windows-v$Version.zip"
+$OneFileDistPath = Join-Path $DistDir "ParticleLens.exe"
+$OneFileReleasePath = Join-Path $ReleaseDir "ParticleLens-Windows-OneFile-v$Version.exe"
 
 Set-Location $Root
 
@@ -19,7 +19,7 @@ if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
 
 New-Item -ItemType Directory -Force -Path $BuildRoot | Out-Null
 
-uv run --with pyinstaller pyinstaller --noconfirm --distpath $DistDir --workpath $WorkDir "packaging/ParticleSizeAnnotator.spec"
+uv run --with pyinstaller pyinstaller --noconfirm --distpath $DistDir --workpath $WorkDir "packaging/ParticleLens.spec"
 if ($LASTEXITCODE -ne 0) {
     throw "PyInstaller one-folder build failed with exit code $LASTEXITCODE"
 }
@@ -28,7 +28,7 @@ if (-not (Test-Path $AppDir)) {
     throw "Expected build output was not found: $AppDir"
 }
 
-uv run --with pyinstaller pyinstaller --noconfirm --distpath $DistDir --workpath $WorkDir "packaging/ParticleSizeAnnotatorOneFile.spec"
+uv run --with pyinstaller pyinstaller --noconfirm --distpath $DistDir --workpath $WorkDir "packaging/ParticleLensOneFile.spec"
 if ($LASTEXITCODE -ne 0) {
     throw "PyInstaller one-file build failed with exit code $LASTEXITCODE"
 }

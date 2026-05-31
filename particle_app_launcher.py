@@ -33,11 +33,11 @@ def main() -> None:
         webbrowser.open(url)
 
     root = tk.Tk()
-    root.title("Particle Size Annotator")
+    root.title("ParticleLens")
     root.geometry("420x170")
     root.resizable(False, False)
 
-    tk.Label(root, text="Particle Size Annotator is running.", font=("Segoe UI", 11, "bold")).pack(pady=(18, 4))
+    tk.Label(root, text="ParticleLens is running.", font=("Segoe UI", 11, "bold")).pack(pady=(18, 4))
     tk.Label(root, text="Use the browser window to analyze and export particle sizes.").pack()
     tk.Label(root, text=url, fg="#1f5fbf").pack(pady=(8, 10))
 
