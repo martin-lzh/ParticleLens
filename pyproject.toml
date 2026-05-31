@@ -4,12 +4,26 @@ version = "0.1.0"
 description = "Analyze microscope images and export particle size distributions."
 license = "MIT"
 requires-python = ">=3.11"
+keywords = [
+    "computer-vision",
+    "droplet-analysis",
+    "image-analysis",
+    "microscopy",
+    "opencv",
+    "particle-size-distribution",
+]
 dependencies = [
     "matplotlib>=3.9",
     "numpy>=2.0",
     "opencv-python>=4.10",
     "pandas>=2.2",
 ]
+
+[project.urls]
+Homepage = "https://github.com/martin-lzh/ParticleLens"
+Repository = "https://github.com/martin-lzh/ParticleLens"
+Issues = "https://github.com/martin-lzh/ParticleLens/issues"
+Releases = "https://github.com/martin-lzh/ParticleLens/releases"
 
 [tool.uv]
 package = false
