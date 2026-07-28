@@ -87,10 +87,27 @@
                   <span data-i18n="labels.scaleLength">比例尺长度 (微米)</span>
                   <input id="scaleUm" type="number" min="0.1" step="0.1" value="50" />
                 </label>
-                <label>
-                  <span data-i18n="labels.sensitivity">灵敏度</span>
+                <div class="field">
+                  <div class="field-label">
+                    <label for="sensitivity" data-i18n="labels.sensitivity">灵敏度</label>
+                    <span class="info-point">
+                      <button
+                        class="info-point-trigger"
+                        type="button"
+                        aria-describedby="sensitivityInfo"
+                        aria-label="查看灵敏度说明"
+                        data-i18n-aria="labels.sensitivityInfoAria"
+                      >i</button>
+                      <span
+                        id="sensitivityInfo"
+                        class="info-tooltip"
+                        role="tooltip"
+                        data-i18n="labels.sensitivityInfo"
+                      >这是圆形检测的形状置信阈值（0.01–0.98），不是颗粒的物理量。数值越低，判定越宽松：可检出边缘较弱、残缺或不够圆的颗粒，但误检会增加；数值越高，判定越严格：更偏向边缘清晰、完整且接近圆形的颗粒，但可能漏检。</span>
+                    </span>
+                  </div>
                   <input id="sensitivity" type="number" min="0.01" max="0.98" step="0.01" value="0.88" />
-                </label>
+                </div>
                 <label>
                   <span data-i18n="labels.minDiameter">最小直径 (微米)</span>
                   <input id="minDiameter" type="number" min="0.1" step="0.1" value="2.0" />

@@ -81,6 +81,81 @@ label span,
   margin: 0 0 5px;
 }
 
+.field-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 17px;
+  margin: 0 0 5px;
+}
+
+.field-label label {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.info-point {
+  position: relative;
+  display: inline-flex;
+  margin: 0;
+}
+
+.info-point-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  min-width: 16px;
+  height: 16px;
+  min-height: 16px;
+  padding: 0;
+  border-color: #69747d;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.info-point-trigger:hover,
+.info-point-trigger:focus-visible {
+  border-color: var(--focus);
+  color: var(--text);
+  outline: none;
+}
+
+.info-tooltip {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: -4px;
+  z-index: 50;
+  width: 230px;
+  margin: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #111418;
+  box-shadow: var(--shadow);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-3px);
+  transition: opacity 120ms ease, transform 120ms ease;
+  visibility: hidden;
+}
+
+.info-point:hover .info-tooltip,
+.info-point:focus-within .info-tooltip {
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
+}
+
 .app-shell {
   position: relative;
   width: 100vw;
@@ -571,5 +646,10 @@ tr.selected.excluded {
 
   .grid-two {
     grid-template-columns: 1fr;
+  }
+
+  .info-tooltip {
+    right: auto;
+    left: -4px;
   }
 }
