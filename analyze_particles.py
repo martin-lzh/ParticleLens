@@ -431,7 +431,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--sensitivity",
         type=float,
         default=0.88,
-        help="ALT Hough circle threshold from about 0.75 to 0.95. Lower detects more circles; higher reduces false positives.",
+        help="ALT Hough circle threshold from 0.01 to 0.98. Lower detects more circles; higher reduces false positives.",
     )
     parser.add_argument(
         "--contrast",
