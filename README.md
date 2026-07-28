@@ -150,8 +150,8 @@ Build a click-to-run Windows release:
 The build creates:
 
 ```text
-release/ParticleLens-Windows-v0.1.0.zip
-release/ParticleLens-Windows-OneFile-v0.1.0.exe
+release/ParticleLens-Windows-v0.1.1.zip
+release/ParticleLens-Windows-OneFile-v0.1.1.exe
 release/SHA256SUMS.txt
 ```
 

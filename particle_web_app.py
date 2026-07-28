@@ -104,7 +104,7 @@ def local_image_payload(path_text: str) -> dict[str, str]:
 
 
 class ParticleHandler(BaseHTTPRequestHandler):
-    server_version = "ParticleWeb/0.1"
+    server_version = "ParticleLens/0.1.1"
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
