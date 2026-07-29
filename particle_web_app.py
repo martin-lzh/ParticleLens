@@ -1,21 +1,56 @@
 from __future__ import annotations
 
 import argparse
-import base64
 import json
-import mimetypes
 import sys
+from dataclasses import dataclass
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
-from urllib.parse import parse_qs, unquote, urlparse
+from urllib.parse import parse_qs, urlparse
 
 from particle_detection_core import analyze_image_bytes
 
 ROOT = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 STATIC_DIR = ROOT / "static"
 MAX_IMAGE_BYTES = 100 * 1024 * 1024
+
+STATIC_CONTENT_TYPES = {
+    ".css": "text/css; charset=utf-8",
+    ".html": "text/html; charset=utf-8",
+    ".ico": "image/x-icon",
+    ".js": "text/javascript; charset=utf-8",
+    ".json": "application/json; charset=utf-8",
+    ".map": "application/json; charset=utf-8",
+    ".png": "image/png",
+}
+
+
+@dataclass(frozen=True)
+class StaticAsset:
+    content_type: str
+    data: bytes
+
+
+def load_static_assets(directory: Path) -> dict[str, StaticAsset]:
+    """Load trusted application assets before handling any user-controlled paths."""
+    assets: dict[str, StaticAsset] = {}
+    root = directory.resolve()
+    if not root.is_dir():
+        return assets
+
+    for candidate in root.rglob("*"):
+        path = candidate.resolve()
+        if not path.is_file() or not path.is_relative_to(root):
+            continue
+        route = f"/{path.relative_to(root).as_posix()}"
+        content_type = STATIC_CONTENT_TYPES.get(path.suffix.lower(), "application/octet-stream")
+        assets[route] = StaticAsset(content_type=content_type, data=path.read_bytes())
+    return assets
+
+
+STATIC_ASSETS = load_static_assets(STATIC_DIR)
 
 
 def parse_analysis_options(query: str) -> dict[str, Any]:
@@ -36,19 +71,6 @@ def parse_analysis_options(query: str) -> dict[str, Any]:
     }
 
 
-def local_image_payload(path_text: str) -> dict[str, str]:
-    path = Path(unquote(path_text)).expanduser()
-    if not path.exists() or not path.is_file():
-        raise FileNotFoundError(f"Image file not found: {path}")
-
-    mime_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
-    data = base64.b64encode(path.read_bytes()).decode("ascii")
-    return {
-        "name": path.name,
-        "imageData": f"data:{mime_type};base64,{data}",
-    }
-
-
 class ParticleHandler(BaseHTTPRequestHandler):
     server_version = "ParticleLens/0.2.0"
 
@@ -62,26 +84,12 @@ class ParticleHandler(BaseHTTPRequestHandler):
             self.send_json({"detector": "native"})
             return
 
-        if parsed.path == "/api/local-image":
-            try:
-                path = parse_qs(parsed.query).get("path", [""])[0]
-                if not path:
-                    raise ValueError("Missing image path.")
-                self.send_json(local_image_payload(path))
-            except Exception as exc:
-                self.send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
+        route = "/index.html" if parsed.path in ("", "/") else parsed.path
+        asset = STATIC_ASSETS.get(route)
+        if asset is None:
+            self.send_error(HTTPStatus.NOT_FOUND)
             return
-
-        if parsed.path in ("", "/"):
-            self.send_static_file(STATIC_DIR / "index.html")
-            return
-
-        safe_path = parsed.path.lstrip("/").replace("\\", "/")
-        target = (STATIC_DIR / safe_path).resolve()
-        if not target.is_relative_to(STATIC_DIR.resolve()):
-            self.send_error(HTTPStatus.FORBIDDEN)
-            return
-        self.send_static_file(target)
+        self.send_static_asset(asset)
 
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
@@ -103,18 +111,12 @@ class ParticleHandler(BaseHTTPRequestHandler):
 
         self.send_json(response)
 
-    def send_static_file(self, path: Path) -> None:
-        if not path.exists() or not path.is_file():
-            self.send_error(HTTPStatus.NOT_FOUND)
-            return
-
-        content_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
-        data = path.read_bytes()
+    def send_static_asset(self, asset: StaticAsset) -> None:
         self.send_response(HTTPStatus.OK)
-        self.send_header("Content-Type", content_type)
-        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Content-Type", asset.content_type)
+        self.send_header("Content-Length", str(len(asset.data)))
         self.end_headers()
-        self.wfile.write(data)
+        self.wfile.write(asset.data)
 
     def send_json(self, payload: dict[str, Any], status: HTTPStatus = HTTPStatus.OK) -> None:
         data = json.dumps(payload).encode("utf-8")

@@ -188,7 +188,7 @@ test("falls back to the browser detector when native configuration is stale", as
   await expect(page.locator("#runDetect")).toBeDisabled();
 });
 
-test("ignores desktop local-image parameters in the browser app", async ({ page }) => {
+test("removes legacy local-image parameters without requesting local files", async ({ page }) => {
   const dialogs = [];
   const localImageRequests = [];
   page.on("dialog", async (dialog) => {

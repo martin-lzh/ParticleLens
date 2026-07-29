@@ -1567,32 +1567,11 @@ function loadImageData(imageUrl, imageName, imageBytes, revokeUrl = false) {
   state.image.src = imageUrl;
 }
 
-async function loadImageFromQuery() {
+function removeLegacyImageQuery() {
   const pageUrl = new URL(window.location.href);
-  const imagePath = pageUrl.searchParams.get("image");
-  if (!imagePath) return;
-
-  if (!state.detector?.supportsLocalImages) {
-    pageUrl.searchParams.delete("image");
-    window.history.replaceState(window.history.state, "", pageUrl);
-    return;
-  }
-
-  try {
-    setStatus("status.loading");
-    const response = await fetch(`/api/local-image?path=${encodeURIComponent(imagePath)}`);
-    const contentType = response.headers.get("content-type") || "";
-    if (!contentType.includes("application/json")) {
-      throw new Error("The local image service returned an unexpected response.");
-    }
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "Could not load image");
-    const imageBytes = await (await fetch(data.imageData)).arrayBuffer();
-    loadImageData(data.imageData, data.name, imageBytes);
-  } catch (error) {
-    setStatus("status.loadFail");
-    alert(error.message);
-  }
+  if (!pageUrl.searchParams.has("image")) return;
+  pageUrl.searchParams.delete("image");
+  window.history.replaceState(window.history.state, "", pageUrl);
 }
 
 function downloadBlob(filename, blob) {
@@ -2401,8 +2380,8 @@ async function bootstrap() {
   resizeCanvas();
   resizePareto();
   updateZoomReadout();
+  removeLegacyImageQuery();
   await initializeRuntime();
-  await loadImageFromQuery();
 }
 
 bootstrap();
