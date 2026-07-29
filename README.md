@@ -98,6 +98,19 @@ uv run python scripts/benchmark_20mp.py
 CI requires the `python-tests`, `frontend-tests`, `browser-parity`,
 `pages-build`, and `windows-package` checks before release.
 
+Release pull requests from `development` to `main` publish an authenticated
+Cloudflare preview at
+<https://development.particlelens.liuzhaohan.com> after CI and CodeQL pass.
+The `cloudflare-preview` GitHub environment stores the deployment credentials:
+
+- `CLOUDFLARE_API_TOKEN` is an environment secret created from a dedicated
+  Cloudflare token with the **Edit Cloudflare Workers** permission policy.
+- `CLOUDFLARE_ACCOUNT_ID` is an environment variable containing the Cloudflare
+  account ID.
+
+The preview Worker disables both its `workers.dev` route and generated preview
+URLs. Cloudflare Access protects the custom domain.
+
 ## Python CLI and local app
 
 The CLI remains the reference batch workflow:
