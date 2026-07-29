@@ -14,6 +14,7 @@ All notable changes are documented here. Versions follow Semantic Versioning.
 - Service Worker caching, retry, cache repair, and offline reload.
 - Custom domain configuration for `particlelens.liuzhaohan.com`.
 - Browser parity, offline, privacy, 20 MP, Pages, and Windows packaging checks.
+- Per-user Windows installer with Start Menu and uninstall integration.
 - Open-source contribution, conduct, security, ownership, issue, and PR files.
 - Packaged launcher `--self-test`.
 
