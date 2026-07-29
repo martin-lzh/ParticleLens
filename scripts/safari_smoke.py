@@ -34,7 +34,6 @@ def main() -> None:
                 lambda browser: "hidden"
                 in browser.find_element(By.ID, "runtimeLoader").get_attribute("class").split()
             )
-            wait.until(conditions.element_to_be_clickable((By.ID, "runDetect")))
 
             encoded_image = base64.b64encode(image_path.read_bytes()).decode("ascii")
             upload_result = driver.execute_script(
@@ -70,6 +69,7 @@ def main() -> None:
             driver.execute_script(
                 """
                 for (const [id, value] of [
+                  ["micronsPerPixel", "0.625"],
                   ["sensitivity", "0.7"],
                   ["minDiameter", "15"],
                   ["maxDiameter", "80"],
@@ -77,9 +77,11 @@ def main() -> None:
                   const input = document.getElementById(id);
                   input.value = value;
                   input.dispatchEvent(new Event("input", { bubbles: true }));
+                  input.dispatchEvent(new Event("change", { bubbles: true }));
                 }
                 """
             )
+            wait.until(conditions.element_to_be_clickable((By.ID, "runDetect")))
             driver.find_element(By.ID, "runDetect").click()
             wait.until(lambda browser: len(browser.find_elements(By.CSS_SELECTOR, "#particleTable tr")) == 3)
 

@@ -128,6 +128,27 @@ async function uploadAndDetect(page) {
   });
 }
 
+test("falls back to the browser detector when native configuration is stale", async ({ page }) => {
+  await page.route("**/runtime-config.json*", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ detector: "native" }),
+    }),
+  );
+  await page.route("**/api/health", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "text/html",
+      body: "<!doctype html><title>ParticleLens</title>",
+    }),
+  );
+
+  await openReadyApp(page);
+  await expect(page.locator("#runtimeLoader")).toHaveClass(/hidden/);
+  await expect(page.locator("#runDetect")).toBeDisabled();
+});
+
 test("runs detection locally and exports corrected results", async ({ page }) => {
   const requestsAfterUpload = [];
   await openReadyApp(page);
@@ -394,6 +415,11 @@ test("adapts the workspace for mobile and supports touch canvas gestures", async
 
   await page.locator("#leftToggle").click();
   await expect(page.locator("#leftToggle")).toHaveAttribute("aria-expanded", "true");
+  await expect.poll(
+    async () => page.locator("#leftPanel").evaluate(
+      (element) => getComputedStyle(element).transform,
+    ),
+  ).toBe("none");
   const portraitPanelBox = await page.locator("#leftPanel").boundingBox();
   expect(portraitPanelBox.width).toBeLessThanOrEqual(292);
   const scaleFieldBox = await page.locator("#scaleUm").boundingBox();
@@ -481,7 +507,7 @@ test("switches language and restores the app shell offline", async ({ page }) =>
       timeout: 30_000,
     });
     const cacheState = await page.evaluate(async () => {
-      const shell = await caches.open("particlelens-shell-v0.2.1");
+      const shell = await caches.open("particlelens-shell-v0.2.2");
       const runtime = await caches.open("particlelens-runtime-v0.2.0");
       const moduleUrl = document.querySelector("script[type='module']").src;
       return {

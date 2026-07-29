@@ -1760,7 +1760,7 @@ button:disabled {
 }
 
 .app-shell.left-panel-open .scale-legend-overlay:not(.user-positioned) {
-  left: calc(var(--left-drawer-width) + 14px);
+  left: calc(var(--left-drawer-width) + 74px);
 }
 
 .app-shell[data-toolbar-position="right"] .scale-legend-overlay:not(.user-positioned),
@@ -1835,6 +1835,10 @@ button:disabled {
 
 .app-shell.right-panel-open .pareto-overlay:not(.user-positioned) {
   right: calc(var(--right-drawer-width) + 14px);
+}
+
+.app-shell.right-panel-open[data-toolbar-position="right"] .pareto-overlay:not(.user-positioned) {
+  right: calc(var(--right-drawer-width) + 74px);
 }
 
 .app-shell[data-toolbar-position="right"]:not(.right-panel-open) .pareto-overlay:not(.user-positioned) {

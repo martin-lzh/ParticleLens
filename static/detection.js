@@ -1,11 +1,19 @@
 const RUNTIME_CACHE = "particlelens-runtime-v0.2.0";
+const RUNTIME_CONFIG_VERSION = "v2";
 
 async function readRuntimeConfig() {
   try {
-    const response = await fetch(new URL("./runtime-config.json", document.baseURI), {
+    const configUrl = new URL("./runtime-config.json", document.baseURI);
+    configUrl.searchParams.set("config", RUNTIME_CONFIG_VERSION);
+    const response = await fetch(configUrl, {
       cache: "no-store",
     });
-    if (response.ok) return response.json();
+    const contentType = response.headers.get("content-type") || "";
+    if (!response.ok || !contentType.includes("application/json")) {
+      return { detector: "browser" };
+    }
+    const config = await response.json();
+    if (config?.detector === "native" || config?.detector === "browser") return config;
   } catch {
     // Static development defaults to the browser detector.
   }
@@ -49,7 +57,14 @@ class NativeDetector {
   async initialize(onProgress) {
     onProgress({ phase: "native", label: "Connecting to the offline detector" });
     const response = await fetch(new URL("./api/health", document.baseURI));
-    if (!response.ok) throw new Error("The offline detector is unavailable.");
+    const contentType = response.headers.get("content-type") || "";
+    if (!response.ok || !contentType.includes("application/json")) {
+      throw new Error("The offline detector returned an unexpected response.");
+    }
+    const health = await response.json();
+    if (health?.status !== "ok" || health?.detector !== "native") {
+      throw new Error("The offline detector is unavailable.");
+    }
     onProgress({ phase: "ready", label: "Ready" });
   }
 
@@ -61,6 +76,10 @@ class NativeDetector {
       headers: { "Content-Type": "application/octet-stream" },
       body: imageBytes,
     });
+    const contentType = response.headers.get("content-type") || "";
+    if (!contentType.includes("application/json")) {
+      throw new Error("The detector returned an unexpected response. Reload the application and try again.");
+    }
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || "Detection failed.");
     return result;
@@ -125,10 +144,27 @@ class BrowserDetector {
 
 export async function createDetector(onProgress) {
   const config = await readRuntimeConfig();
-  if (config.detector === "browser") await registerServiceWorker();
-  const detector = config.detector === "native" ? new NativeDetector() : new BrowserDetector();
-  await detector.initialize(onProgress);
-  return detector;
+  if (config.detector === "native") {
+    const nativeDetector = new NativeDetector();
+    try {
+      await nativeDetector.initialize(onProgress);
+      return nativeDetector;
+    } catch (nativeError) {
+      const browserDetector = new BrowserDetector();
+      try {
+        await registerServiceWorker();
+        await browserDetector.initialize(onProgress);
+        return browserDetector;
+      } catch {
+        browserDetector.close();
+        throw nativeError;
+      }
+    }
+  }
+  await registerServiceWorker();
+  const browserDetector = new BrowserDetector();
+  await browserDetector.initialize(onProgress);
+  return browserDetector;
 }
 
 export async function clearRuntimeCache() {
@@ -144,7 +180,8 @@ export async function cacheApplicationShell() {
       const parsed = new URL(url);
       return (
         parsed.origin === window.location.origin &&
-        !parsed.pathname.includes("/runtime/")
+        !parsed.pathname.includes("/runtime/") &&
+        !parsed.pathname.endsWith("/runtime-config.json")
       );
     });
   resources.push(window.location.href, new URL("./", document.baseURI).href);
