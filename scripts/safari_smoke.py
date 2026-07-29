@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import tempfile
 from pathlib import Path
 
@@ -35,7 +36,33 @@ def main() -> None:
             )
             wait.until(conditions.element_to_be_clickable((By.ID, "runDetect")))
 
-            driver.find_element(By.ID, "imageInput").send_keys(str(image_path))
+            encoded_image = base64.b64encode(image_path.read_bytes()).decode("ascii")
+            upload_result = driver.execute_script(
+                """
+                const encoded = arguments[0];
+                const fileName = arguments[1];
+                try {
+                  const binary = atob(encoded);
+                  const bytes = new Uint8Array(binary.length);
+                  for (let index = 0; index < binary.length; index += 1) {
+                    bytes[index] = binary.charCodeAt(index);
+                  }
+                  const file = new File([bytes], fileName, { type: "image/png" });
+                  const transfer = new DataTransfer();
+                  transfer.items.add(file);
+                  const input = document.getElementById("imageInput");
+                  input.files = transfer.files;
+                  input.dispatchEvent(new Event("change", { bubbles: true }));
+                  return { ok: true, fileCount: input.files.length };
+                } catch (error) {
+                  return { ok: false, error: String(error) };
+                }
+                """,
+                encoded_image,
+                image_path.name,
+            )
+            if upload_result != {"ok": True, "fileCount": 1}:
+                raise RuntimeError(f"Safari file injection failed: {upload_result}")
             wait.until(
                 lambda browser: browser.find_element(By.ID, "imageName").text == image_path.name
             )
