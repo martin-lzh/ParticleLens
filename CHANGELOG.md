@@ -4,6 +4,13 @@ All notable changes are documented here. Versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-07-29
+
+### Fixed
+
+- Kept the scale-length and length-per-pixel inputs vertically aligned when
+  the English length-per-pixel label wraps onto two lines.
+
 ## [0.2.0] - 2026-07-29
 
 ### Added
@@ -31,5 +38,6 @@ Validation uses deterministic synthetic images and clearly licensed public
 samples. It does not yet include private research images or claim coverage of
 every scientific imaging workflow.
 
-[Unreleased]: https://github.com/martin-lzh/ParticleLens/compare/v0.2.0...development
+[Unreleased]: https://github.com/martin-lzh/ParticleLens/compare/v0.2.1...development
+[0.2.1]: https://github.com/martin-lzh/ParticleLens/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/martin-lzh/ParticleLens/compare/v0.1.1...v0.2.0

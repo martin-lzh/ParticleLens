@@ -42,7 +42,7 @@ def test_health_and_runtime_config(server_url: str) -> None:
     with urllib.request.urlopen(f"{server_url}/api/health") as response:
         assert json.load(response) == {
             "status": "ok",
-            "version": "0.2.0",
+            "version": "0.2.1",
             "detector": "native",
         }
     with urllib.request.urlopen(f"{server_url}/runtime-config.json") as response:

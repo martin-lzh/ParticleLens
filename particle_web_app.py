@@ -72,12 +72,12 @@ def parse_analysis_options(query: str) -> dict[str, Any]:
 
 
 class ParticleHandler(BaseHTTPRequestHandler):
-    server_version = "ParticleLens/0.2.0"
+    server_version = "ParticleLens/0.2.1"
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
         if parsed.path == "/api/health":
-            self.send_json({"status": "ok", "version": "0.2.0", "detector": "native"})
+            self.send_json({"status": "ok", "version": "0.2.1", "detector": "native"})
             return
 
         if parsed.path == "/runtime-config.json":

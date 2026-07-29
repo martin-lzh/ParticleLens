@@ -832,6 +832,10 @@ body.panel-resizing * {
   margin-bottom: 10px;
 }
 
+html[lang="en"] .calibration-field-label {
+  min-height: 34px;
+}
+
 .direct-scale-field .field-label {
   justify-content: flex-start;
 }
@@ -2605,6 +2609,10 @@ button:disabled {
 @container detection-sidebar (max-width: 319px) {
   .left-panel .grid-two {
     grid-template-columns: 1fr;
+  }
+
+  html[lang="en"] .calibration-field-label {
+    min-height: 17px;
   }
 
   .left-panel .panel-heading {

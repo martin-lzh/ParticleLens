@@ -1,4 +1,4 @@
-const RUNTIME_CACHE = "particlelens-runtime-v0.2.0";
+const RUNTIME_CACHE = "particlelens-runtime-v0.2.1";
 const RUNTIME_CONFIG_VERSION = "v2";
 
 async function readRuntimeConfig() {

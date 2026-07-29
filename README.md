@@ -142,9 +142,9 @@ The Windows build also requires
 This creates:
 
 ```text
-release/ParticleLens-Windows-Setup-v0.2.0.exe
-release/ParticleLens-Windows-v0.2.0.zip
-release/ParticleLens-Windows-OneFile-v0.2.0.exe
+release/ParticleLens-Windows-Setup-v0.2.1.exe
+release/ParticleLens-Windows-v0.2.1.zip
+release/ParticleLens-Windows-OneFile-v0.2.1.exe
 release/SHA256SUMS.txt
 ```
 
