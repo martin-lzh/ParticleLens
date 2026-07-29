@@ -223,6 +223,18 @@ test("keeps information tooltips inside narrow viewports", async ({ page }) => {
   }
 });
 
+test("aligns the calibration inputs when the length-per-pixel label wraps", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openReadyApp(page);
+
+  const scaleInput = await page.locator("#scaleUm").boundingBox();
+  const directScaleInput = await page.locator("#micronsPerPixel").boundingBox();
+
+  expect(scaleInput).not.toBeNull();
+  expect(directScaleInput).not.toBeNull();
+  expect(Math.abs(scaleInput.y - directScaleInput.y)).toBeLessThan(1);
+});
+
 test("removes legacy local-image parameters without requesting local files", async ({ page }) => {
   const dialogs = [];
   const localImageRequests = [];
