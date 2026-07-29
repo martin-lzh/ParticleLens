@@ -951,8 +951,8 @@ test("switches language and restores the app shell offline", async ({ page }) =>
       timeout: 30_000,
     });
     const cacheState = await page.evaluate(async () => {
-      const shell = await caches.open("particlelens-shell-v0.2.6");
-      const runtime = await caches.open("particlelens-runtime-v0.2.2");
+      const shell = await caches.open("particlelens-shell-v0.2.7");
+      const runtime = await caches.open("particlelens-runtime-v0.2.3");
       const moduleUrl = document.querySelector("script[type='module']").src;
       return {
         shellModule: Boolean(await shell.match(moduleUrl)),
@@ -986,9 +986,16 @@ test("repairs a failed runtime download on retry", async ({ page }, testInfo) =>
   test.skip(testInfo.project.name !== "chromium", "The recovery path is engine-independent.");
   await openReadyApp(page);
   await page.evaluate(async () => {
-    const cache = await caches.open("particlelens-runtime-v0.2.2");
+    const cache = await caches.open("particlelens-runtime-v0.2.3");
+    const manifest = await (await fetch(
+      new URL("./runtime/runtime-manifest.json?revision=v0.2.3", document.baseURI),
+    )).json();
+    const core = manifest.assets.find((asset) => asset.file === "particle_detection_core.py");
     await cache.put(
-      new URL("./runtime/particle_detection_core.py", document.baseURI),
+      new URL(
+        `./runtime/particle_detection_core.py?sha256=${core.sha256}`,
+        document.baseURI,
+      ),
       new Response("corrupt", { headers: { "Content-Type": "text/x-python" } }),
     );
   });

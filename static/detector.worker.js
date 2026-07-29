@@ -1,4 +1,6 @@
-const RUNTIME_CACHE = "particlelens-runtime-v0.2.2";
+const RUNTIME_CACHE = "particlelens-runtime-v0.2.3";
+const RUNTIME_REVISION = "v0.2.3";
+const RUNTIME_API_VERSION = 2;
 
 let pyodide = null;
 let readyPromise = null;
@@ -62,6 +64,7 @@ async function readAndVerify(response, asset, completedBytes, totalBytes) {
 async function prefetchRuntime(baseUrl) {
   const cache = await caches.open(RUNTIME_CACHE);
   const manifestUrl = new URL("runtime-manifest.json", baseUrl);
+  manifestUrl.searchParams.set("revision", RUNTIME_REVISION);
   let manifestResponse = await cache.match(manifestUrl);
   if (!manifestResponse) {
     manifestResponse = await fetch(manifestUrl, { cache: "no-store" });
@@ -71,10 +74,18 @@ async function prefetchRuntime(baseUrl) {
     await cache.put(manifestUrl, manifestResponse.clone());
   }
   const manifest = await manifestResponse.json();
+  if (manifest.runtimeApiVersion !== RUNTIME_API_VERSION) {
+    await cache.delete(manifestUrl);
+    throw new Error(
+      `Runtime API mismatch (expected ${RUNTIME_API_VERSION}, received ${manifest.runtimeApiVersion ?? "unknown"}).`,
+    );
+  }
   let completedBytes = 0;
 
   for (const asset of manifest.assets) {
-    const url = new URL(asset.file, baseUrl);
+    const canonicalUrl = new URL(asset.file, baseUrl);
+    const url = new URL(canonicalUrl);
+    url.searchParams.set("sha256", asset.sha256);
     let response = await cache.match(url);
     let buffer;
     if (response) {
@@ -113,25 +124,41 @@ async function prefetchRuntime(baseUrl) {
 }
 
 async function cachedText(url) {
-  const response = await caches.match(url);
+  const cache = await caches.open(RUNTIME_CACHE);
+  const response = await cache.match(url);
   if (!response) throw new Error(`Verified runtime asset is missing from cache: ${url}`);
   return response.text();
 }
 
-function installCacheFirstFetch() {
+async function installCacheFirstFetch(baseUrl, manifest) {
+  const cache = await caches.open(RUNTIME_CACHE);
+  const verifiedAssets = new Map(
+    manifest.assets.map((asset) => [
+      new URL(asset.file, baseUrl).href,
+      runtimeAssetUrl(baseUrl, manifest, asset.file),
+    ]),
+  );
   const networkFetch = globalThis.fetch.bind(globalThis);
   globalThis.fetch = async (input, init) => {
     const request = new Request(input, init);
     if (request.method === "GET") {
-      const cached = await caches.match(request);
+      const cached = await cache.match(verifiedAssets.get(request.url) || request);
       if (cached) return cached;
     }
     return networkFetch(request);
   };
 }
 
-async function importCachedPyodide(baseUrl) {
-  const moduleSource = await cachedText(new URL("pyodide.mjs", baseUrl));
+function runtimeAssetUrl(baseUrl, manifest, file) {
+  const asset = manifest.assets.find((candidate) => candidate.file === file);
+  if (!asset) throw new Error(`Runtime manifest is missing ${file}.`);
+  const url = new URL(file, baseUrl);
+  url.searchParams.set("sha256", asset.sha256);
+  return url;
+}
+
+async function importCachedPyodide(baseUrl, manifest) {
+  const moduleSource = await cachedText(runtimeAssetUrl(baseUrl, manifest, "pyodide.mjs"));
   const moduleUrl = URL.createObjectURL(new Blob([moduleSource], { type: "text/javascript" }));
   try {
     return await import(moduleUrl);
@@ -140,27 +167,29 @@ async function importCachedPyodide(baseUrl) {
   }
 }
 
-async function preloadCachedPyodideModule(baseUrl) {
-  const asmSource = await cachedText(new URL("pyodide.asm.js", baseUrl));
+async function preloadCachedPyodideModule(baseUrl, manifest) {
+  const asmSource = await cachedText(runtimeAssetUrl(baseUrl, manifest, "pyodide.asm.js"));
   globalThis._createPyodideModule = new Function(
     `${asmSource}\nreturn _createPyodideModule;`,
   )();
 }
 
 async function initialize(baseUrl) {
-  await prefetchRuntime(baseUrl);
-  installCacheFirstFetch();
+  const manifest = await prefetchRuntime(baseUrl);
+  await installCacheFirstFetch(baseUrl, manifest);
 
   sendProgress({ phase: "initialize-python" });
-  await preloadCachedPyodideModule(baseUrl);
-  const pyodideModule = await importCachedPyodide(baseUrl);
+  await preloadCachedPyodideModule(baseUrl, manifest);
+  const pyodideModule = await importCachedPyodide(baseUrl, manifest);
   pyodide = await pyodideModule.loadPyodide({ indexURL: baseUrl });
 
   sendProgress({ phase: "initialize-opencv" });
   await pyodide.loadPackage(["numpy", "opencv-python"]);
 
   sendProgress({ phase: "initialize-detector" });
-  const coreResponse = await fetch(new URL("particle_detection_core.py", baseUrl));
+  const coreResponse = await fetch(
+    runtimeAssetUrl(baseUrl, manifest, "particle_detection_core.py"),
+  );
   if (!coreResponse.ok) throw new Error("The shared detector module could not be loaded.");
   pyodide.FS.mkdirTree("/home/pyodide");
   pyodide.FS.writeFile("/home/pyodide/particle_detection_core.py", await coreResponse.text(), {

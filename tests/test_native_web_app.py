@@ -151,5 +151,20 @@ def test_service_worker_fetches_navigation_before_offline_fallback() -> None:
     navigation_branch = service_worker.index('event.request.mode === "navigate"')
     cache_first_branch = service_worker.rindex("const cached = await cache.match(event.request)")
     assert navigation_branch < cache_first_branch
-    assert 'const SHELL_CACHE = "particlelens-shell-v0.2.6"' in service_worker
+    assert 'const SHELL_CACHE = "particlelens-shell-v0.2.7"' in service_worker
+    assert 'const RUNTIME_CACHE = "particlelens-runtime-v0.2.3"' in service_worker
     assert 'url.pathname.endsWith("/runtime-config.json")' in service_worker
+    assert 'url.pathname.endsWith("/runtime-manifest.json")' in service_worker
+
+
+def test_browser_runtime_uses_versioned_manifest_and_content_addressed_assets() -> None:
+    worker = (PROJECT_ROOT / "static" / "detector.worker.js").read_text(encoding="utf-8")
+    runtime_builder = (PROJECT_ROOT / "scripts" / "prepare_web_runtime.mjs").read_text(
+        encoding="utf-8",
+    )
+
+    assert 'const RUNTIME_REVISION = "v0.2.3"' in worker
+    assert 'manifestUrl.searchParams.set("revision", RUNTIME_REVISION)' in worker
+    assert 'url.searchParams.set("sha256", asset.sha256)' in worker
+    assert "manifest.runtimeApiVersion !== RUNTIME_API_VERSION" in worker
+    assert "runtimeApiVersion: 2" in runtime_builder

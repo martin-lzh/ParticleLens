@@ -19,6 +19,9 @@ All notable changes are documented here. Versions follow Semantic Versioning.
   intermediate frames while the user continues dragging a control.
 - Original-image comparison is now a press-and-hold action in the canvas tool
   rail; releasing it always restores the processed preview.
+- Browser runtime upgrades now use a versioned manifest and content-addressed
+  assets so an older service worker cannot mix a stale Python core with the
+  current preview worker.
 
 ## [0.2.1] - 2026-07-29
 
