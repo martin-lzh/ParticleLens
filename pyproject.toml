@@ -13,7 +13,7 @@ keywords = [
     "particle-size-distribution",
 ]
 dependencies = [
-    "matplotlib>=3.9",
+    "matplotlib>=3.11.1",
     "numpy==2.2.5",
     "opencv-python==4.11.0.86",
     "pandas>=2.2",
