@@ -110,6 +110,21 @@
         <span id="hintText" data-i18n="hint.initial">Choose an image to detect particles automatically or add circles manually.</span>
 
         <div class="topbar-actions">
+          <button
+            id="actionManualTrigger"
+            class="nav-button nav-icon-button action-manual-trigger"
+            type="button"
+            aria-controls="actionManualDialog"
+            aria-haspopup="dialog"
+            aria-label="Mouse and touch controls"
+            title="Mouse and touch controls"
+            data-i18n-aria="manual.open"
+            data-i18n-title="manual.open"
+          >
+            <i data-lucide="circle-help" aria-hidden="true"></i>
+            <span class="sr-only" data-i18n="manual.open">Mouse and touch controls</span>
+          </button>
+
           <button id="languageToggle" class="language-toggle" type="button" aria-label="Switch to Chinese" title="Switch to Chinese" data-i18n-aria="nav.languageToggle" data-i18n-title="nav.languageToggle">
             <svg aria-hidden="true" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="10"></circle>
@@ -444,6 +459,168 @@
           <button id="replaceContinue" class="danger-confirm" value="replace" type="button" data-i18n="replace.continue">Replace image</button>
         </div>
       </form>
+    </dialog>
+
+    <dialog id="actionManualDialog" class="action-manual-dialog" aria-labelledby="actionManualTitle">
+      <div class="action-manual-shell">
+        <header class="action-manual-header">
+          <span class="manual-dialog-icon"><i data-lucide="circle-help" aria-hidden="true"></i></span>
+          <div>
+            <h2 id="actionManualTitle" data-i18n="manual.title">Canvas controls</h2>
+            <p data-i18n="manual.subtitle">Select an input method to see how to inspect and correct particles.</p>
+          </div>
+          <button
+            id="actionManualClose"
+            class="manual-close"
+            type="button"
+            aria-label="Close controls"
+            title="Close controls"
+            data-i18n-aria="manual.close"
+            data-i18n-title="manual.close"
+          >
+            <i data-lucide="x" aria-hidden="true"></i>
+          </button>
+        </header>
+
+        <div class="manual-tabs" role="tablist" aria-label="Input method" data-i18n-aria="manual.tabsAria">
+          <button
+            id="mouseManualTab"
+            class="manual-tab active"
+            type="button"
+            role="tab"
+            aria-selected="true"
+            aria-controls="mouseManualPanel"
+            tabindex="0"
+            data-manual-tab="mouse"
+          >
+            <i data-lucide="mouse-pointer-2" aria-hidden="true"></i>
+            <span data-i18n="manual.mouseTab">Mouse</span>
+          </button>
+          <button
+            id="touchManualTab"
+            class="manual-tab"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="touchManualPanel"
+            tabindex="-1"
+            data-manual-tab="touch"
+          >
+            <i data-lucide="hand" aria-hidden="true"></i>
+            <span data-i18n="manual.touchTab">Touch</span>
+          </button>
+        </div>
+
+        <div class="manual-panels">
+          <section
+            id="mouseManualPanel"
+            class="manual-panel active"
+            role="tabpanel"
+            aria-labelledby="mouseManualTab"
+            data-manual-panel="mouse"
+          >
+            <ul class="manual-action-list">
+              <li>
+                <span class="manual-action-icon"><i data-lucide="mouse-pointer-2" aria-hidden="true"></i></span>
+                <div>
+                  <h3 data-i18n="manual.mouse.selectTitle">Select particles</h3>
+                  <p data-i18n="manual.mouse.selectBody">Left-click a circle. Shift-click to add or remove circles from the selection.</p>
+                </div>
+              </li>
+              <li>
+                <span class="manual-action-icon"><i data-lucide="move" aria-hidden="true"></i></span>
+                <div>
+                  <h3 data-i18n="manual.mouse.moveTitle">Move particles</h3>
+                  <p data-i18n="manual.mouse.moveBody">Left-drag a selected circle to move the entire selection.</p>
+                </div>
+              </li>
+              <li>
+                <span class="manual-action-icon"><i data-lucide="hand" aria-hidden="true"></i></span>
+                <div>
+                  <h3 data-i18n="manual.mouse.panTitle">Pan the image</h3>
+                  <p data-i18n="manual.mouse.panBody">Middle-drag anywhere, or choose the Hand tool and left-drag.</p>
+                </div>
+              </li>
+              <li>
+                <span class="manual-action-icon"><i data-lucide="circle-plus" aria-hidden="true"></i></span>
+                <div>
+                  <h3 data-i18n="manual.mouse.drawTitle">Add a particle</h3>
+                  <p data-i18n="manual.mouse.drawBody">Right-drag across a particle’s diameter, or use the Draw Circle tool and left-drag.</p>
+                </div>
+              </li>
+              <li>
+                <span class="manual-action-icon"><i data-lucide="zoom-in" aria-hidden="true"></i></span>
+                <div>
+                  <h3 data-i18n="manual.mouse.zoomTitle">Zoom</h3>
+                  <p data-i18n="manual.mouse.zoomBody">Scroll the wheel to zoom toward or away from the pointer.</p>
+                </div>
+              </li>
+              <li>
+                <span class="manual-action-icon"><i data-lucide="ruler" aria-hidden="true"></i></span>
+                <div>
+                  <h3 data-i18n="manual.mouse.scaleTitle">Set the scale</h3>
+                  <p data-i18n="manual.mouse.scaleBody">Choose the Scale tool, then left-drag along the image’s scale bar.</p>
+                </div>
+              </li>
+            </ul>
+            <p class="manual-shortcuts" data-i18n="manual.mouse.shortcuts">Shortcuts: V Select · H Hand · C Draw · R Scale · F Fit view · Delete Remove selected</p>
+          </section>
+
+          <section
+            id="touchManualPanel"
+            class="manual-panel"
+            role="tabpanel"
+            aria-labelledby="touchManualTab"
+            data-manual-panel="touch"
+            hidden
+          >
+            <ul class="manual-action-list">
+              <li>
+                <span class="manual-action-icon"><i data-lucide="mouse-pointer-2" aria-hidden="true"></i></span>
+                <div>
+                  <h3 data-i18n="manual.touch.selectTitle">Select a particle</h3>
+                  <p data-i18n="manual.touch.selectBody">Tap a circle to select it. Tap empty image space to clear the selection.</p>
+                </div>
+              </li>
+              <li>
+                <span class="manual-action-icon"><i data-lucide="move" aria-hidden="true"></i></span>
+                <div>
+                  <h3 data-i18n="manual.touch.moveTitle">Move a particle</h3>
+                  <p data-i18n="manual.touch.moveBody">Drag a selected circle to reposition it.</p>
+                </div>
+              </li>
+              <li>
+                <span class="manual-action-icon"><i data-lucide="hand" aria-hidden="true"></i></span>
+                <div>
+                  <h3 data-i18n="manual.touch.panTitle">Pan the image</h3>
+                  <p data-i18n="manual.touch.panBody">Drag empty image space, or choose the Hand tool and drag anywhere.</p>
+                </div>
+              </li>
+              <li>
+                <span class="manual-action-icon"><i data-lucide="circle-plus" aria-hidden="true"></i></span>
+                <div>
+                  <h3 data-i18n="manual.touch.drawTitle">Add a particle</h3>
+                  <p data-i18n="manual.touch.drawBody">Choose the Draw Circle tool, then drag from one edge of the particle to the other.</p>
+                </div>
+              </li>
+              <li>
+                <span class="manual-action-icon"><i data-lucide="zoom-in" aria-hidden="true"></i></span>
+                <div>
+                  <h3 data-i18n="manual.touch.zoomTitle">Zoom and pan</h3>
+                  <p data-i18n="manual.touch.zoomBody">Pinch with two fingers to zoom; move both fingers together to pan.</p>
+                </div>
+              </li>
+              <li>
+                <span class="manual-action-icon"><i data-lucide="ruler" aria-hidden="true"></i></span>
+                <div>
+                  <h3 data-i18n="manual.touch.scaleTitle">Set the scale</h3>
+                  <p data-i18n="manual.touch.scaleBody">Choose the Scale tool, then drag along the image’s scale bar.</p>
+                </div>
+              </li>
+            </ul>
+          </section>
+        </div>
+      </div>
     </dialog>
 
     <script type="module" src="./app.js"></script>

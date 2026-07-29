@@ -1,6 +1,7 @@
 import { cacheApplicationShell, clearRuntimeCache, createDetector } from "./detection.js";
 import {
   BarChart3,
+  CircleHelp,
   CirclePlus,
   createIcons,
   Download,
@@ -188,6 +189,11 @@ const els = {
   replaceImageDialog: document.getElementById("replaceImageDialog"),
   replaceExport: document.getElementById("replaceExport"),
   replaceContinue: document.getElementById("replaceContinue"),
+  actionManualTrigger: document.getElementById("actionManualTrigger"),
+  actionManualDialog: document.getElementById("actionManualDialog"),
+  actionManualClose: document.getElementById("actionManualClose"),
+  actionManualTabs: Array.from(document.querySelectorAll("[data-manual-tab]")),
+  actionManualPanels: Array.from(document.querySelectorAll("[data-manual-panel]")),
   languageToggle: document.getElementById("languageToggle"),
   languageToggleText: document.getElementById("languageToggleText"),
   runtimeLoader: document.getElementById("runtimeLoader"),
@@ -233,6 +239,38 @@ const messages = {
     "nav.resizeDataPanel": "调整分析与导出面板宽度",
     "nav.languageToggle": "切换到 English",
     "language.target": "EN",
+    "manual.open": "鼠标与触控操作说明",
+    "manual.close": "关闭操作说明",
+    "manual.title": "画布操作说明",
+    "manual.subtitle": "选择输入方式，查看如何检查和校正颗粒。",
+    "manual.tabsAria": "输入方式",
+    "manual.mouseTab": "鼠标",
+    "manual.touchTab": "触控",
+    "manual.mouse.selectTitle": "选择颗粒",
+    "manual.mouse.selectBody": "左键单击圆圈。按住 Shift 单击可添加或移除多选中的圆圈。",
+    "manual.mouse.moveTitle": "移动颗粒",
+    "manual.mouse.moveBody": "按住左键拖动选中的圆圈，可移动整个选择。",
+    "manual.mouse.panTitle": "平移图像",
+    "manual.mouse.panBody": "按住鼠标中键拖动任意位置，或选择抓手工具后按住左键拖动。",
+    "manual.mouse.drawTitle": "添加颗粒",
+    "manual.mouse.drawBody": "按住右键沿颗粒直径拖动，或选择画圆工具后按住左键拖动。",
+    "manual.mouse.zoomTitle": "缩放",
+    "manual.mouse.zoomBody": "滚动滚轮，以指针所在位置为中心放大或缩小。",
+    "manual.mouse.scaleTitle": "设置比例",
+    "manual.mouse.scaleBody": "选择比例尺工具，然后沿图中的比例尺按住左键拖动。",
+    "manual.mouse.shortcuts": "快捷键：V 选择 · H 抓手 · C 画圆 · R 比例尺 · F 适配视图 · Delete 删除选中",
+    "manual.touch.selectTitle": "选择颗粒",
+    "manual.touch.selectBody": "点按圆圈进行选择。点按图像空白处可清除选择。",
+    "manual.touch.moveTitle": "移动颗粒",
+    "manual.touch.moveBody": "拖动选中的圆圈以调整位置。",
+    "manual.touch.panTitle": "平移图像",
+    "manual.touch.panBody": "拖动图像空白处，或选择抓手工具后在任意位置拖动。",
+    "manual.touch.drawTitle": "添加颗粒",
+    "manual.touch.drawBody": "选择画圆工具，然后从颗粒的一侧拖到另一侧。",
+    "manual.touch.zoomTitle": "缩放与平移",
+    "manual.touch.zoomBody": "双指捏合缩放；两指同时移动可平移。",
+    "manual.touch.scaleTitle": "设置比例",
+    "manual.touch.scaleBody": "选择比例尺工具，然后沿图中的比例尺拖动。",
     "image.none": "未选择图片",
     "scale.unset": "比例尺未设置",
     "scale.sourceDirect": "直接输入",
@@ -384,6 +422,38 @@ const messages = {
     "nav.resizeDataPanel": "Resize analysis and export panel",
     "nav.languageToggle": "Switch to Chinese",
     "language.target": "中文",
+    "manual.open": "Mouse and touch controls",
+    "manual.close": "Close controls",
+    "manual.title": "Canvas controls",
+    "manual.subtitle": "Select an input method to see how to inspect and correct particles.",
+    "manual.tabsAria": "Input method",
+    "manual.mouseTab": "Mouse",
+    "manual.touchTab": "Touch",
+    "manual.mouse.selectTitle": "Select particles",
+    "manual.mouse.selectBody": "Left-click a circle. Shift-click to add or remove circles from the selection.",
+    "manual.mouse.moveTitle": "Move particles",
+    "manual.mouse.moveBody": "Left-drag a selected circle to move the entire selection.",
+    "manual.mouse.panTitle": "Pan the image",
+    "manual.mouse.panBody": "Middle-drag anywhere, or choose the Hand tool and left-drag.",
+    "manual.mouse.drawTitle": "Add a particle",
+    "manual.mouse.drawBody": "Right-drag across a particle’s diameter, or use the Draw Circle tool and left-drag.",
+    "manual.mouse.zoomTitle": "Zoom",
+    "manual.mouse.zoomBody": "Scroll the wheel to zoom toward or away from the pointer.",
+    "manual.mouse.scaleTitle": "Set the scale",
+    "manual.mouse.scaleBody": "Choose the Scale tool, then left-drag along the image’s scale bar.",
+    "manual.mouse.shortcuts": "Shortcuts: V Select · H Hand · C Draw · R Scale · F Fit view · Delete Remove selected",
+    "manual.touch.selectTitle": "Select a particle",
+    "manual.touch.selectBody": "Tap a circle to select it. Tap empty image space to clear the selection.",
+    "manual.touch.moveTitle": "Move a particle",
+    "manual.touch.moveBody": "Drag a selected circle to reposition it.",
+    "manual.touch.panTitle": "Pan the image",
+    "manual.touch.panBody": "Drag empty image space, or choose the Hand tool and drag anywhere.",
+    "manual.touch.drawTitle": "Add a particle",
+    "manual.touch.drawBody": "Choose the Draw Circle tool, then drag from one edge of the particle to the other.",
+    "manual.touch.zoomTitle": "Zoom and pan",
+    "manual.touch.zoomBody": "Pinch with two fingers to zoom; move both fingers together to pan.",
+    "manual.touch.scaleTitle": "Set the scale",
+    "manual.touch.scaleBody": "Choose the Scale tool, then drag along the image’s scale bar.",
     "image.none": "No image selected",
     "scale.unset": "Scale not set",
     "scale.sourceDirect": "Direct input",
@@ -547,6 +617,35 @@ function setLanguage(lang) {
 
 function toggleLanguage() {
   setLanguage(state.lang === "zh" ? "en" : "zh");
+}
+
+function setActionManualTab(name, { focus = false } = {}) {
+  const nextTab = els.actionManualTabs.find((tab) => tab.dataset.manualTab === name);
+  if (!nextTab) return;
+
+  for (const tab of els.actionManualTabs) {
+    const active = tab === nextTab;
+    tab.classList.toggle("active", active);
+    tab.setAttribute("aria-selected", String(active));
+    tab.tabIndex = active ? 0 : -1;
+  }
+  for (const panel of els.actionManualPanels) {
+    const active = panel.dataset.manualPanel === name;
+    panel.classList.toggle("active", active);
+    panel.hidden = !active;
+  }
+  if (focus) nextTab.focus();
+}
+
+function openActionManual() {
+  if (els.actionManualDialog.open) return;
+  els.actionManualDialog.showModal();
+  const activeTab = els.actionManualTabs.find((tab) => tab.getAttribute("aria-selected") === "true");
+  activeTab?.focus();
+}
+
+function closeActionManual() {
+  if (els.actionManualDialog.open) els.actionManualDialog.close();
 }
 
 function fitTransform() {
@@ -1849,6 +1948,29 @@ document.addEventListener("pointerdown", (event) => {
     setToolbarPositionMenu(false);
   }
 });
+els.actionManualTrigger.addEventListener("click", openActionManual);
+els.actionManualClose.addEventListener("click", closeActionManual);
+for (const tab of els.actionManualTabs) {
+  tab.addEventListener("click", () => setActionManualTab(tab.dataset.manualTab));
+}
+els.actionManualDialog.addEventListener("click", (event) => {
+  if (event.target === els.actionManualDialog) closeActionManual();
+});
+els.actionManualDialog.addEventListener("keydown", (event) => {
+  if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+  const currentIndex = els.actionManualTabs.indexOf(document.activeElement);
+  if (currentIndex < 0) return;
+  event.preventDefault();
+  let nextIndex;
+  if (event.key === "Home") nextIndex = 0;
+  else if (event.key === "End") nextIndex = els.actionManualTabs.length - 1;
+  else {
+    const direction = event.key === "ArrowRight" ? 1 : -1;
+    nextIndex = (currentIndex + direction + els.actionManualTabs.length)
+      % els.actionManualTabs.length;
+  }
+  setActionManualTab(els.actionManualTabs[nextIndex].dataset.manualTab, { focus: true });
+});
 els.languageToggle.addEventListener("click", toggleLanguage);
 els.leftToggle.addEventListener("click", () => {
   state.ui.leftCollapsed = !state.ui.leftCollapsed;
@@ -2215,6 +2337,7 @@ els.canvas.addEventListener("wheel", (event) => {
 
 window.addEventListener("keydown", (event) => {
   if (isEditableTarget(event.target)) return;
+  if (els.actionManualDialog.open) return;
 
   if (!event.altKey && !event.ctrlKey && !event.metaKey) {
     const key = event.key.toLowerCase();
@@ -2346,6 +2469,7 @@ async function bootstrap() {
   createIcons({
     icons: {
       BarChart3,
+      CircleHelp,
       CirclePlus,
       Download,
       FileSpreadsheet,

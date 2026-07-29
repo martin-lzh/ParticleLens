@@ -590,6 +590,23 @@ label span,
   margin-left: 0;
 }
 
+.action-manual-trigger {
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+}
+
+.action-manual-trigger svg {
+  color: var(--muted);
+}
+
+.action-manual-trigger:hover svg,
+.action-manual-trigger:focus-visible svg {
+  color: var(--text);
+}
+
 .left-panel,
 .right-panel {
   position: absolute;
@@ -995,7 +1012,7 @@ tr.selected.excluded {
 
   .topbar {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-columns: auto minmax(0, 1fr) auto auto auto;
     grid-template-rows: 48px 48px;
     gap: 0 7px;
     padding: calc(8px + var(--safe-top)) calc(8px + var(--safe-right)) 8px calc(8px + var(--safe-left));
@@ -1012,13 +1029,18 @@ tr.selected.excluded {
     min-width: 0;
   }
 
-  .language-toggle {
+  #actionManualTrigger {
     grid-column: 3;
     grid-row: 1;
   }
 
-  #rightToggle {
+  .language-toggle {
     grid-column: 4;
+    grid-row: 1;
+  }
+
+  #rightToggle {
+    grid-column: 5;
     grid-row: 1;
   }
 
@@ -1178,7 +1200,7 @@ tr.selected.excluded {
 
   .topbar {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-columns: auto minmax(0, 1fr) auto auto auto;
     grid-template-rows: 1fr;
     padding-block: calc(6px + var(--safe-top)) 6px;
   }
@@ -1197,6 +1219,7 @@ tr.selected.excluded {
 
   #leftToggle,
   .nav-brand,
+  #actionManualTrigger,
   .language-toggle,
   #rightToggle {
     grid-row: 1;
@@ -1211,12 +1234,16 @@ tr.selected.excluded {
     min-width: 0;
   }
 
-  .language-toggle {
+  #actionManualTrigger {
     grid-column: 3;
   }
 
-  #rightToggle {
+  .language-toggle {
     grid-column: 4;
+  }
+
+  #rightToggle {
+    grid-column: 5;
   }
 
   .nav-divider,
@@ -1976,6 +2003,206 @@ button:disabled {
   color: var(--text);
 }
 
+.action-manual-dialog {
+  width: min(760px, calc(100vw - 28px));
+  max-height: min(760px, calc(100dvh - 28px));
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #3a4148;
+  border-radius: 14px;
+  background: #171a1e;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.58);
+  color: var(--text);
+}
+
+.action-manual-dialog::backdrop {
+  background: rgba(4, 5, 6, 0.72);
+  backdrop-filter: blur(3px);
+}
+
+.action-manual-shell {
+  display: flex;
+  flex-direction: column;
+  max-height: min(760px, calc(100dvh - 28px));
+}
+
+.action-manual-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.manual-dialog-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(230, 213, 74, 0.35);
+  border-radius: 10px;
+  background: rgba(230, 213, 74, 0.08);
+  color: var(--accent);
+}
+
+.manual-dialog-icon svg {
+  width: 21px;
+  height: 21px;
+}
+
+.action-manual-header h2 {
+  margin: 0;
+  font-size: 19px;
+  line-height: 1.3;
+}
+
+.action-manual-header p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.manual-close {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+}
+
+.manual-close:hover,
+.manual-close:focus-visible {
+  border-color: var(--line);
+  color: var(--text);
+}
+
+.manual-close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.manual-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin: 16px 20px 0;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #101215;
+}
+
+.manual-tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.manual-tab:hover,
+.manual-tab:focus-visible {
+  border-color: transparent;
+  color: var(--text);
+}
+
+.manual-tab.active {
+  border-color: #454c53;
+  background: #262b30;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  color: var(--text);
+}
+
+.manual-tab.active svg {
+  color: var(--accent);
+}
+
+.manual-tab svg {
+  width: 17px;
+  height: 17px;
+}
+
+.manual-panels {
+  min-height: 0;
+  padding: 16px 20px 20px;
+  overflow-y: auto;
+}
+
+.manual-panel:not(.active) {
+  display: none;
+}
+
+.manual-action-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.manual-action-list li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.manual-action-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #24292e;
+  color: var(--accent);
+}
+
+.manual-action-icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.manual-action-list h3 {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.manual-action-list p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.manual-shortcuts {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-left: 2px solid var(--accent);
+  border-radius: 0 6px 6px 0;
+  background: rgba(230, 213, 74, 0.06);
+  color: #c7cdd1;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .replace-image-dialog::backdrop {
   background: rgba(4, 5, 6, 0.72);
   backdrop-filter: blur(3px);
@@ -2051,6 +2278,7 @@ button:disabled {
 
   #leftToggle,
   #rightToggle,
+  #actionManualTrigger,
   .language-toggle {
     align-self: center;
     justify-self: center;
@@ -2062,6 +2290,7 @@ button:disabled {
   }
 
   .language-toggle svg,
+  .action-manual-trigger svg,
   .nav-icon-button svg {
     width: 20px;
     height: 20px;
@@ -2110,6 +2339,31 @@ button:disabled {
 }
 
 @media (max-width: 520px) {
+  .action-manual-header {
+    padding: 16px 16px 13px;
+  }
+
+  .action-manual-header p {
+    font-size: 12px;
+  }
+
+  .manual-dialog-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .manual-tabs {
+    margin: 12px 16px 0;
+  }
+
+  .manual-panels {
+    padding: 12px 16px 16px;
+  }
+
+  .manual-action-list {
+    grid-template-columns: 1fr;
+  }
+
   .pareto-overlay {
     width: min(250px, calc(100vw - 76px));
     height: 154px;
