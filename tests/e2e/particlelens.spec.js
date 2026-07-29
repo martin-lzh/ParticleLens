@@ -156,10 +156,12 @@ async function summarizeExportedPng(page) {
     };
     const legendPixelOffset = (20 * canvas.width + 20) * 4;
     return {
+      width: canvas.width,
+      height: canvas.height,
       selectionBlue: countColor(90, 167, 255),
       scaleBlue: countColor(47, 120, 255),
       legendGreen: countColor(116, 198, 157),
-      borderMagenta: countColor(217, 70, 239),
+      paddingMagenta: countColor(217, 70, 239),
       legendPixel: Array.from(pixels.slice(legendPixelOffset, legendPixelOffset + 3)),
     };
   }, base64);
@@ -260,7 +262,7 @@ test("runs detection locally and exports corrected results", async ({ page }) =>
   expect(requestsAfterUpload.filter((request) => request.method() !== "GET")).toEqual([]);
 });
 
-test("exports selection, scale bar, and legend only when requested", async ({ page }) => {
+test("exports optional annotations and outer margins only when requested", async ({ page }) => {
   await openReadyApp(page);
   await uploadAndDetect(page);
 
@@ -278,16 +280,18 @@ test("exports selection, scale bar, and legend only when requested", async ({ pa
   await expect(page.locator("#exportSelection")).not.toBeChecked();
   await expect(page.locator("#exportScale")).not.toBeChecked();
   await expect(page.locator("#exportLegend")).not.toBeChecked();
-  await expect(page.locator("#exportBorderColor")).toHaveValue("#4b535c");
-  await expect(page.locator("#exportBorderWidth")).toHaveValue("0");
+  await expect(page.locator("#exportPaddingColor")).toHaveValue("#ffffff");
+  await expect(page.locator("#exportPaddingWidth")).toHaveValue("0");
   await expect(page.locator("#exportScale")).toBeEnabled();
   await expect(page.locator("#exportLegend")).toBeEnabled();
 
   const defaultExport = await summarizeExportedPng(page);
+  expect(defaultExport.width).toBe(800);
+  expect(defaultExport.height).toBe(600);
   expect(defaultExport.selectionBlue).toBe(0);
   expect(defaultExport.scaleBlue).toBe(0);
   expect(defaultExport.legendGreen).toBe(0);
-  expect(defaultExport.borderMagenta).toBe(0);
+  expect(defaultExport.paddingMagenta).toBe(0);
 
   await page.locator("#exportSelection").check();
   const selectionExport = await summarizeExportedPng(page);
@@ -312,14 +316,15 @@ test("exports selection, scale bar, and legend only when requested", async ({ pa
   expect(legendExport.legendPixel).not.toEqual(defaultExport.legendPixel);
 
   await page.locator("#exportLegend").uncheck();
-  await page.locator("#exportBorderColor").fill("#d946ef");
-  await page.locator("#exportBorderWidth").fill("8");
-  const borderExport = await summarizeExportedPng(page);
-  expect(borderExport.selectionBlue).toBe(0);
-  expect(borderExport.scaleBlue).toBe(0);
-  expect(borderExport.legendGreen).toBe(0);
-  expect(borderExport.borderMagenta).toBeGreaterThan(10_000);
-  expect(borderExport.legendPixel).toEqual(defaultExport.legendPixel);
+  await page.locator("#exportPaddingColor").fill("#d946ef");
+  await page.locator("#exportPaddingWidth").fill("8");
+  const paddingExport = await summarizeExportedPng(page);
+  expect(paddingExport.width).toBe(816);
+  expect(paddingExport.height).toBe(616);
+  expect(paddingExport.selectionBlue).toBe(0);
+  expect(paddingExport.scaleBlue).toBe(0);
+  expect(paddingExport.legendGreen).toBe(0);
+  expect(paddingExport.paddingMagenta).toBeGreaterThan(22_000);
 });
 
 test("opens images from the canvas and warns before replacing current work", async ({ page }) => {
@@ -507,11 +512,67 @@ test("keeps the analysis entry visible across transitional navbar widths", async
   }
 });
 
+test("resizes desktop sidebars from their inner edges and restores their widths", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await openReadyApp(page);
+
+  const leftPanel = page.locator("#leftPanel");
+  const leftHandle = page.locator("#leftPanelResizeHandle");
+  const leftBefore = await leftPanel.boundingBox();
+  const leftHandleBox = await leftHandle.boundingBox();
+  expect(leftBefore).toBeTruthy();
+  expect(leftHandleBox).toBeTruthy();
+  await page.mouse.move(leftHandleBox.x + leftHandleBox.width / 2, leftHandleBox.y + 120);
+  await page.mouse.down();
+  await page.mouse.move(leftHandleBox.x + leftHandleBox.width / 2 + 90, leftHandleBox.y + 120, {
+    steps: 5,
+  });
+  await page.mouse.up();
+  await expect.poll(async () => (await leftPanel.boundingBox()).width)
+    .toBeCloseTo(leftBefore.width + 90, 0);
+
+  await page.locator("#rightToggle").click();
+  const rightPanel = page.locator("#rightPanel");
+  const rightHandle = page.locator("#rightPanelResizeHandle");
+  await expect.poll(async () => {
+    const box = await rightPanel.boundingBox();
+    return box ? Math.round(box.x + box.width) : null;
+  }).toBe(1280);
+  const rightBefore = await rightPanel.boundingBox();
+  const rightHandleBox = await rightHandle.boundingBox();
+  expect(rightBefore).toBeTruthy();
+  expect(rightHandleBox).toBeTruthy();
+  await page.mouse.move(rightHandleBox.x + rightHandleBox.width / 2, rightHandleBox.y + 120);
+  await page.mouse.down();
+  await page.mouse.move(rightHandleBox.x + rightHandleBox.width / 2 - 80, rightHandleBox.y + 120, {
+    steps: 5,
+  });
+  await page.mouse.up();
+  await expect.poll(async () => (await rightPanel.boundingBox()).width)
+    .toBeCloseTo(rightBefore.width + 80, 0);
+
+  const savedWidths = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("particleLensPanelWidths")),
+  );
+  expect(savedWidths.left).toBeCloseTo(leftBefore.width + 90, 0);
+  expect(savedWidths.right).toBeCloseTo(rightBefore.width + 80, 0);
+
+  await page.reload();
+  await openReadyApp(page);
+  await expect.poll(async () => (await leftPanel.boundingBox()).width)
+    .toBeCloseTo(savedWidths.left, 0);
+  await page.locator("#rightToggle").click();
+  await expect.poll(async () => (await rightPanel.boundingBox()).width)
+    .toBeCloseTo(savedWidths.right, 0);
+});
+
 test("adapts the workspace for mobile and supports touch canvas gestures", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openReadyApp(page);
 
   await expect(page.locator("#leftPanel")).toHaveClass(/collapsed/);
+  await expect(page.locator("#leftPanelResizeHandle")).toBeHidden();
+  await expect(page.locator("#rightPanelResizeHandle")).toBeHidden();
   await expect(page.locator("#leftToggle")).toHaveAttribute("aria-expanded", "false");
   const topbarBox = await page.locator(".topbar").boundingBox();
   expect(topbarBox?.height).toBeGreaterThanOrEqual(100);

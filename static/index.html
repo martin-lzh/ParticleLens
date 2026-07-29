@@ -232,6 +232,16 @@
       <button id="panelBackdrop" class="panel-backdrop" type="button" aria-label="Close panels" data-i18n-aria="nav.closePanels"></button>
 
       <aside id="leftPanel" class="left-panel" aria-label="Detection settings" data-i18n-aria="nav.toolsPanel">
+        <div
+          id="leftPanelResizeHandle"
+          class="panel-resize-handle"
+          data-panel-side="left"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize detection settings panel"
+          data-i18n-aria="nav.resizeToolsPanel"
+          tabindex="0"
+        ></div>
         <div class="panel-inner">
           <header class="panel-heading">
             <span class="panel-heading-icon"><i data-lucide="scan-line" aria-hidden="true"></i></span>
@@ -295,6 +305,16 @@
       </aside>
 
       <aside id="rightPanel" class="right-panel" aria-label="Analysis and export" data-i18n-aria="nav.dataPanel">
+        <div
+          id="rightPanelResizeHandle"
+          class="panel-resize-handle"
+          data-panel-side="right"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize analysis and export panel"
+          data-i18n-aria="nav.resizeDataPanel"
+          tabindex="0"
+        ></div>
         <div class="panel-inner">
           <section class="stats">
             <div class="section-heading">
@@ -385,18 +405,18 @@
                   <span data-i18n="export.legend">Scale and diameter legend</span>
                 </label>
               </fieldset>
-              <div class="export-border-options">
+              <div class="export-padding-options">
                 <label>
-                  <span data-i18n="export.borderColor">Border color</span>
-                  <input id="exportBorderColor" type="color" value="#4b535c" />
+                  <span data-i18n="export.paddingColor">Margin color</span>
+                  <input id="exportPaddingColor" type="color" value="#ffffff" />
                 </label>
                 <label>
-                  <span data-i18n="export.borderWidth">Border width (px)</span>
+                  <span data-i18n="export.paddingWidth">Margin size (px)</span>
                   <input
-                    id="exportBorderWidth"
+                    id="exportPaddingWidth"
                     type="number"
                     min="0"
-                    max="50"
+                    max="500"
                     step="1"
                     value="0"
                     inputmode="numeric"

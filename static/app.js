@@ -36,6 +36,22 @@ const savedLanguage =
   localStorage.getItem("particleLensLang") || localStorage.getItem("particleAnnotatorLang");
 const browserLanguage = navigator.languages?.[0] || navigator.language || "en";
 const overlayPositionStorageKey = "particleLensOverlayPositions";
+const panelWidthStorageKey = "particleLensPanelWidths";
+const defaultPanelWidths = { left: 340, right: 440 };
+
+function savedPanelWidths() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(panelWidthStorageKey) || "{}");
+    return {
+      left: Number(saved.left) || defaultPanelWidths.left,
+      right: Number(saved.right) || defaultPanelWidths.right,
+    };
+  } catch {
+    return { ...defaultPanelWidths };
+  }
+}
+
+const initialPanelWidths = savedPanelWidths();
 
 function savedOverlayPositions() {
   try {
@@ -79,11 +95,16 @@ const state = {
     showCumulative: true,
     showParetoOverlay: true,
     showScaleLegend: true,
+    panelWidths: {
+      left: initialPanelWidths.left,
+      right: initialPanelWidths.right,
+    },
   },
 };
 
 const activePointers = new Map();
 let pinchGesture = null;
+let panelResizeDrag = null;
 let pendingImageFile = null;
 let replacementAuthorized = false;
 let plotlyApi = null;
@@ -99,8 +120,10 @@ async function loadPlotly() {
 const els = {
   appShell: document.querySelector(".app-shell"),
   leftPanel: document.getElementById("leftPanel"),
+  leftPanelResizeHandle: document.getElementById("leftPanelResizeHandle"),
   leftToggle: document.getElementById("leftToggle"),
   rightPanel: document.getElementById("rightPanel"),
+  rightPanelResizeHandle: document.getElementById("rightPanelResizeHandle"),
   rightToggle: document.getElementById("rightToggle"),
   panelBackdrop: document.getElementById("panelBackdrop"),
   quickToolbar: document.querySelector(".quick-toolbar"),
@@ -142,8 +165,8 @@ const els = {
   exportSelection: document.getElementById("exportSelection"),
   exportScale: document.getElementById("exportScale"),
   exportLegend: document.getElementById("exportLegend"),
-  exportBorderColor: document.getElementById("exportBorderColor"),
-  exportBorderWidth: document.getElementById("exportBorderWidth"),
+  exportPaddingColor: document.getElementById("exportPaddingColor"),
+  exportPaddingWidth: document.getElementById("exportPaddingWidth"),
   paretoPlot: document.getElementById("paretoPlot"),
   paretoOverlay: document.getElementById("paretoOverlay"),
   paretoOverlayPlot: document.getElementById("paretoOverlayPlot"),
@@ -206,6 +229,8 @@ const messages = {
     "nav.toolsPanel": "识别设置",
     "nav.dataPanel": "分析与导出",
     "nav.closePanels": "关闭面板",
+    "nav.resizeToolsPanel": "调整识别设置面板宽度",
+    "nav.resizeDataPanel": "调整分析与导出面板宽度",
     "nav.languageToggle": "切换到 English",
     "language.target": "EN",
     "image.none": "未选择图片",
@@ -306,8 +331,8 @@ const messages = {
     "export.selection": "选中颗粒高亮",
     "export.scale": "比例尺",
     "export.legend": "比例与粒径图例",
-    "export.borderColor": "边框颜色",
-    "export.borderWidth": "边框宽度 (px)",
+    "export.paddingColor": "外扩留白颜色",
+    "export.paddingWidth": "外扩留白宽度 (px)",
     "replace.title": "替换当前图片？",
     "replace.warning": "打开另一张图片会清空全部识别结果、人工校正、比例尺和当前选择。请先导出需要保留的数据。",
     "replace.cancel": "取消",
@@ -355,6 +380,8 @@ const messages = {
     "nav.toolsPanel": "Detection settings",
     "nav.dataPanel": "Analysis and export",
     "nav.closePanels": "Close panels",
+    "nav.resizeToolsPanel": "Resize detection settings panel",
+    "nav.resizeDataPanel": "Resize analysis and export panel",
     "nav.languageToggle": "Switch to Chinese",
     "language.target": "中文",
     "image.none": "No image selected",
@@ -455,8 +482,8 @@ const messages = {
     "export.selection": "Selected particle highlight",
     "export.scale": "Scale bar",
     "export.legend": "Scale and diameter legend",
-    "export.borderColor": "Border color",
-    "export.borderWidth": "Border width (px)",
+    "export.paddingColor": "Outer margin color",
+    "export.paddingWidth": "Outer margin size (px)",
     "replace.title": "Replace the current image?",
     "replace.warning": "Opening another image will clear all detected particles, manual corrections, scale settings, and selections. Export anything you need first.",
     "replace.cancel": "Cancel",
@@ -739,7 +766,9 @@ function radiusMicrons(particle) {
 function draw(targetCtx = ctx, options = {}) {
   const canvas = targetCtx.canvas;
   targetCtx.clearRect(0, 0, canvas.width, canvas.height);
-  targetCtx.fillStyle = "#0b0d0f";
+  targetCtx.fillStyle = options.export
+    ? options.exportPaddingColor || "#ffffff"
+    : "#0b0d0f";
   targetCtx.fillRect(0, 0, canvas.width, canvas.height);
   if (!state.image) return;
 
@@ -756,24 +785,6 @@ function draw(targetCtx = ctx, options = {}) {
     state.image.naturalHeight * t.scale
   );
 
-  const requestedBorderWidth = Number(options.exportBorderWidth) || 0;
-  const exportBorderWidth = Math.max(
-    0,
-    Math.min(requestedBorderWidth, state.image.naturalWidth, state.image.naturalHeight),
-  );
-  if (options.export && exportBorderWidth > 0) {
-    targetCtx.save();
-    targetCtx.strokeStyle = options.exportBorderColor || "#4b535c";
-    targetCtx.lineWidth = exportBorderWidth;
-    const inset = exportBorderWidth / 2;
-    targetCtx.strokeRect(
-      t.ox + inset,
-      t.oy + inset,
-      state.image.naturalWidth - exportBorderWidth,
-      state.image.naturalHeight - exportBorderWidth,
-    );
-    targetCtx.restore();
-  }
 
   const sorted = activeParticles()
     .filter(includedInDistribution)
@@ -1319,8 +1330,8 @@ function updateQuickToolbar() {
   els.exportSelection.disabled = !hasImage;
   els.exportScale.disabled = !hasImage || !state.scaleLine;
   els.exportLegend.disabled = !hasImage || !state.micronsPerPx;
-  els.exportBorderColor.disabled = !hasImage;
-  els.exportBorderWidth.disabled = !hasImage;
+  els.exportPaddingColor.disabled = !hasImage;
+  els.exportPaddingWidth.disabled = !hasImage;
   els.downloadPareto.disabled = distributionParticles().every((particle) => diameterUm(particle) <= 0);
   els.micronsPerPixel.disabled = !hasImage;
   if (state.statusKey !== "status.running") {
@@ -1626,7 +1637,10 @@ function exportCsv() {
 
 function exportPng() {
   if (!state.image) return;
-  const exportPadding = 96;
+  const exportPadding = Math.max(
+    0,
+    Math.min(500, Math.round(Number(els.exportPaddingWidth.value) || 0)),
+  );
   const out = document.createElement("canvas");
   out.width = state.image.naturalWidth + exportPadding * 2;
   out.height = state.image.naturalHeight + exportPadding * 2;
@@ -1636,8 +1650,7 @@ function exportPng() {
     includeSelection: els.exportSelection.checked,
     includeScale: els.exportScale.checked,
     includeLegend: els.exportLegend.checked,
-    exportBorderColor: els.exportBorderColor.value,
-    exportBorderWidth: els.exportBorderWidth.value,
+    exportPaddingColor: els.exportPaddingColor.value,
   });
   out.toBlob((blob) => {
     if (blob) downloadBlob(`${state.imageName || "image"}_annotated.png`, blob);
@@ -1649,7 +1662,120 @@ function exportAll() {
   window.setTimeout(exportPng, 120);
 }
 
+function panelWidthLimits() {
+  const min = 280;
+  const max = Math.max(
+    min,
+    Math.floor(Math.min(720, window.innerWidth - 180, window.innerWidth * 0.7)),
+  );
+  return { min, max };
+}
+
+function panelForSide(side) {
+  return side === "left" ? els.leftPanel : els.rightPanel;
+}
+
+function panelHandleForSide(side) {
+  return side === "left" ? els.leftPanelResizeHandle : els.rightPanelResizeHandle;
+}
+
+function clampPanelWidth(width) {
+  const limits = panelWidthLimits();
+  return Math.min(limits.max, Math.max(limits.min, Math.round(width)));
+}
+
+function applyPanelWidths() {
+  const rootStyle = document.documentElement.style;
+  if (compactLayout.matches) {
+    rootStyle.removeProperty("--left-drawer-width");
+    rootStyle.removeProperty("--right-drawer-width");
+    els.leftPanelResizeHandle.setAttribute("aria-disabled", "true");
+    els.rightPanelResizeHandle.setAttribute("aria-disabled", "true");
+    return;
+  }
+
+  const limits = panelWidthLimits();
+  for (const side of ["left", "right"]) {
+    const width = clampPanelWidth(state.ui.panelWidths[side]);
+    const handle = panelHandleForSide(side);
+    rootStyle.setProperty(`--${side}-drawer-width`, `${width}px`);
+    handle.setAttribute("aria-disabled", "false");
+    handle.setAttribute("aria-valuemin", String(limits.min));
+    handle.setAttribute("aria-valuemax", String(limits.max));
+    handle.setAttribute("aria-valuenow", String(width));
+  }
+}
+
+function persistPanelWidths() {
+  localStorage.setItem(panelWidthStorageKey, JSON.stringify(state.ui.panelWidths));
+}
+
+function setPanelWidth(side, width, persist = false) {
+  state.ui.panelWidths[side] = clampPanelWidth(width);
+  applyPanelWidths();
+  if (persist) persistPanelWidths();
+}
+
+function beginPanelResize(event) {
+  if (compactLayout.matches || event.button !== 0) return;
+  const handle = event.currentTarget;
+  const side = handle.dataset.panelSide;
+  const panel = panelForSide(side);
+  event.preventDefault();
+  handle.setPointerCapture(event.pointerId);
+  handle.classList.add("is-resizing");
+  document.body.classList.add("panel-resizing");
+  panelResizeDrag = {
+    handle,
+    pointerId: event.pointerId,
+    side,
+    startX: event.clientX,
+    startWidth: panel.getBoundingClientRect().width,
+  };
+}
+
+function updatePanelResize(event) {
+  if (!panelResizeDrag || event.pointerId !== panelResizeDrag.pointerId) return;
+  event.preventDefault();
+  const direction = panelResizeDrag.side === "left" ? 1 : -1;
+  const delta = (event.clientX - panelResizeDrag.startX) * direction;
+  setPanelWidth(panelResizeDrag.side, panelResizeDrag.startWidth + delta);
+}
+
+function finishPanelResize(event) {
+  if (!panelResizeDrag || event.pointerId !== panelResizeDrag.pointerId) return;
+  const { handle } = panelResizeDrag;
+  if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId);
+  handle.classList.remove("is-resizing");
+  document.body.classList.remove("panel-resizing");
+  panelResizeDrag = null;
+  persistPanelWidths();
+  clampFloatingOverlays();
+}
+
+function resizePanelFromKeyboard(event) {
+  if (compactLayout.matches) return;
+  const side = event.currentTarget.dataset.panelSide;
+  const currentWidth = panelForSide(side).getBoundingClientRect().width;
+  const limits = panelWidthLimits();
+  let nextWidth = null;
+  if (event.key === "Home") nextWidth = limits.min;
+  if (event.key === "End") nextWidth = limits.max;
+  if (event.key === "ArrowLeft") nextWidth = currentWidth + (side === "right" ? 16 : -16);
+  if (event.key === "ArrowRight") nextWidth = currentWidth + (side === "left" ? 16 : -16);
+  if (nextWidth === null) return;
+  event.preventDefault();
+  setPanelWidth(side, nextWidth, true);
+  clampFloatingOverlays();
+}
+
+function makePanelResizable(handle) {
+  handle.addEventListener("pointerdown", beginPanelResize);
+  handle.addEventListener("keydown", resizePanelFromKeyboard);
+}
+
 function syncPanels() {
+  applyPanelWidths();
   els.leftPanel.classList.toggle("collapsed", state.ui.leftCollapsed);
   els.rightPanel.classList.toggle("open", state.ui.rightOpen);
   els.appShell.classList.toggle("left-panel-open", !state.ui.leftCollapsed);
@@ -1757,6 +1883,9 @@ els.rightToggle.addEventListener("click", () => {
 });
 els.panelBackdrop.addEventListener("click", closeCompactPanels);
 compactLayout.addEventListener("change", handleLayoutChange);
+window.addEventListener("pointermove", updatePanelResize);
+window.addEventListener("pointerup", finishPanelResize);
+window.addEventListener("pointercancel", finishPanelResize);
 
 document.querySelectorAll("[data-left-tab]").forEach((button) => {
   button.addEventListener("click", () => {
@@ -2173,7 +2302,10 @@ els.labelLimit.addEventListener("change", refresh);
 new ResizeObserver(resizeCanvas).observe(els.canvas);
 new ResizeObserver(resizePareto).observe(els.paretoPlot);
 new ResizeObserver(resizePareto).observe(els.paretoOverlayPlot);
-window.addEventListener("resize", clampFloatingOverlays);
+window.addEventListener("resize", () => {
+  applyPanelWidths();
+  clampFloatingOverlays();
+});
 
 function formatBytes(bytes) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
@@ -2260,6 +2392,8 @@ async function bootstrap() {
     },
   });
   for (const overlay of els.floatingOverlays) makeFloatingOverlayDraggable(overlay);
+  makePanelResizable(els.leftPanelResizeHandle);
+  makePanelResizable(els.rightPanelResizeHandle);
   setToolbarPosition(state.ui.toolbarPosition, false);
   syncPanels();
   setInteractionMode("select");

@@ -622,6 +622,63 @@ label span,
   transform: translateX(0);
 }
 
+.panel-resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 3;
+  width: 9px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.left-panel .panel-resize-handle {
+  right: -4px;
+}
+
+.right-panel .panel-resize-handle {
+  left: -4px;
+}
+
+.panel-resize-handle::after {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 4px;
+  width: 1px;
+  background: transparent;
+  content: "";
+  transition: background 120ms ease, box-shadow 120ms ease;
+}
+
+.panel-resize-handle:hover::after,
+.panel-resize-handle:focus-visible::after,
+.panel-resize-handle.is-resizing::after {
+  background: var(--focus);
+  box-shadow: 0 0 0 1px rgba(90, 167, 255, 0.2);
+}
+
+.panel-resize-handle:focus-visible {
+  outline: none;
+}
+
+.left-panel.collapsed .panel-resize-handle,
+.right-panel:not(.open) .panel-resize-handle {
+  pointer-events: none;
+}
+
+body.panel-resizing,
+body.panel-resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+
+@media (max-width: 820px), (max-width: 900px) and (max-height: 560px) {
+  .panel-resize-handle {
+    display: none;
+  }
+}
+
 .panel-backdrop {
   position: absolute;
   inset: var(--nav-height) 0 0;
@@ -1896,18 +1953,18 @@ button:disabled {
   font-size: 11px;
 }
 
-.export-border-options {
+.export-padding-options {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
   margin-top: 12px;
 }
 
-.export-border-options label {
+.export-padding-options label {
   min-width: 0;
 }
 
-.export-border-options input[type="color"] {
+.export-padding-options input[type="color"] {
   padding: 3px;
   cursor: pointer;
 }
