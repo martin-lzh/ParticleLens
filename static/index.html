@@ -64,6 +64,56 @@
 
       <section class="workspace" aria-label="图像观察窗" data-i18n-aria="workspace.aria">
         <div class="canvas-wrap">
+          <nav class="quick-toolbar" aria-label="图像编辑工具" data-i18n-aria="toolbar.aria">
+            <button id="quickSelectTool" class="quick-tool active" type="button" data-canvas-tool="select" aria-pressed="true" title="选择 (V)" data-i18n-title="toolbar.selectTitle">
+              <i data-lucide="mouse-pointer-2" aria-hidden="true"></i>
+              <span class="sr-only" data-i18n="toolbar.select">选择</span>
+            </button>
+            <button id="quickPanTool" class="quick-tool" type="button" data-canvas-tool="pan" aria-pressed="false" title="抓手 (H)" data-i18n-title="toolbar.panTitle">
+              <i data-lucide="hand" aria-hidden="true"></i>
+              <span class="sr-only" data-i18n="toolbar.pan">抓手</span>
+            </button>
+            <button id="quickDrawTool" class="quick-tool" type="button" data-canvas-tool="draw" aria-pressed="false" title="按直径画圆 (C)" data-i18n-title="toolbar.drawTitle">
+              <i data-lucide="circle-plus" aria-hidden="true"></i>
+              <span class="sr-only" data-i18n="toolbar.draw">按直径画圆</span>
+            </button>
+            <button id="quickScaleTool" class="quick-tool" type="button" data-canvas-tool="scale" aria-pressed="false" title="重画比例尺 (R)" data-i18n-title="toolbar.scaleTitle">
+              <i data-lucide="ruler" aria-hidden="true"></i>
+              <span class="sr-only" data-i18n="toolbar.scale">重画比例尺</span>
+            </button>
+            <span class="quick-toolbar-separator" aria-hidden="true"></span>
+            <button id="quickFitView" class="quick-tool" type="button" data-canvas-action="fit" title="适配视图 (F)" data-i18n-title="toolbar.fitTitle">
+              <i data-lucide="maximize-2" aria-hidden="true"></i>
+              <span class="sr-only" data-i18n="toolbar.fit">适配视图</span>
+            </button>
+            <button id="quickDeleteSelected" class="quick-tool danger" type="button" data-canvas-action="delete" title="删除选中 (Delete)" data-i18n-title="toolbar.deleteTitle">
+              <i data-lucide="trash-2" aria-hidden="true"></i>
+              <span class="sr-only" data-i18n="toolbar.delete">删除选中</span>
+            </button>
+            <span class="quick-toolbar-separator" aria-hidden="true"></span>
+            <button id="quickToolbarPosition" class="quick-tool" type="button" aria-haspopup="menu" aria-expanded="false" title="工具栏位置" data-i18n-title="toolbar.positionTitle">
+              <i data-lucide="move" aria-hidden="true"></i>
+              <span class="sr-only" data-i18n="toolbar.position">工具栏位置</span>
+            </button>
+            <div id="quickToolbarPositionMenu" class="quick-toolbar-position-menu" role="menu" aria-label="工具栏位置" data-i18n-aria="toolbar.positionMenuAria" hidden>
+              <button type="button" role="menuitemradio" data-toolbar-position="left" aria-checked="true">
+                <i data-lucide="panel-left" aria-hidden="true"></i>
+                <span data-i18n="toolbar.positionLeft">左侧</span>
+              </button>
+              <button type="button" role="menuitemradio" data-toolbar-position="right" aria-checked="false">
+                <i data-lucide="panel-right" aria-hidden="true"></i>
+                <span data-i18n="toolbar.positionRight">右侧</span>
+              </button>
+              <button type="button" role="menuitemradio" data-toolbar-position="top" aria-checked="false">
+                <i data-lucide="panel-top" aria-hidden="true"></i>
+                <span data-i18n="toolbar.positionTop">顶部</span>
+              </button>
+              <button type="button" role="menuitemradio" data-toolbar-position="bottom" aria-checked="false">
+                <i data-lucide="panel-bottom" aria-hidden="true"></i>
+                <span data-i18n="toolbar.positionBottom">底部</span>
+              </button>
+            </div>
+          </nav>
           <canvas id="imageCanvas" tabindex="0" aria-label="图像编辑画布" aria-describedby="canvasGestureHint" data-i18n-aria="canvas.aria"></canvas>
           <div id="emptyState" class="empty-state" data-i18n="emptyState">Drop or choose a microscope image</div>
           <div id="canvasGestureHint" class="canvas-gesture-hint hidden" data-i18n="gesture.guide">

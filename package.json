@@ -22,5 +22,8 @@
     "pyodide": "0.28.3",
     "vite": "7.3.6",
     "vitest": "3.2.7"
+  },
+  "dependencies": {
+    "lucide": "^1.27.0"
   }
 }

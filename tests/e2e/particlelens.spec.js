@@ -233,6 +233,20 @@ test("adapts the workspace for mobile and supports touch canvas gestures", async
   const topbarBox = await page.locator(".topbar").boundingBox();
   expect(topbarBox?.height).toBeGreaterThanOrEqual(100);
 
+  const quickToolbar = page.locator(".quick-toolbar");
+  const initialToolbarBox = await quickToolbar.boundingBox();
+  expect(initialToolbarBox?.height).toBeGreaterThan(initialToolbarBox?.width);
+  for (const position of ["right", "top", "left", "bottom"]) {
+    await page.locator("#quickToolbarPosition").click();
+    await page.locator(`[data-toolbar-position='${position}']`).click();
+    await expect(page.locator(".app-shell")).toHaveAttribute("data-toolbar-position", position);
+  }
+  const bottomToolbarBox = await quickToolbar.boundingBox();
+  expect(bottomToolbarBox?.width).toBeGreaterThan(bottomToolbarBox?.height);
+  expect(
+    await page.evaluate(() => localStorage.getItem("particleLensToolbarPosition")),
+  ).toBe("bottom");
+
   await page.locator("#leftToggle").click();
   await expect(page.locator("#leftToggle")).toHaveAttribute("aria-expanded", "true");
   await page.locator("#imageInput").setInputFiles({
@@ -277,6 +291,8 @@ test("adapts the workspace for mobile and supports touch canvas gestures", async
   await canvas.dispatchEvent("pointerup", { ...pointer(1, 150, 380, true), buttons: 0 });
   await expect(page.locator("#zoomReadout")).not.toHaveText(zoomBefore);
 
+  await page.locator("#quickPanTool").click();
+  await expect(page.locator("#quickPanTool")).toHaveAttribute("aria-pressed", "true");
   const beforePan = await canvas.screenshot();
   await canvas.dispatchEvent("pointerdown", pointer(3, 60, 650, true));
   await canvas.dispatchEvent("pointermove", pointer(3, 115, 610, true));
@@ -284,15 +300,18 @@ test("adapts the workspace for mobile and supports touch canvas gestures", async
   const afterPan = await canvas.screenshot();
   expect(Buffer.compare(beforePan, afterPan)).not.toBe(0);
 
-  await page.locator("#leftToggle").click();
-  await page.locator("[data-left-tab='edit']").click();
-  await page.locator("#circleTool").click();
-  await expect(page.locator("#leftToggle")).toHaveAttribute("aria-expanded", "false");
+  await page.locator("#quickFitView").click();
+  await expect(page.locator("#zoomReadout")).toHaveText("100%");
+  await page.locator("#quickDrawTool").click();
+  await expect(page.locator("#quickDrawTool")).toHaveAttribute("aria-pressed", "true");
   const rows = page.locator("#particleTable tr");
   await canvas.dispatchEvent("pointerdown", pointer(4, 125, 560, true));
   await canvas.dispatchEvent("pointermove", pointer(4, 190, 560, true));
   await canvas.dispatchEvent("pointerup", { ...pointer(4, 190, 560, true), buttons: 0 });
   await expect(rows).toHaveCount(4);
+  await expect(page.locator("#quickDeleteSelected")).toBeEnabled();
+  await page.locator("#quickDeleteSelected").click();
+  await expect(rows).toHaveCount(3);
 });
 
 test("switches language and restores the app shell offline", async ({ page }) => {

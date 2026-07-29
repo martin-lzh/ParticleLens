@@ -1,9 +1,25 @@
 import { cacheApplicationShell, clearRuntimeCache, createDetector } from "./detection.js";
+import {
+  CirclePlus,
+  createIcons,
+  Hand,
+  Maximize2,
+  MousePointer2,
+  Move,
+  PanelBottom,
+  PanelLeft,
+  PanelRight,
+  PanelTop,
+  Ruler,
+  Trash2,
+} from "lucide";
 import { circleVisibleFraction, summarizeDiameters } from "./particle-math.js";
 
 const compactLayout = window.matchMedia(
   "(max-width: 820px), (max-width: 900px) and (max-height: 560px)",
 );
+const toolbarPositions = new Set(["left", "right", "top", "bottom"]);
+const savedToolbarPosition = localStorage.getItem("particleLensToolbarPosition");
 
 const state = {
   lang: localStorage.getItem("particleLensLang") || localStorage.getItem("particleAnnotatorLang") || "zh",
@@ -29,6 +45,7 @@ const state = {
     leftCollapsed: compactLayout.matches,
     rightOpen: false,
     dragDepth: 0,
+    toolbarPosition: toolbarPositions.has(savedToolbarPosition) ? savedToolbarPosition : "left",
   },
 };
 
@@ -42,6 +59,13 @@ const els = {
   rightPanel: document.getElementById("rightPanel"),
   rightToggle: document.getElementById("rightToggle"),
   panelBackdrop: document.getElementById("panelBackdrop"),
+  quickToolbar: document.querySelector(".quick-toolbar"),
+  quickToolButtons: Array.from(document.querySelectorAll("[data-canvas-tool]")),
+  quickFitView: document.getElementById("quickFitView"),
+  quickDeleteSelected: document.getElementById("quickDeleteSelected"),
+  quickToolbarPosition: document.getElementById("quickToolbarPosition"),
+  quickToolbarPositionMenu: document.getElementById("quickToolbarPositionMenu"),
+  quickToolbarPositionButtons: Array.from(document.querySelectorAll("[data-toolbar-position]")),
   canvas: document.getElementById("imageCanvas"),
   imageInput: document.getElementById("imageInput"),
   runDetect: document.getElementById("runDetect"),
@@ -90,6 +114,26 @@ const messages = {
     "app.title": "ParticleLens",
     "workspace.aria": "图像观察窗",
     "canvas.aria": "图像编辑画布",
+    "toolbar.aria": "图像编辑工具",
+    "toolbar.select": "选择",
+    "toolbar.selectTitle": "选择工具 (V)",
+    "toolbar.pan": "抓手",
+    "toolbar.panTitle": "抓手工具 (H)",
+    "toolbar.draw": "按直径画圆",
+    "toolbar.drawTitle": "按直径画圆 (C)",
+    "toolbar.scale": "重画比例尺",
+    "toolbar.scaleTitle": "重画比例尺 (R)",
+    "toolbar.fit": "适配视图",
+    "toolbar.fitTitle": "适配视图 (F)",
+    "toolbar.delete": "删除选中",
+    "toolbar.deleteTitle": "删除选中 (Delete)",
+    "toolbar.position": "工具栏位置",
+    "toolbar.positionTitle": "选择工具栏位置",
+    "toolbar.positionMenuAria": "工具栏位置",
+    "toolbar.positionLeft": "左侧",
+    "toolbar.positionRight": "右侧",
+    "toolbar.positionTop": "顶部",
+    "toolbar.positionBottom": "底部",
     "brand.title": "ParticleLens",
     "brand.subtitle": "显微粒径识别与校正",
     "nav.toolsPanel": "工具",
@@ -107,6 +151,7 @@ const messages = {
     "hint.initial": "选择图片后可自动识别，也可手动画圆补充。",
     "hint.scale": "拖动一条线覆盖比例尺；完成后自动回到选择。",
     "hint.draw": "从颗粒一侧拖到另一侧，按直径添加圆；再次点按工具可退出。",
+    "hint.pan": "拖动画布进行平移；按 V 或选择箭头返回选择工具。",
     "hint.edit": "点按选择，拖动颗粒可移动，拖动空白处可平移，双指捏合可缩放。",
     "emptyState": "拖放或选择一张显微图片",
     "gesture.guide": "点按选择 · 拖动平移或移动 · 双指缩放",
@@ -178,6 +223,26 @@ const messages = {
     "app.title": "ParticleLens",
     "workspace.aria": "Image viewport",
     "canvas.aria": "Image editing canvas",
+    "toolbar.aria": "Image editing tools",
+    "toolbar.select": "Select",
+    "toolbar.selectTitle": "Select tool (V)",
+    "toolbar.pan": "Hand",
+    "toolbar.panTitle": "Hand tool (H)",
+    "toolbar.draw": "Draw circle by diameter",
+    "toolbar.drawTitle": "Draw circle by diameter (C)",
+    "toolbar.scale": "Redraw scale bar",
+    "toolbar.scaleTitle": "Redraw scale bar (R)",
+    "toolbar.fit": "Fit view",
+    "toolbar.fitTitle": "Fit view (F)",
+    "toolbar.delete": "Delete selected",
+    "toolbar.deleteTitle": "Delete selected (Delete)",
+    "toolbar.position": "Toolbar position",
+    "toolbar.positionTitle": "Choose toolbar position",
+    "toolbar.positionMenuAria": "Toolbar position",
+    "toolbar.positionLeft": "Left",
+    "toolbar.positionRight": "Right",
+    "toolbar.positionTop": "Top",
+    "toolbar.positionBottom": "Bottom",
     "brand.title": "ParticleLens",
     "brand.subtitle": "Microscope particle sizing and correction",
     "nav.toolsPanel": "Tools",
@@ -195,6 +260,7 @@ const messages = {
     "hint.initial": "Choose an image to detect particles automatically or add circles manually.",
     "hint.scale": "Drag a line across the scale bar; selection mode resumes when you release.",
     "hint.draw": "Drag from one particle edge to the other to add a circle; tap the tool again to exit.",
+    "hint.pan": "Drag the canvas to pan; press V or choose the pointer to return to selection.",
     "hint.edit": "Tap to select, drag a particle to move it, drag empty image space to pan, and pinch to zoom.",
     "emptyState": "Drop or choose a microscope image",
     "gesture.guide": "Tap to select · Drag to pan or move · Pinch to zoom",
@@ -674,6 +740,7 @@ function renderTable() {
 
 function refresh() {
   updateStats();
+  updateQuickToolbar();
   draw();
 }
 
@@ -696,6 +763,8 @@ function setHint() {
     els.hintText.textContent = t("hint.scale");
   } else if (state.mode === "draw") {
     els.hintText.textContent = t("hint.draw");
+  } else if (state.mode === "pan") {
+    els.hintText.textContent = t("hint.pan");
   } else if (!state.image) {
     els.hintText.textContent = t("hint.initial");
   } else {
@@ -708,7 +777,37 @@ function setInteractionMode(mode) {
   els.circleTool.classList.toggle("active", mode === "draw");
   els.scaleTool.classList.toggle("active", mode === "scale");
   els.canvas.dataset.mode = mode;
+  updateQuickToolbar();
   setHint();
+}
+
+function updateQuickToolbar() {
+  for (const button of els.quickToolButtons) {
+    const active = button.dataset.canvasTool === state.mode;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+    button.disabled = !state.image && button.dataset.canvasTool !== "select";
+  }
+  els.quickFitView.disabled = !state.image;
+  els.quickDeleteSelected.disabled = state.selectedIds.size === 0;
+}
+
+function setToolbarPositionMenu(open) {
+  els.quickToolbarPositionMenu.hidden = !open;
+  els.quickToolbarPosition.setAttribute("aria-expanded", String(open));
+}
+
+function setToolbarPosition(position, persist = true) {
+  const nextPosition = toolbarPositions.has(position) ? position : "left";
+  state.ui.toolbarPosition = nextPosition;
+  els.appShell.dataset.toolbarPosition = nextPosition;
+  for (const button of els.quickToolbarPositionButtons) {
+    const selected = button.dataset.toolbarPosition === nextPosition;
+    button.classList.toggle("active", selected);
+    button.setAttribute("aria-checked", String(selected));
+  }
+  if (persist) localStorage.setItem("particleLensToolbarPosition", nextPosition);
+  setToolbarPositionMenu(false);
 }
 
 function toggleDrawMode() {
@@ -959,6 +1058,8 @@ function exportAll() {
 function syncPanels() {
   els.leftPanel.classList.toggle("collapsed", state.ui.leftCollapsed);
   els.rightPanel.classList.toggle("open", state.ui.rightOpen);
+  els.appShell.classList.toggle("left-panel-open", !state.ui.leftCollapsed);
+  els.appShell.classList.toggle("right-panel-open", state.ui.rightOpen);
   els.leftToggle.setAttribute("aria-expanded", String(!state.ui.leftCollapsed));
   els.rightToggle.setAttribute("aria-expanded", String(state.ui.rightOpen));
   els.appShell.classList.toggle(
@@ -1007,6 +1108,41 @@ els.exportAll.addEventListener("click", exportAll);
 els.zoomOut.addEventListener("click", () => zoomAt(1 / 1.25));
 els.zoomIn.addEventListener("click", () => zoomAt(1.25));
 els.resetZoom.addEventListener("click", resetView);
+for (const button of els.quickToolButtons) {
+  button.addEventListener("click", () => setInteractionMode(button.dataset.canvasTool));
+}
+els.quickFitView.addEventListener("click", resetView);
+els.quickDeleteSelected.addEventListener("click", deleteSelectedParticles);
+els.quickToolbarPosition.addEventListener("click", () => {
+  const open = els.quickToolbarPositionMenu.hidden;
+  setToolbarPositionMenu(open);
+  if (open) {
+    const selected = els.quickToolbarPositionButtons.find(
+      (button) => button.dataset.toolbarPosition === state.ui.toolbarPosition,
+    );
+    selected?.focus();
+  }
+});
+for (const button of els.quickToolbarPositionButtons) {
+  button.addEventListener("click", () => {
+    setToolbarPosition(button.dataset.toolbarPosition);
+    els.quickToolbarPosition.focus();
+  });
+}
+els.quickToolbarPositionMenu.addEventListener("keydown", (event) => {
+  if (!["ArrowDown", "ArrowRight", "ArrowUp", "ArrowLeft"].includes(event.key)) return;
+  event.preventDefault();
+  const currentIndex = els.quickToolbarPositionButtons.indexOf(document.activeElement);
+  const direction = event.key === "ArrowDown" || event.key === "ArrowRight" ? 1 : -1;
+  const nextIndex = (currentIndex + direction + els.quickToolbarPositionButtons.length)
+    % els.quickToolbarPositionButtons.length;
+  els.quickToolbarPositionButtons[nextIndex].focus();
+});
+document.addEventListener("pointerdown", (event) => {
+  if (!els.quickToolbarPositionMenu.hidden && !els.quickToolbar.contains(event.target)) {
+    setToolbarPositionMenu(false);
+  }
+});
 els.circleTool.addEventListener("click", () => {
   toggleDrawMode();
   if (state.mode === "draw") closeCompactPanels();
@@ -1094,7 +1230,7 @@ function startPointerDrag(event) {
   const isMouse = event.pointerType === "mouse";
   const pointerId = event.pointerId;
 
-  if (isMouse && event.button === 1) {
+  if ((isMouse && event.button === 1) || (state.mode === "pan" && event.button === 0)) {
     state.drag = {
       kind: "pan",
       pointerId,
@@ -1334,6 +1470,36 @@ els.canvas.addEventListener("wheel", (event) => {
 window.addEventListener("keydown", (event) => {
   if (isEditableTarget(event.target)) return;
 
+  if (!event.altKey && !event.ctrlKey && !event.metaKey) {
+    const key = event.key.toLowerCase();
+    const modeShortcuts = {
+      v: "select",
+      h: "pan",
+      c: "draw",
+      r: "scale",
+    };
+    if (event.key === "Escape") {
+      event.preventDefault();
+      if (!els.quickToolbarPositionMenu.hidden) {
+        setToolbarPositionMenu(false);
+        els.quickToolbarPosition.focus();
+        return;
+      }
+      setInteractionMode("select");
+      return;
+    }
+    if (key in modeShortcuts && (state.image || key === "v")) {
+      event.preventDefault();
+      setInteractionMode(modeShortcuts[key]);
+      return;
+    }
+    if (key === "f" && state.image) {
+      event.preventDefault();
+      resetView();
+      return;
+    }
+  }
+
   if (event.key === "Backspace" || event.key === "Delete") {
     if (state.selectedIds.size > 0) {
       event.preventDefault();
@@ -1423,6 +1589,22 @@ els.runtimeRetry.addEventListener("click", async () => {
 });
 
 async function bootstrap() {
+  createIcons({
+    icons: {
+      CirclePlus,
+      Hand,
+      Maximize2,
+      MousePointer2,
+      Move,
+      PanelBottom,
+      PanelLeft,
+      PanelRight,
+      PanelTop,
+      Ruler,
+      Trash2,
+    },
+  });
+  setToolbarPosition(state.ui.toolbarPosition, false);
   syncPanels();
   setInteractionMode("select");
   applyTranslations();
