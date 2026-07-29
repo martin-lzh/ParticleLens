@@ -5,12 +5,15 @@ import threading
 import urllib.error
 import urllib.request
 from http.server import ThreadingHTTPServer
+from pathlib import Path
 
 import cv2
 import numpy as np
 import pytest
 
 from particle_web_app import ParticleHandler
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 @pytest.fixture
@@ -79,3 +82,25 @@ def test_static_server_rejects_path_traversal(server_url: str) -> None:
     with pytest.raises(urllib.error.HTTPError) as error:
         urllib.request.urlopen(request)
     assert error.value.code in {403, 404}
+
+
+def test_initial_document_has_critical_styles_before_external_css() -> None:
+    index_html = (PROJECT_ROOT / "static" / "index.html").read_text(encoding="utf-8")
+    full_css = (PROJECT_ROOT / "static" / "styles.css").read_text(encoding="utf-8")
+
+    critical_style = index_html.index("<style>")
+    external_style = index_html.index('<link rel="stylesheet" href="./styles.css" />')
+    assert critical_style < external_style
+    assert ".app-shell {\n        visibility: hidden;" in index_html
+    assert ".app-shell {" in full_css
+    assert "visibility: visible;" in full_css
+
+
+def test_service_worker_fetches_navigation_before_offline_fallback() -> None:
+    service_worker = (PROJECT_ROOT / "static" / "service-worker.js").read_text(
+        encoding="utf-8",
+    )
+    navigation_branch = service_worker.index('event.request.mode === "navigate"')
+    cache_first_branch = service_worker.rindex("const cached = await cache.match(event.request)")
+    assert navigation_branch < cache_first_branch
+    assert 'const SHELL_CACHE = "particlelens-shell-v0.2.1"' in service_worker

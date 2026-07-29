@@ -464,7 +464,7 @@ test("switches language and restores the app shell offline", async ({ page }) =>
       timeout: 30_000,
     });
     const cacheState = await page.evaluate(async () => {
-      const shell = await caches.open("particlelens-shell-v0.2.0");
+      const shell = await caches.open("particlelens-shell-v0.2.1");
       const runtime = await caches.open("particlelens-runtime-v0.2.0");
       const moduleUrl = document.querySelector("script[type='module']").src;
       return {

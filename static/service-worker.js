@@ -1,4 +1,4 @@
-const SHELL_CACHE = "particlelens-shell-v0.2.0";
+const SHELL_CACHE = "particlelens-shell-v0.2.1";
 const RUNTIME_CACHE = "particlelens-runtime-v0.2.0";
 
 self.addEventListener("install", () => {
@@ -66,6 +66,24 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  if (event.request.mode === "navigate") {
+    event.respondWith(
+      caches.open(SHELL_CACHE).then(async (cache) => {
+        try {
+          const response = await fetch(event.request);
+          if (response.ok) await cache.put(event.request, response.clone());
+          return response;
+        } catch {
+          const fallback = await cache.match(event.request) ||
+            await cache.match(new URL("./", self.registration.scope));
+          if (fallback) return fallback;
+          throw new Error("Offline document is unavailable.");
+        }
+      }),
+    );
+    return;
+  }
+
   event.respondWith(
     caches.open(SHELL_CACHE).then(async (cache) => {
       const cached = await cache.match(event.request);
@@ -83,10 +101,6 @@ self.addEventListener("fetch", (event) => {
 
       const response = await update;
       if (response) return response;
-      if (event.request.mode === "navigate") {
-        const fallback = await cache.match(new URL("./", self.registration.scope));
-        if (fallback) return fallback;
-      }
       throw new Error("Offline resource is unavailable.");
     }),
   );

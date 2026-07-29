@@ -177,6 +177,7 @@ label span,
   position: relative;
   width: 100vw;
   height: 100vh;
+  visibility: visible;
   overflow: hidden;
   background: var(--bg);
 }
