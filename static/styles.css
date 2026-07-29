@@ -1073,10 +1073,6 @@ tr.selected.excluded {
     padding-inline: 8px;
   }
 
-  .grid-two {
-    grid-template-columns: 1fr;
-  }
-
   .info-tooltip {
     right: auto;
     left: -4px;
@@ -1482,6 +1478,8 @@ button:disabled {
 
 .left-panel {
   width: var(--left-drawer-width);
+  container-name: detection-sidebar;
+  container-type: inline-size;
 }
 
 .right-panel {
@@ -1504,26 +1502,10 @@ button:disabled {
 
 .panel-heading {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
   gap: 10px;
   margin-bottom: 18px;
-}
-
-.panel-heading-icon {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  border: 1px solid rgba(230, 213, 74, 0.36);
-  border-radius: 8px;
-  background: rgba(230, 213, 74, 0.08);
-  color: var(--accent);
-}
-
-.panel-heading-icon svg {
-  width: 18px;
-  height: 18px;
 }
 
 .panel-heading h1 {
@@ -2153,21 +2135,17 @@ button:disabled {
   }
 }
 
-@media (orientation: portrait) {
-  :root {
-    --left-drawer-width: min(292px, calc(100vw - 20px));
-  }
-
+@container detection-sidebar (max-width: 319px) {
   .left-panel .grid-two {
     grid-template-columns: 1fr;
   }
 
   .left-panel .panel-heading {
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: 1fr;
   }
 
   .left-panel .panel-heading .status {
-    grid-column: 2;
+    grid-column: 1;
     justify-self: start;
   }
 }

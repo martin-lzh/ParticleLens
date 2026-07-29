@@ -518,18 +518,36 @@ test("resizes desktop sidebars from their inner edges and restores their widths"
 
   const leftPanel = page.locator("#leftPanel");
   const leftHandle = page.locator("#leftPanelResizeHandle");
+  const detectionGrid = page.locator("#leftPanel .grid-two");
+  const gridColumnCount = () => detectionGrid.evaluate(
+    (element) => getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/).length,
+  );
   const leftBefore = await leftPanel.boundingBox();
   const leftHandleBox = await leftHandle.boundingBox();
   expect(leftBefore).toBeTruthy();
   expect(leftHandleBox).toBeTruthy();
+  await expect.poll(gridColumnCount).toBe(2);
   await page.mouse.move(leftHandleBox.x + leftHandleBox.width / 2, leftHandleBox.y + 120);
   await page.mouse.down();
-  await page.mouse.move(leftHandleBox.x + leftHandleBox.width / 2 + 90, leftHandleBox.y + 120, {
+  await page.mouse.move(leftHandleBox.x + leftHandleBox.width / 2 - 50, leftHandleBox.y + 120, {
+    steps: 5,
+  });
+  await page.mouse.up();
+  await expect.poll(async () => (await leftPanel.boundingBox()).width)
+    .toBeCloseTo(leftBefore.width - 50, 0);
+  await expect.poll(gridColumnCount).toBe(1);
+
+  const narrowHandleBox = await leftHandle.boundingBox();
+  expect(narrowHandleBox).toBeTruthy();
+  await page.mouse.move(narrowHandleBox.x + narrowHandleBox.width / 2, narrowHandleBox.y + 120);
+  await page.mouse.down();
+  await page.mouse.move(narrowHandleBox.x + narrowHandleBox.width / 2 + 140, narrowHandleBox.y + 120, {
     steps: 5,
   });
   await page.mouse.up();
   await expect.poll(async () => (await leftPanel.boundingBox()).width)
     .toBeCloseTo(leftBefore.width + 90, 0);
+  await expect.poll(gridColumnCount).toBe(2);
 
   await page.locator("#rightToggle").click();
   const rightPanel = page.locator("#rightPanel");
@@ -605,10 +623,12 @@ test("adapts the workspace for mobile and supports touch canvas gestures", async
     ),
   ).toBe("none");
   const portraitPanelBox = await page.locator("#leftPanel").boundingBox();
-  expect(portraitPanelBox.width).toBeLessThanOrEqual(292);
-  const scaleFieldBox = await page.locator("#scaleUm").boundingBox();
-  const directScaleFieldBox = await page.locator("#micronsPerPixel").boundingBox();
-  expect(Math.abs(scaleFieldBox.x - directScaleFieldBox.x)).toBeLessThanOrEqual(1);
+  expect(portraitPanelBox.width).toBeGreaterThan(319);
+  expect(portraitPanelBox.width).toBeLessThanOrEqual(378);
+  const portraitGridColumnCount = await page.locator("#leftPanel .grid-two").evaluate(
+    (element) => getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/).length,
+  );
+  expect(portraitGridColumnCount).toBe(2);
   await page.locator("#imageInput").setInputFiles({
     name: "synthetic.bmp",
     mimeType: "image/bmp",
