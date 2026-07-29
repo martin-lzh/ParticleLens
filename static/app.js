@@ -5,6 +5,7 @@ import {
   CirclePlus,
   createIcons,
   Download,
+  Eye,
   FileOutput,
   FileSpreadsheet,
   Hand,
@@ -142,6 +143,7 @@ const els = {
   quickToolbar: document.querySelector(".quick-toolbar"),
   quickToolButtons: Array.from(document.querySelectorAll("[data-canvas-tool]")),
   quickFitView: document.getElementById("quickFitView"),
+  quickOriginalPreview: document.getElementById("quickOriginalPreview"),
   quickDeleteSelected: document.getElementById("quickDeleteSelected"),
   quickToolbarPosition: document.getElementById("quickToolbarPosition"),
   quickToolbarPositionMenu: document.getElementById("quickToolbarPositionMenu"),
@@ -183,7 +185,6 @@ const els = {
   gamma: document.getElementById("gamma"),
   gammaValue: document.getElementById("gammaValue"),
   colorMode: document.getElementById("colorMode"),
-  toggleOriginal: document.getElementById("toggleOriginal"),
   resetAdjustments: document.getElementById("resetAdjustments"),
   previewStatus: document.getElementById("previewStatus"),
   labelLimit: document.getElementById("labelLimit"),
@@ -248,6 +249,8 @@ const messages = {
     "toolbar.scaleTitle": "重画比例尺 (R)",
     "toolbar.fit": "适配视图",
     "toolbar.fitTitle": "适配视图 (F)",
+    "toolbar.originalPreview": "按住查看原图",
+    "toolbar.originalPreviewTitle": "按住查看原图，松开恢复处理后预览",
     "toolbar.delete": "删除选中",
     "toolbar.deleteTitle": "删除选中 (Delete)",
     "toolbar.position": "工具栏位置",
@@ -382,8 +385,6 @@ const messages = {
     "adjustments.colorMode": "预览与导出颜色",
     "adjustments.color": "保留颜色",
     "adjustments.grayscale": "灰度",
-    "adjustments.showOriginal": "查看原图",
-    "adjustments.showProcessed": "查看处理后",
     "adjustments.reset": "重置调整",
     "adjustments.updating": "正在更新",
     "adjustments.failed": "预览失败",
@@ -462,6 +463,8 @@ const messages = {
     "toolbar.scaleTitle": "Redraw scale bar (R)",
     "toolbar.fit": "Fit view",
     "toolbar.fitTitle": "Fit view (F)",
+    "toolbar.originalPreview": "Hold to view original",
+    "toolbar.originalPreviewTitle": "Press and hold to view the original image; release to restore the processed preview",
     "toolbar.delete": "Delete selected",
     "toolbar.deleteTitle": "Delete selected (Delete)",
     "toolbar.position": "Toolbar position",
@@ -596,8 +599,6 @@ const messages = {
     "adjustments.colorMode": "Preview and export color",
     "adjustments.color": "Keep color",
     "adjustments.grayscale": "Grayscale",
-    "adjustments.showOriginal": "View original",
-    "adjustments.showProcessed": "View processed",
     "adjustments.reset": "Reset adjustments",
     "adjustments.updating": "Updating",
     "adjustments.failed": "Preview failed",
@@ -704,18 +705,22 @@ function setAdjustmentControlsEnabled(enabled) {
     els.gamma,
     els.contrastMode,
     els.colorMode,
-    els.toggleOriginal,
     els.resetAdjustments,
   ]) {
     control.disabled = !enabled;
   }
 }
 
-function updateOriginalToggle() {
-  els.toggleOriginal.setAttribute("aria-pressed", String(state.ui.showOriginal));
-  els.toggleOriginal.textContent = t(
-    state.ui.showOriginal ? "adjustments.showProcessed" : "adjustments.showOriginal",
-  );
+function syncOriginalPreviewButton() {
+  els.quickOriginalPreview.setAttribute("aria-pressed", String(state.ui.showOriginal));
+}
+
+function setOriginalPreview(active) {
+  const next = Boolean(active && state.image);
+  if (state.ui.showOriginal === next) return;
+  state.ui.showOriginal = next;
+  syncOriginalPreviewButton();
+  draw();
 }
 
 function markDetectionSettingsChanged() {
@@ -732,7 +737,7 @@ function resetAdjustmentValues({ resetDisplay = false, schedule = true } = {}) {
     els.contrastMode.value = "clahe";
     els.colorMode.value = "color";
     state.ui.showOriginal = false;
-    updateOriginalToggle();
+    syncOriginalPreviewButton();
   }
   updateAdjustmentReadouts();
   if (schedule && state.image) schedulePreview();
@@ -775,12 +780,19 @@ async function createPreviewSource(image) {
   return (await canvasBlob(canvas)).arrayBuffer();
 }
 
-function schedulePreview(delay = 120) {
+function queuePendingPreview(delay = 16) {
+  if (previewInFlight || previewTimer !== null) return;
+  previewTimer = window.setTimeout(() => {
+    previewTimer = null;
+    renderPendingPreview();
+  }, delay);
+}
+
+function schedulePreview(delay = 16) {
   previewGeneration += 1;
   els.previewStatus.dataset.requestedGeneration = String(previewGeneration);
   previewPending = true;
-  window.clearTimeout(previewTimer);
-  previewTimer = window.setTimeout(renderPendingPreview, delay);
+  queuePendingPreview(delay);
 }
 
 async function renderPendingPreview() {
@@ -790,6 +802,7 @@ async function renderPendingPreview() {
   previewPending = false;
   previewInFlight = true;
   const generation = previewGeneration;
+  const sourceImage = state.image;
   setPreviewStatus("updating");
   try {
     const renderedBytes = await state.detector.render(
@@ -797,7 +810,7 @@ async function renderPendingPreview() {
       imageAdjustmentOptions(),
     );
     const rendered = await imageFromPngBytes(renderedBytes);
-    if (generation !== previewGeneration || !state.image) {
+    if (state.image !== sourceImage) {
       URL.revokeObjectURL(rendered.url);
       return;
     }
@@ -814,10 +827,7 @@ async function renderPendingPreview() {
     }
   } finally {
     previewInFlight = false;
-    if (previewPending) {
-      window.clearTimeout(previewTimer);
-      previewTimer = window.setTimeout(renderPendingPreview, 0);
-    }
+    if (previewPending) queuePendingPreview(0);
   }
 }
 
@@ -841,7 +851,7 @@ function applyTranslations() {
   els.imageAction.textContent = t(state.image ? "upload.replaceAction" : "upload.openAction");
   els.imageMenuTrigger.setAttribute("title", t("upload.openTitle"));
   setStatus(state.statusKey);
-  updateOriginalToggle();
+  syncOriginalPreviewButton();
   setPreviewStatus(els.previewStatus.dataset.state || "idle");
   setHint();
   updateStats();
@@ -1724,6 +1734,7 @@ function updateQuickToolbar() {
     button.disabled = !state.image && button.dataset.canvasTool !== "select";
   }
   els.quickFitView.disabled = !hasImage;
+  els.quickOriginalPreview.disabled = !hasImage;
   els.zoomOut.disabled = !hasImage;
   els.zoomIn.disabled = !hasImage;
   els.quickDeleteSelected.disabled = state.selectedIds.size === 0;
@@ -1952,6 +1963,7 @@ function loadImageData(imageUrl, imageName, imageBytes, revokeUrl = false) {
   previewGeneration += 1;
   previewPending = false;
   window.clearTimeout(previewTimer);
+  previewTimer = null;
   previewSourceBytes = null;
   delete els.previewStatus.dataset.requestedGeneration;
   delete els.previewStatus.dataset.renderedGeneration;
@@ -2282,11 +2294,31 @@ els.contrastMode.addEventListener("change", () => {
   schedulePreview();
 });
 els.colorMode.addEventListener("change", () => schedulePreview());
-els.toggleOriginal.addEventListener("click", () => {
-  state.ui.showOriginal = !state.ui.showOriginal;
-  updateOriginalToggle();
-  draw();
+els.quickOriginalPreview.addEventListener("pointerdown", (event) => {
+  if (els.quickOriginalPreview.disabled || event.button !== 0) return;
+  event.preventDefault();
+  try {
+    els.quickOriginalPreview.setPointerCapture(event.pointerId);
+  } catch {
+    // Synthetic pointer events may not have an active platform pointer to capture.
+  }
+  setOriginalPreview(true);
 });
+for (const eventName of ["pointerup", "pointercancel", "lostpointercapture"]) {
+  els.quickOriginalPreview.addEventListener(eventName, () => setOriginalPreview(false));
+}
+els.quickOriginalPreview.addEventListener("keydown", (event) => {
+  if (![" ", "Enter"].includes(event.key) || event.repeat) return;
+  event.preventDefault();
+  setOriginalPreview(true);
+});
+els.quickOriginalPreview.addEventListener("keyup", (event) => {
+  if (![" ", "Enter"].includes(event.key)) return;
+  event.preventDefault();
+  setOriginalPreview(false);
+});
+els.quickOriginalPreview.addEventListener("blur", () => setOriginalPreview(false));
+els.quickOriginalPreview.addEventListener("click", (event) => event.preventDefault());
 els.resetAdjustments.addEventListener("click", () => {
   const changed = Number(els.brightness.value) !== 0
     || Number(els.contrastAdjustment.value) !== 0
@@ -2878,6 +2910,7 @@ async function bootstrap() {
       CircleHelp,
       CirclePlus,
       Download,
+      Eye,
       FileOutput,
       FileSpreadsheet,
       Hand,

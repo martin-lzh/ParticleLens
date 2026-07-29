@@ -15,6 +15,10 @@ All notable changes are documented here. Versions follow Semantic Versioning.
 
 - Particle detection and annotated-image export now use the same adjustment
   parameters shown in the preview.
+- Image adjustments begin rendering immediately and display completed
+  intermediate frames while the user continues dragging a control.
+- Original-image comparison is now a press-and-hold action in the canvas tool
+  rail; releasing it always restores the processed preview.
 
 ## [0.2.1] - 2026-07-29
 

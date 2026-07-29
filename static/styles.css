@@ -879,15 +879,11 @@ body.panel-resizing * {
 }
 
 .adjustment-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  display: block;
 }
 
-.adjustment-actions button[aria-pressed="true"] {
-  border-color: var(--accent);
-  background: rgba(230, 213, 74, 0.12);
-  color: var(--accent);
+.adjustment-actions button {
+  width: 100%;
 }
 
 html[lang="en"] .calibration-field-label {

@@ -179,6 +179,10 @@
               <i data-lucide="maximize-2" aria-hidden="true"></i>
               <span class="sr-only" data-i18n="toolbar.fit">Fit view</span>
             </button>
+            <button id="quickOriginalPreview" class="quick-tool" type="button" aria-pressed="false" title="Press and hold to view the original image" data-i18n-title="toolbar.originalPreviewTitle" disabled>
+              <i data-lucide="eye" aria-hidden="true"></i>
+              <span class="sr-only" data-i18n="toolbar.originalPreview">Hold to view original</span>
+            </button>
             <button id="quickDeleteSelected" class="quick-tool danger" type="button" data-canvas-action="delete" title="Delete selected (Delete)" data-i18n-title="toolbar.deleteTitle">
               <i data-lucide="trash-2" aria-hidden="true"></i>
               <span class="sr-only" data-i18n="toolbar.delete">Delete selected</span>
@@ -353,7 +357,6 @@
                 </select>
               </label>
               <div class="adjustment-actions">
-                <button id="toggleOriginal" type="button" aria-pressed="false" disabled data-i18n="adjustments.showOriginal">View original</button>
                 <button id="resetAdjustments" type="button" disabled data-i18n="adjustments.reset">Reset adjustments</button>
               </div>
             </section>

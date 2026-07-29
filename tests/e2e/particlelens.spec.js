@@ -349,10 +349,15 @@ test("previews image adjustments and keeps detection results until rerun", async
   const adjusted = await canvas.screenshot();
   expect(Buffer.compare(before, adjusted)).not.toBe(0);
 
-  await page.locator("#toggleOriginal").click();
-  await expect(page.locator("#toggleOriginal")).toHaveAttribute("aria-pressed", "true");
+  const originalPreview = page.locator("#quickOriginalPreview");
+  await originalPreview.dispatchEvent("pointerdown", { button: 0, pointerId: 41 });
+  await expect(originalPreview).toHaveAttribute("aria-pressed", "true");
   const original = await canvas.screenshot();
   expect(Buffer.compare(adjusted, original)).not.toBe(0);
+  await originalPreview.dispatchEvent("pointerup", { button: 0, pointerId: 41 });
+  await expect(originalPreview).toHaveAttribute("aria-pressed", "false");
+  const restored = await canvas.screenshot();
+  expect(Buffer.compare(adjusted, restored)).toBe(0);
 
   await page.locator("#resetAdjustments").click();
   await expect(page.locator("#brightness")).toHaveValue("0");
@@ -458,7 +463,6 @@ test("opens images from the canvas and warns before replacing current work", asy
     input.dispatchEvent(new Event("input", { bubbles: true }));
   });
   await page.locator("#colorMode").selectOption("grayscale");
-  await page.locator("#toggleOriginal").click();
 
   await page.locator("#imageMenuTrigger").click();
   await expect(page.locator("#replaceImageDialog")).toBeVisible();
@@ -480,7 +484,7 @@ test("opens images from the canvas and warns before replacing current work", asy
   await expect(page.locator("#gamma")).toHaveValue("1");
   await expect(page.locator("#contrastMode")).toHaveValue("clahe");
   await expect(page.locator("#colorMode")).toHaveValue("color");
-  await expect(page.locator("#toggleOriginal")).toHaveAttribute("aria-pressed", "false");
+  await expect(page.locator("#quickOriginalPreview")).toHaveAttribute("aria-pressed", "false");
 });
 
 test("renders a configurable Pareto diagram and live overlay", async ({ page }) => {
@@ -714,6 +718,8 @@ test("keeps the analysis entry visible across transitional navbar widths", async
   await expect(page.locator(".quick-toolbar #zoomOut")).toHaveCount(1);
   await expect(page.locator(".quick-toolbar #zoomIn")).toHaveCount(1);
   await expect(page.locator(".quick-toolbar #quickFitView")).toHaveCount(1);
+  await expect(page.locator(".quick-toolbar #quickOriginalPreview")).toHaveCount(1);
+  await expect(page.locator("#leftPanel #quickOriginalPreview")).toHaveCount(0);
 
   for (const width of [1280, 1180, 1024, 900, 821]) {
     await page.setViewportSize({ width, height: 768 });
