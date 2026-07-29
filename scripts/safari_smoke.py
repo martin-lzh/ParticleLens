@@ -36,6 +36,9 @@ def main() -> None:
             wait.until(conditions.element_to_be_clickable((By.ID, "runDetect")))
 
             driver.find_element(By.ID, "imageInput").send_keys(str(image_path))
+            wait.until(
+                lambda browser: browser.find_element(By.ID, "imageName").text == image_path.name
+            )
             Select(driver.find_element(By.ID, "contrastMode")).select_by_value("none")
             driver.execute_script(
                 """
