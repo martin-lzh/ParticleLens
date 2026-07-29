@@ -206,6 +206,9 @@
               </button>
             </header>
             <canvas id="scaleLegendCanvas" class="scale-legend-canvas" aria-hidden="true"></canvas>
+            <p id="scaleLegendNotice" class="scale-legend-notice" data-i18n="legend.zoomOut" hidden>
+              One or more reference lengths exceed the legend width. Zoom out to see them in full.
+            </p>
             <p id="scaleLegendDescription" class="sr-only" aria-live="polite"></p>
           </section>
 
@@ -247,7 +250,7 @@
               </label>
               <label>
                 <span data-i18n="labels.micronsPerPixel">Length per pixel (µm/px)</span>
-                <input id="micronsPerPixel" type="number" min="0.000001" step="0.0001" placeholder="0.625" />
+                <input id="micronsPerPixel" type="number" min="0.000001" step="any" placeholder="0.625" />
               </label>
               <div class="field">
                 <div class="field-label">

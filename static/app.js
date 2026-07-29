@@ -150,6 +150,7 @@ const els = {
   hideParetoOverlay: document.getElementById("hideParetoOverlay"),
   scaleLegendOverlay: document.getElementById("scaleLegendOverlay"),
   scaleLegendCanvas: document.getElementById("scaleLegendCanvas"),
+  scaleLegendNotice: document.getElementById("scaleLegendNotice"),
   scaleLegendDescription: document.getElementById("scaleLegendDescription"),
   showScaleLegend: document.getElementById("showScaleLegend"),
   hideScaleLegend: document.getElementById("hideScaleLegend"),
@@ -308,6 +309,7 @@ const messages = {
     "legend.scale": "比例尺",
     "legend.minimum": "最小粒径",
     "legend.maximum": "最大粒径",
+    "legend.zoomOut": "部分参考长度超出图例宽度，请缩小图片查看完整长度。",
     "unit.um": "微米",
     "unit.umPerPx": "微米/px",
     "source.auto": "自动",
@@ -450,6 +452,7 @@ const messages = {
     "legend.scale": "Scale",
     "legend.minimum": "Minimum",
     "legend.maximum": "Maximum",
+    "legend.zoomOut": "One or more reference lengths exceed the legend width. Zoom out to see them in full.",
     "unit.um": "µm",
     "unit.umPerPx": "µm/px",
     "source.auto": "Auto",
@@ -520,6 +523,7 @@ function resizeCanvas() {
   els.canvas.width = Math.max(1, Math.round(rect.width * dpr));
   els.canvas.height = Math.max(1, Math.round(rect.height * dpr));
   draw();
+  renderScaleLegend();
 }
 
 function canvasPoint(event) {
@@ -675,6 +679,7 @@ function zoomAt(factor, center = null) {
 
 function updateZoomReadout() {
   els.zoomReadout.textContent = `${Math.round(state.view.zoom * 100)}%`;
+  renderScaleLegend();
 }
 
 function isEditableTarget(target) {
@@ -1025,18 +1030,23 @@ function renderScaleLegend() {
     { label: t("legend.minimum"), um: minUm, px: minUm / state.micronsPerPx, color: "#74c69d" },
     { label: t("legend.maximum"), um: maxUm, px: maxUm / state.micronsPerPx, color: "#5aa7ff" },
   ];
+  const dpr = window.devicePixelRatio || 1;
+  const screenScale = fitTransform().scale / dpr;
+  for (const entry of entries) entry.screenPx = entry.px * screenScale;
   const displayUm = (value) => value.toLocaleString(state.lang === "zh" ? "zh-CN" : "en", {
     maximumFractionDigits: 4,
   });
   const description = entries
-    .map((entry) => `${entry.label}: ${displayUm(entry.um)} ${t("unit.um")} = ${entry.px.toFixed(1)} px`)
+    .map((entry) =>
+      `${entry.label}: ${displayUm(entry.um)} ${t("unit.um")} = ${entry.px.toFixed(1)} px (image), ` +
+      `${entry.screenPx.toFixed(1)} px (screen)`
+    )
     .join(". ");
   els.scaleLegendDescription.textContent = description;
 
   const canvas = els.scaleLegendCanvas;
   const cssWidth = Math.max(240, Math.round(canvas.clientWidth || 270));
   const cssHeight = Math.max(126, Math.round(canvas.clientHeight || 126));
-  const dpr = window.devicePixelRatio || 1;
   canvas.width = Math.round(cssWidth * dpr);
   canvas.height = Math.round(cssHeight * dpr);
   const legendCtx = canvas.getContext("2d");
@@ -1046,14 +1056,19 @@ function renderScaleLegend() {
   const labelX = 12;
   const barX = 12;
   const maxBarWidth = cssWidth - 24;
-  const largestPx = Math.max(1, ...entries.map((entry) => entry.px));
+  const hasOverflow = entries.some((entry) => entry.screenPx > maxBarWidth);
+  els.scaleLegendOverlay.classList.toggle("has-overflow", hasOverflow);
+  els.scaleLegendOverlay.dataset.scaleScreenPx = entries[0].screenPx.toFixed(3);
+  els.scaleLegendOverlay.dataset.overflow = String(hasOverflow);
+  els.scaleLegendNotice.hidden = !hasOverflow;
   legendCtx.font = '11px "Segoe UI", system-ui, sans-serif';
   legendCtx.textBaseline = "middle";
 
   entries.forEach((entry, index) => {
     const labelY = 17 + index * 38;
     const barY = labelY + 13;
-    const barWidth = Math.max(4, (entry.px / largestPx) * maxBarWidth);
+    const entryOverflows = entry.screenPx > maxBarWidth;
+    const barWidth = Math.max(1, Math.min(entry.screenPx, maxBarWidth));
     legendCtx.fillStyle = "#dce2e5";
     legendCtx.fillText(
       `${entry.label}  ${displayUm(entry.um)} ${t("unit.um")}  ·  ${entry.px.toFixed(1)} px`,
@@ -1069,10 +1084,25 @@ function renderScaleLegend() {
     legendCtx.beginPath();
     legendCtx.moveTo(barX, barY - 3);
     legendCtx.lineTo(barX, barY + 3);
-    legendCtx.moveTo(barX + barWidth, barY - 3);
-    legendCtx.lineTo(barX + barWidth, barY + 3);
+    if (entryOverflows) {
+      legendCtx.moveTo(barX + barWidth - 7, barY - 4);
+      legendCtx.lineTo(barX + barWidth - 2, barY + 1);
+      legendCtx.moveTo(barX + barWidth - 7, barY + 1);
+      legendCtx.lineTo(barX + barWidth - 2, barY + 6);
+    } else {
+      legendCtx.moveTo(barX + barWidth, barY - 3);
+      legendCtx.lineTo(barX + barWidth, barY + 3);
+    }
     legendCtx.stroke();
   });
+
+  if (els.scaleLegendOverlay.classList.contains("user-positioned")) {
+    positionFloatingOverlay(
+      els.scaleLegendOverlay,
+      Number.parseFloat(els.scaleLegendOverlay.style.left) || 0,
+      Number.parseFloat(els.scaleLegendOverlay.style.top) || 0,
+    );
+  }
 }
 
 async function renderPareto(inputValues = null) {

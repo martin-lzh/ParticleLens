@@ -215,6 +215,23 @@ test("renders a configurable Pareto diagram and live overlay", async ({ page }) 
   await expect(page.locator("#paretoOverlay")).toBeVisible();
   await expect(page.locator("#scaleLegendOverlay")).toBeVisible();
   await expect(page.locator("#scaleLegendDescription")).toContainText(/80\.0 px/);
+  const scaleLengthBeforeZoom = Number(
+    await page.locator("#scaleLegendOverlay").getAttribute("data-scale-screen-px"),
+  );
+  const legendWidthBeforeZoom = (await page.locator("#scaleLegendOverlay").boundingBox()).width;
+  await page.locator("#zoomIn").click();
+  await expect.poll(
+    async () => Number(
+      await page.locator("#scaleLegendOverlay").getAttribute("data-scale-screen-px"),
+    ),
+  ).toBeCloseTo(scaleLengthBeforeZoom * 1.25, 2);
+  for (let index = 0; index < 7; index += 1) await page.locator("#zoomIn").click();
+  await expect(page.locator("#scaleLegendNotice")).toBeVisible();
+  await expect(page.locator("#scaleLegendOverlay")).toHaveAttribute("data-overflow", "true");
+  expect((await page.locator("#scaleLegendOverlay").boundingBox()).width)
+    .toBeCloseTo(legendWidthBeforeZoom, 1);
+  await page.locator("#quickFitView").click();
+  await expect(page.locator("#scaleLegendNotice")).toBeHidden();
 
   const legendBefore = await page.locator("#scaleLegendOverlay").boundingBox();
   const legendHandle = await page.locator("#scaleLegendOverlay .overlay-drag-handle").boundingBox();
