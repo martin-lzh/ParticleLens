@@ -142,6 +142,8 @@ const els = {
   exportSelection: document.getElementById("exportSelection"),
   exportScale: document.getElementById("exportScale"),
   exportLegend: document.getElementById("exportLegend"),
+  exportBorderColor: document.getElementById("exportBorderColor"),
+  exportBorderWidth: document.getElementById("exportBorderWidth"),
   paretoPlot: document.getElementById("paretoPlot"),
   paretoOverlay: document.getElementById("paretoOverlay"),
   paretoOverlayPlot: document.getElementById("paretoOverlayPlot"),
@@ -304,6 +306,8 @@ const messages = {
     "export.selection": "选中颗粒高亮",
     "export.scale": "比例尺",
     "export.legend": "比例与粒径图例",
+    "export.borderColor": "边框颜色",
+    "export.borderWidth": "边框宽度 (px)",
     "replace.title": "替换当前图片？",
     "replace.warning": "打开另一张图片会清空全部识别结果、人工校正、比例尺和当前选择。请先导出需要保留的数据。",
     "replace.cancel": "取消",
@@ -451,6 +455,8 @@ const messages = {
     "export.selection": "Selected particle highlight",
     "export.scale": "Scale bar",
     "export.legend": "Scale and diameter legend",
+    "export.borderColor": "Border color",
+    "export.borderWidth": "Border width (px)",
     "replace.title": "Replace the current image?",
     "replace.warning": "Opening another image will clear all detected particles, manual corrections, scale settings, and selections. Export anything you need first.",
     "replace.cancel": "Cancel",
@@ -750,11 +756,22 @@ function draw(targetCtx = ctx, options = {}) {
     state.image.naturalHeight * t.scale
   );
 
-  if (options.export && exportPadding > 0) {
+  const requestedBorderWidth = Number(options.exportBorderWidth) || 0;
+  const exportBorderWidth = Math.max(
+    0,
+    Math.min(requestedBorderWidth, state.image.naturalWidth, state.image.naturalHeight),
+  );
+  if (options.export && exportBorderWidth > 0) {
     targetCtx.save();
-    targetCtx.strokeStyle = "#4b535c";
-    targetCtx.lineWidth = 1;
-    targetCtx.strokeRect(t.ox + 0.5, t.oy + 0.5, state.image.naturalWidth - 1, state.image.naturalHeight - 1);
+    targetCtx.strokeStyle = options.exportBorderColor || "#4b535c";
+    targetCtx.lineWidth = exportBorderWidth;
+    const inset = exportBorderWidth / 2;
+    targetCtx.strokeRect(
+      t.ox + inset,
+      t.oy + inset,
+      state.image.naturalWidth - exportBorderWidth,
+      state.image.naturalHeight - exportBorderWidth,
+    );
     targetCtx.restore();
   }
 
@@ -1302,6 +1319,8 @@ function updateQuickToolbar() {
   els.exportSelection.disabled = !hasImage;
   els.exportScale.disabled = !hasImage || !state.scaleLine;
   els.exportLegend.disabled = !hasImage || !state.micronsPerPx;
+  els.exportBorderColor.disabled = !hasImage;
+  els.exportBorderWidth.disabled = !hasImage;
   els.downloadPareto.disabled = distributionParticles().every((particle) => diameterUm(particle) <= 0);
   els.micronsPerPixel.disabled = !hasImage;
   if (state.statusKey !== "status.running") {
@@ -1617,6 +1636,8 @@ function exportPng() {
     includeSelection: els.exportSelection.checked,
     includeScale: els.exportScale.checked,
     includeLegend: els.exportLegend.checked,
+    exportBorderColor: els.exportBorderColor.value,
+    exportBorderWidth: els.exportBorderWidth.value,
   });
   out.toBlob((blob) => {
     if (blob) downloadBlob(`${state.imageName || "image"}_annotated.png`, blob);

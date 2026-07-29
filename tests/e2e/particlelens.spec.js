@@ -159,6 +159,7 @@ async function summarizeExportedPng(page) {
       selectionBlue: countColor(90, 167, 255),
       scaleBlue: countColor(47, 120, 255),
       legendGreen: countColor(116, 198, 157),
+      borderMagenta: countColor(217, 70, 239),
       legendPixel: Array.from(pixels.slice(legendPixelOffset, legendPixelOffset + 3)),
     };
   }, base64);
@@ -277,6 +278,8 @@ test("exports selection, scale bar, and legend only when requested", async ({ pa
   await expect(page.locator("#exportSelection")).not.toBeChecked();
   await expect(page.locator("#exportScale")).not.toBeChecked();
   await expect(page.locator("#exportLegend")).not.toBeChecked();
+  await expect(page.locator("#exportBorderColor")).toHaveValue("#4b535c");
+  await expect(page.locator("#exportBorderWidth")).toHaveValue("0");
   await expect(page.locator("#exportScale")).toBeEnabled();
   await expect(page.locator("#exportLegend")).toBeEnabled();
 
@@ -284,6 +287,7 @@ test("exports selection, scale bar, and legend only when requested", async ({ pa
   expect(defaultExport.selectionBlue).toBe(0);
   expect(defaultExport.scaleBlue).toBe(0);
   expect(defaultExport.legendGreen).toBe(0);
+  expect(defaultExport.borderMagenta).toBe(0);
 
   await page.locator("#exportSelection").check();
   const selectionExport = await summarizeExportedPng(page);
@@ -306,6 +310,16 @@ test("exports selection, scale bar, and legend only when requested", async ({ pa
   expect(legendExport.scaleBlue).toBe(0);
   expect(legendExport.legendGreen).toBeGreaterThan(0);
   expect(legendExport.legendPixel).not.toEqual(defaultExport.legendPixel);
+
+  await page.locator("#exportLegend").uncheck();
+  await page.locator("#exportBorderColor").fill("#d946ef");
+  await page.locator("#exportBorderWidth").fill("8");
+  const borderExport = await summarizeExportedPng(page);
+  expect(borderExport.selectionBlue).toBe(0);
+  expect(borderExport.scaleBlue).toBe(0);
+  expect(borderExport.legendGreen).toBe(0);
+  expect(borderExport.borderMagenta).toBeGreaterThan(10_000);
+  expect(borderExport.legendPixel).toEqual(defaultExport.legendPixel);
 });
 
 test("opens images from the canvas and warns before replacing current work", async ({ page }) => {

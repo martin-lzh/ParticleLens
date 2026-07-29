@@ -1896,6 +1896,22 @@ button:disabled {
   font-size: 11px;
 }
 
+.export-border-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.export-border-options label {
+  min-width: 0;
+}
+
+.export-border-options input[type="color"] {
+  padding: 3px;
+  cursor: pointer;
+}
+
 .export-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;

@@ -385,6 +385,24 @@
                   <span data-i18n="export.legend">Scale and diameter legend</span>
                 </label>
               </fieldset>
+              <div class="export-border-options">
+                <label>
+                  <span data-i18n="export.borderColor">Border color</span>
+                  <input id="exportBorderColor" type="color" value="#4b535c" />
+                </label>
+                <label>
+                  <span data-i18n="export.borderWidth">Border width (px)</span>
+                  <input
+                    id="exportBorderWidth"
+                    type="number"
+                    min="0"
+                    max="50"
+                    step="1"
+                    value="0"
+                    inputmode="numeric"
+                  />
+                </label>
+              </div>
               <div class="export-actions">
                 <button id="exportCsv" type="button"><i data-lucide="file-spreadsheet" aria-hidden="true"></i><span>CSV</span></button>
                 <button id="exportPng" type="button"><i data-lucide="image-down" aria-hidden="true"></i><span data-i18n="buttons.annotatedImage">Annotated Image</span></button>
