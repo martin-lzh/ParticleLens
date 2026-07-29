@@ -837,13 +837,13 @@ body.panel-resizing * {
 }
 
 .direct-scale-field.is-disabled #micronsPerPixelLabel {
-  color: #ff6b63;
+  color: var(--accent);
   font-weight: 650;
 }
 
 .direct-scale-field input:disabled {
-  border-color: rgba(228, 75, 66, 0.38);
-  background: rgba(228, 75, 66, 0.06);
+  border-color: rgba(230, 213, 74, 0.42);
+  background: rgba(230, 213, 74, 0.06);
   color: #aeb5ba;
   opacity: 1;
 }
@@ -856,16 +856,16 @@ body.panel-resizing * {
   min-height: 30px;
   margin-top: 6px;
   padding: 5px 7px;
-  border-color: rgba(228, 75, 66, 0.5);
-  background: rgba(228, 75, 66, 0.08);
-  color: #ff8a83;
+  border-color: rgba(230, 213, 74, 0.5);
+  background: rgba(230, 213, 74, 0.08);
+  color: var(--accent);
   font-size: 11px;
 }
 
 .remove-scale-line:hover,
 .remove-scale-line:focus-visible {
-  border-color: var(--danger);
-  background: rgba(228, 75, 66, 0.14);
+  border-color: var(--accent);
+  background: rgba(230, 213, 74, 0.14);
 }
 
 .remove-scale-line svg {

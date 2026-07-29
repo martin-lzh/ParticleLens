@@ -185,7 +185,7 @@ test("falls back to the browser detector when native configuration is stale", as
   await openReadyApp(page);
   await expect(page.locator("#runtimeLoader")).toHaveClass(/hidden/);
   await expect(page.locator("#runDetect")).toBeDisabled();
-  await expect(page.locator("#micronsPerPixelLabel")).toHaveCSS("color", "rgb(255, 107, 99)");
+  await expect(page.locator("#micronsPerPixelLabel")).toHaveCSS("color", "rgb(230, 213, 74)");
   await expect(page.locator("#micronsPerPixelInfo")).toBeVisible();
   await expect(page.locator("#micronsPerPixelInfoText")).toContainText(
     /Open an image|请先打开图片/,
@@ -472,7 +472,7 @@ test("supports manual correction, scale redraw, zoom, pan, move, and delete", as
   await expect(page.locator("#scaleReadout")).toContainText(/Scale bar|比例尺/);
   await expect(page.locator("#micronsPerPixel")).toBeDisabled();
   await expect(page.locator("#micronsPerPixel")).toHaveValue("0.625");
-  await expect(page.locator("#micronsPerPixelLabel")).toHaveCSS("color", "rgb(255, 107, 99)");
+  await expect(page.locator("#micronsPerPixelLabel")).toHaveCSS("color", "rgb(230, 213, 74)");
   await expect(page.locator("#micronsPerPixelLabel")).toContainText(
     /remove the drawn scale bar|移除手绘标尺/,
   );
