@@ -1169,6 +1169,48 @@ function syncScaleInputState() {
   els.removeScaleLine.hidden = !overriddenByLine;
 }
 
+function positionInformationTooltip(infoPoint) {
+  const tooltip = infoPoint.querySelector(".info-tooltip");
+  const trigger = infoPoint.querySelector(".info-point-trigger");
+  if (!tooltip || !trigger || infoPoint.hidden) return;
+
+  const viewportPadding = 8;
+  const tooltipGap = 7;
+  const maxWidth = Math.max(0, window.innerWidth - viewportPadding * 2);
+  tooltip.style.width = `${Math.min(230, maxWidth)}px`;
+
+  const triggerRect = trigger.getBoundingClientRect();
+  const tooltipRect = tooltip.getBoundingClientRect();
+  const maxLeft = Math.max(viewportPadding, window.innerWidth - tooltipRect.width - viewportPadding);
+  const centeredLeft = triggerRect.left + triggerRect.width / 2 - tooltipRect.width / 2;
+  const left = Math.min(maxLeft, Math.max(viewportPadding, centeredLeft));
+
+  const below = triggerRect.bottom + tooltipGap;
+  const above = triggerRect.top - tooltipRect.height - tooltipGap;
+  const preferredTop = below + tooltipRect.height <= window.innerHeight - viewportPadding
+    ? below
+    : above;
+  const maxTop = Math.max(viewportPadding, window.innerHeight - tooltipRect.height - viewportPadding);
+  const top = Math.min(maxTop, Math.max(viewportPadding, preferredTop));
+
+  tooltip.style.setProperty("--tooltip-left", `${left}px`);
+  tooltip.style.setProperty("--tooltip-top", `${top}px`);
+}
+
+function refreshVisibleInformationTooltips() {
+  for (const infoPoint of document.querySelectorAll(".info-point")) {
+    if (infoPoint.matches(":hover, :focus-within")) positionInformationTooltip(infoPoint);
+  }
+}
+
+function setupInformationTooltips() {
+  for (const infoPoint of document.querySelectorAll(".info-point")) {
+    infoPoint.addEventListener("pointerenter", () => positionInformationTooltip(infoPoint));
+    infoPoint.addEventListener("focusin", () => positionInformationTooltip(infoPoint));
+  }
+  document.addEventListener("scroll", refreshVisibleInformationTooltips, true);
+}
+
 function paretoSeries(values) {
   if (!values.length) return null;
   const min = values[0];
@@ -2509,6 +2551,7 @@ new ResizeObserver(resizePareto).observe(els.paretoOverlayPlot);
 window.addEventListener("resize", () => {
   applyPanelWidths();
   clampFloatingOverlays();
+  refreshVisibleInformationTooltips();
 });
 
 function formatBytes(bytes) {
@@ -2600,6 +2643,7 @@ async function bootstrap() {
   for (const overlay of els.floatingOverlays) makeFloatingOverlayDraggable(overlay);
   makePanelResizable(els.leftPanelResizeHandle);
   makePanelResizable(els.rightPanelResizeHandle);
+  setupInformationTooltips();
   setToolbarPosition(state.ui.toolbarPosition, false);
   syncPanels();
   setInteractionMode("select");

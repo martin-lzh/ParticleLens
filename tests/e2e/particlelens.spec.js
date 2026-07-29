@@ -192,6 +192,37 @@ test("falls back to the browser detector when native configuration is stale", as
   );
 });
 
+test("keeps information tooltips inside narrow viewports", async ({ page }) => {
+  for (const viewport of [
+    { width: 320, height: 640 },
+    { width: 540, height: 900 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await openReadyApp(page);
+    await page.locator("#leftToggle").click();
+
+    for (const trigger of await page.locator(".info-point:not([hidden]) .info-point-trigger").all()) {
+      await trigger.click();
+      const tooltipId = await trigger.getAttribute("aria-describedby");
+      const bounds = await page.locator(`#${tooltipId}`).evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        return {
+          left: rect.left,
+          top: rect.top,
+          right: rect.right,
+          bottom: rect.bottom,
+          viewportWidth: window.innerWidth,
+          viewportHeight: window.innerHeight,
+        };
+      });
+      expect(bounds.left).toBeGreaterThanOrEqual(7);
+      expect(bounds.top).toBeGreaterThanOrEqual(7);
+      expect(bounds.right).toBeLessThanOrEqual(bounds.viewportWidth - 7);
+      expect(bounds.bottom).toBeLessThanOrEqual(bounds.viewportHeight - 7);
+    }
+  }
+});
+
 test("removes legacy local-image parameters without requesting local files", async ({ page }) => {
   const dialogs = [];
   const localImageRequests = [];
@@ -823,7 +854,7 @@ test("switches language and restores the app shell offline", async ({ page }) =>
       timeout: 30_000,
     });
     const cacheState = await page.evaluate(async () => {
-      const shell = await caches.open("particlelens-shell-v0.2.4");
+      const shell = await caches.open("particlelens-shell-v0.2.5");
       const runtime = await caches.open("particlelens-runtime-v0.2.0");
       const moduleUrl = document.querySelector("script[type='module']").src;
       return {
