@@ -50,7 +50,7 @@ jobs:
       - run: npx playwright install --with-deps chromium firefox webkit msedge
       - run: npm run build:web
       - run: npm run test:e2e
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: playwright-report
@@ -69,7 +69,7 @@ jobs:
       - run: npm ci
       - run: npm run build:web
       - run: test "$(cat dist/web/CNAME)" = "particlelens.liuzhaohan.com"
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: pages-build
           path: dist/web/
@@ -90,7 +90,7 @@ jobs:
           enable-cache: true
       - shell: pwsh
         run: ./scripts/build_windows_release.ps1
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: windows-release
           path: release/
