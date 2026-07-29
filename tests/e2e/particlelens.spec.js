@@ -113,6 +113,10 @@ async function uploadAndDetect(page) {
     buffer: syntheticBitmap(),
   });
   await expect(page.locator("#imageName")).toHaveText("synthetic.bmp");
+  await expect(page.locator("#runDetect")).toBeDisabled();
+  await page.locator("#micronsPerPixel").fill("0.625");
+  await page.locator("#micronsPerPixel").press("Tab");
+  await expect(page.locator("#runDetect")).toBeEnabled();
 
   await page.locator("#contrastMode").selectOption("none");
   await page.locator("#sensitivity").fill("0.7");
@@ -209,6 +213,38 @@ test("renders a configurable Pareto diagram and live overlay", async ({ page }) 
   await uploadAndDetect(page);
 
   await expect(page.locator("#paretoOverlay")).toBeVisible();
+  await expect(page.locator("#scaleLegendOverlay")).toBeVisible();
+  await expect(page.locator("#scaleLegendDescription")).toContainText(/80\.0 px/);
+
+  const legendBefore = await page.locator("#scaleLegendOverlay").boundingBox();
+  const legendHandle = await page.locator("#scaleLegendOverlay .overlay-drag-handle").boundingBox();
+  expect(legendBefore).toBeTruthy();
+  expect(legendHandle).toBeTruthy();
+  await page.mouse.move(legendHandle.x + 28, legendHandle.y + 14);
+  await page.mouse.down();
+  await page.mouse.move(legendHandle.x + 78, legendHandle.y + 74, { steps: 5 });
+  await page.mouse.up();
+  const legendAfter = await page.locator("#scaleLegendOverlay").boundingBox();
+  expect(legendAfter.x).not.toBe(legendBefore.x);
+  expect(legendAfter.y).not.toBe(legendBefore.y);
+
+  await page.locator("#hideScaleLegend").click();
+  await expect(page.locator("#scaleLegendOverlay")).toBeHidden();
+  await page.locator("#showScaleLegend").check();
+  await expect(page.locator("#scaleLegendOverlay")).toBeVisible();
+
+  const paretoBefore = await page.locator("#paretoOverlay").boundingBox();
+  const paretoHandle = await page.locator("#paretoOverlay .overlay-drag-handle").boundingBox();
+  await page.mouse.move(paretoHandle.x + 35, paretoHandle.y + 14);
+  await page.mouse.down();
+  await page.mouse.move(paretoHandle.x - 35, paretoHandle.y + 65, { steps: 5 });
+  await page.mouse.up();
+  const paretoAfter = await page.locator("#paretoOverlay").boundingBox();
+  expect(paretoAfter.x).not.toBe(paretoBefore.x);
+  expect(paretoAfter.y).not.toBe(paretoBefore.y);
+  expect(await page.evaluate(() => localStorage.getItem("particleLensOverlayPositions")))
+    .toContain("scale-legend");
+
   await page.locator("#rightToggle").click();
   await page.locator("[data-right-tab='pareto']").click();
   await expect(page.locator("#paretoPlot .plot-container")).toBeVisible();
@@ -263,6 +299,14 @@ test("supports manual correction, scale redraw, zoom, pan, move, and delete", as
     await page.locator("#scaleReadout").getAttribute("data-microns-per-px"),
   );
   expect(correctedScale).not.toBe(initialScale);
+  await expect(page.locator("#scaleReadout")).toContainText(/Scale bar|比例尺/);
+
+  await page.locator("#micronsPerPixel").fill("0.5");
+  await page.locator("#micronsPerPixel").press("Tab");
+  await expect(page.locator("#scaleReadout")).toContainText(/Direct input|直接输入/);
+  await expect.poll(
+    async () => Number(await page.locator("#scaleReadout").getAttribute("data-microns-per-px")),
+  ).toBe(0.5);
 
   await page.locator("#quickDeleteSelected").click();
   await expect(rows).toHaveCount(3);
@@ -333,6 +377,11 @@ test("adapts the workspace for mobile and supports touch canvas gestures", async
 
   await page.locator("#leftToggle").click();
   await expect(page.locator("#leftToggle")).toHaveAttribute("aria-expanded", "true");
+  const portraitPanelBox = await page.locator("#leftPanel").boundingBox();
+  expect(portraitPanelBox.width).toBeLessThanOrEqual(292);
+  const scaleFieldBox = await page.locator("#scaleUm").boundingBox();
+  const directScaleFieldBox = await page.locator("#micronsPerPixel").boundingBox();
+  expect(Math.abs(scaleFieldBox.x - directScaleFieldBox.x)).toBeLessThanOrEqual(1);
   await page.locator("#imageInput").setInputFiles({
     name: "synthetic.bmp",
     mimeType: "image/bmp",
@@ -346,6 +395,10 @@ test("adapts the workspace for mobile and supports touch canvas gestures", async
   await page.locator("#sensitivity").fill("0.7");
   await page.locator("#minDiameter").fill("15");
   await page.locator("#maxDiameter").fill("80");
+  await expect(page.locator("#runDetect")).toBeDisabled();
+  await page.locator("#micronsPerPixel").fill("0.625");
+  await page.locator("#micronsPerPixel").press("Tab");
+  await expect(page.locator("#runDetect")).toBeEnabled();
   await page.locator("#runDetect").click();
   await expect(page.locator("#statusBadge")).toHaveText(/已识别|Detected/, {
     timeout: 60_000,

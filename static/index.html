@@ -139,8 +139,20 @@
             <span data-i18n="emptyState.detail">Click to choose a file or photo, or drop it here</span>
           </button>
 
-          <section id="paretoOverlay" class="pareto-overlay" aria-label="Live Pareto distribution" data-i18n-aria="pareto.overlayAria" hidden>
-            <header>
+          <section id="scaleLegendOverlay" class="scale-legend-overlay floating-overlay" data-overlay-id="scale-legend" aria-label="Scale and diameter legend" data-i18n-aria="legend.aria" hidden>
+            <header class="overlay-drag-handle">
+              <span data-i18n="legend.title">Scale legend</span>
+              <button id="hideScaleLegend" type="button" title="Hide scale legend" data-i18n-title="legend.hide">
+                <i data-lucide="x" aria-hidden="true"></i>
+                <span class="sr-only" data-i18n="legend.hide">Hide scale legend</span>
+              </button>
+            </header>
+            <canvas id="scaleLegendCanvas" class="scale-legend-canvas" aria-hidden="true"></canvas>
+            <p id="scaleLegendDescription" class="sr-only" aria-live="polite"></p>
+          </section>
+
+          <section id="paretoOverlay" class="pareto-overlay floating-overlay" data-overlay-id="pareto" aria-label="Live Pareto distribution" data-i18n-aria="pareto.overlayAria" hidden>
+            <header class="overlay-drag-handle">
               <span data-i18n="pareto.live">Live distribution</span>
               <button id="hideParetoOverlay" type="button" title="Hide live distribution" data-i18n-title="pareto.hideOverlay">
                 <i data-lucide="x" aria-hidden="true"></i>
@@ -175,6 +187,10 @@
                 <span data-i18n="labels.scaleLength">Scale length (µm)</span>
                 <input id="scaleUm" type="number" min="0.1" step="0.1" value="50" />
               </label>
+              <label>
+                <span data-i18n="labels.micronsPerPixel">Length per pixel (µm/px)</span>
+                <input id="micronsPerPixel" type="number" min="0.000001" step="0.0001" placeholder="0.625" />
+              </label>
               <div class="field">
                 <div class="field-label">
                   <label for="sensitivity" data-i18n="labels.sensitivity">Sensitivity</label>
@@ -202,7 +218,12 @@
                 <option value="none" data-i18n="contrast.none">None</option>
               </select>
             </label>
+            <label class="sidebar-toggle">
+              <input id="showScaleLegend" type="checkbox" checked />
+              <span data-i18n="legend.show">Show scale legend on image</span>
+            </label>
             <button id="runDetect" class="primary detect-action" type="button" data-i18n="buttons.runDetect">Run Detection</button>
+            <p id="detectRequirement" class="detect-requirement" data-i18n="detect.scaleRequired">Set a scale bar or enter µm/px to enable detection.</p>
           </section>
 
           <div class="note detection-note">

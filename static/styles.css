@@ -1634,6 +1634,125 @@ button:disabled {
   stroke-width: 1.8;
 }
 
+.sidebar-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  cursor: pointer;
+}
+
+.sidebar-toggle input {
+  width: 16px;
+  min-width: 16px;
+  min-height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.sidebar-toggle span {
+  margin: 0;
+  color: #c0c8cd;
+}
+
+.detect-requirement {
+  margin: 8px 0 0;
+  color: #d8c965;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.floating-overlay {
+  position: absolute;
+  z-index: 5;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  background: rgba(15, 17, 20, 0.8);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(6px);
+}
+
+.floating-overlay[hidden] {
+  display: none;
+}
+
+.floating-overlay.user-positioned {
+  transition: opacity 140ms ease;
+}
+
+.overlay-drag-handle {
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  left: 10px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 28px;
+  color: #cbd2d6;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.floating-overlay.is-dragging .overlay-drag-handle {
+  cursor: grabbing;
+}
+
+.overlay-drag-handle button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+}
+
+.overlay-drag-handle svg {
+  width: 15px;
+  height: 15px;
+}
+
+.scale-legend-overlay {
+  top: calc(var(--nav-height) + 14px);
+  left: calc(74px + var(--safe-left));
+  width: min(280px, calc(100vw - 110px));
+  height: 160px;
+  padding: 30px 8px 6px;
+  opacity: 0.88;
+  transition: left 160ms ease, opacity 140ms ease;
+}
+
+.scale-legend-overlay:hover,
+.scale-legend-overlay:focus-within {
+  opacity: 1;
+}
+
+.scale-legend-canvas {
+  display: block;
+  width: 100%;
+  height: 126px;
+}
+
+.app-shell.left-panel-open .scale-legend-overlay:not(.user-positioned) {
+  left: calc(var(--left-drawer-width) + 14px);
+}
+
+.app-shell[data-toolbar-position="right"] .scale-legend-overlay:not(.user-positioned),
+.app-shell[data-toolbar-position="top"] .scale-legend-overlay:not(.user-positioned),
+.app-shell[data-toolbar-position="bottom"] .scale-legend-overlay:not(.user-positioned) {
+  left: calc(14px + var(--safe-left));
+}
+
 .pareto-overlay {
   position: absolute;
   top: calc(var(--nav-height) + 14px);
@@ -1698,11 +1817,11 @@ button:disabled {
   height: 100%;
 }
 
-.app-shell.right-panel-open .pareto-overlay {
+.app-shell.right-panel-open .pareto-overlay:not(.user-positioned) {
   right: calc(var(--right-drawer-width) + 14px);
 }
 
-.app-shell[data-toolbar-position="right"]:not(.right-panel-open) .pareto-overlay {
+.app-shell[data-toolbar-position="right"]:not(.right-panel-open) .pareto-overlay:not(.user-positioned) {
   right: calc(74px + var(--safe-right));
 }
 
@@ -1848,12 +1967,21 @@ button:disabled {
     height: 180px;
   }
 
-  .app-shell.right-panel-open .pareto-overlay {
+  .app-shell.right-panel-open .pareto-overlay:not(.user-positioned) {
     display: none;
   }
 
-  .app-shell[data-toolbar-position="right"]:not(.right-panel-open) .pareto-overlay {
+  .app-shell[data-toolbar-position="right"]:not(.right-panel-open) .pareto-overlay:not(.user-positioned) {
     right: calc(66px + var(--safe-right));
+  }
+
+  .scale-legend-overlay {
+    top: calc(var(--nav-height) + 10px);
+    width: min(270px, calc(100vw - 84px));
+  }
+
+  .app-shell.left-panel-open .scale-legend-overlay:not(.user-positioned) {
+    display: none;
   }
 
   .pareto-plot {
@@ -1885,6 +2013,25 @@ button:disabled {
   .dialog-actions button:first-child {
     grid-column: 1 / -1;
     grid-row: 2;
+  }
+}
+
+@media (orientation: portrait) {
+  :root {
+    --left-drawer-width: min(292px, calc(100vw - 20px));
+  }
+
+  .left-panel .grid-two {
+    grid-template-columns: 1fr;
+  }
+
+  .left-panel .panel-heading {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .left-panel .panel-heading .status {
+    grid-column: 2;
+    justify-self: start;
   }
 }
 

@@ -35,6 +35,15 @@ const savedToolbarPosition = localStorage.getItem("particleLensToolbarPosition")
 const savedLanguage =
   localStorage.getItem("particleLensLang") || localStorage.getItem("particleAnnotatorLang");
 const browserLanguage = navigator.languages?.[0] || navigator.language || "en";
+const overlayPositionStorageKey = "particleLensOverlayPositions";
+
+function savedOverlayPositions() {
+  try {
+    return JSON.parse(localStorage.getItem(overlayPositionStorageKey) || "{}");
+  } catch {
+    return {};
+  }
+}
 
 const state = {
   lang: savedLanguage || (browserLanguage.toLowerCase().startsWith("zh") ? "zh" : "en"),
@@ -50,6 +59,7 @@ const state = {
   drag: null,
   scaleLine: null,
   micronsPerPx: null,
+  scaleSource: null,
   nextId: 1,
   view: {
     zoom: 1,
@@ -68,6 +78,7 @@ const state = {
     showHistogram: true,
     showCumulative: true,
     showParetoOverlay: true,
+    showScaleLegend: true,
   },
 };
 
@@ -119,6 +130,7 @@ const els = {
   medianStat: document.getElementById("medianStat"),
   rangeStat: document.getElementById("rangeStat"),
   scaleUm: document.getElementById("scaleUm"),
+  micronsPerPixel: document.getElementById("micronsPerPixel"),
   sensitivity: document.getElementById("sensitivity"),
   minDiameter: document.getElementById("minDiameter"),
   maxDiameter: document.getElementById("maxDiameter"),
@@ -136,6 +148,13 @@ const els = {
   showCumulative: document.getElementById("showCumulative"),
   showParetoOverlay: document.getElementById("showParetoOverlay"),
   hideParetoOverlay: document.getElementById("hideParetoOverlay"),
+  scaleLegendOverlay: document.getElementById("scaleLegendOverlay"),
+  scaleLegendCanvas: document.getElementById("scaleLegendCanvas"),
+  scaleLegendDescription: document.getElementById("scaleLegendDescription"),
+  showScaleLegend: document.getElementById("showScaleLegend"),
+  hideScaleLegend: document.getElementById("hideScaleLegend"),
+  detectRequirement: document.getElementById("detectRequirement"),
+  floatingOverlays: Array.from(document.querySelectorAll(".floating-overlay")),
   downloadPareto: document.getElementById("downloadPareto"),
   replaceImageDialog: document.getElementById("replaceImageDialog"),
   replaceExport: document.getElementById("replaceExport"),
@@ -185,6 +204,8 @@ const messages = {
     "language.target": "EN",
     "image.none": "未选择图片",
     "scale.unset": "比例尺未设置",
+    "scale.sourceDirect": "直接输入",
+    "scale.sourceLine": "比例尺",
     "zoom.outTitle": "缩小",
     "zoom.inTitle": "放大",
     "hint.initial": "选择图片后可自动识别，也可手动画圆补充。",
@@ -220,6 +241,7 @@ const messages = {
     "detect.title": "颗粒识别",
     "detect.subtitle": "运行本地识别前调整参数。",
     "detect.localNote": "识别在浏览器本地运行，图片不会上传。",
+    "detect.scaleRequired": "请先绘制比例尺或输入每像素长度，再运行识别。",
     "tabs.toolsAria": "工具分类",
     "tabs.detect": "检测",
     "tabs.edit": "编辑",
@@ -232,6 +254,7 @@ const messages = {
     "groups.editTools": "编辑工具",
     "groups.export": "导出",
     "labels.scaleLength": "比例尺长度 (微米)",
+    "labels.micronsPerPixel": "每像素长度 (微米/px)",
     "labels.sensitivity": "灵敏度",
     "labels.sensitivityInfoAria": "查看灵敏度说明",
     "labels.sensitivityInfo": "这是圆形检测的形状置信阈值（0.01–0.98），不是颗粒的物理量。数值越低，判定越宽松：可检出边缘较弱、残缺或不够圆的颗粒，但误检会增加；数值越高，判定越严格：更偏向边缘清晰、完整且接近圆形的颗粒，但可能漏检。",
@@ -278,6 +301,13 @@ const messages = {
     "replace.cancel": "取消",
     "replace.export": "先导出数据",
     "replace.continue": "替换图片",
+    "legend.aria": "比例尺与粒径图例",
+    "legend.title": "比例与粒径",
+    "legend.hide": "隐藏比例图例",
+    "legend.show": "在图片上显示比例图例",
+    "legend.scale": "比例尺",
+    "legend.minimum": "最小粒径",
+    "legend.maximum": "最大粒径",
     "unit.um": "微米",
     "unit.umPerPx": "微米/px",
     "source.auto": "自动",
@@ -316,6 +346,8 @@ const messages = {
     "language.target": "中文",
     "image.none": "No image selected",
     "scale.unset": "Scale not set",
+    "scale.sourceDirect": "Direct input",
+    "scale.sourceLine": "Scale bar",
     "zoom.outTitle": "Zoom out",
     "zoom.inTitle": "Zoom in",
     "hint.initial": "Choose an image to detect particles automatically or add circles manually.",
@@ -351,6 +383,7 @@ const messages = {
     "detect.title": "Particle detection",
     "detect.subtitle": "Tune recognition before running the local detector.",
     "detect.localNote": "Detection runs locally in your browser. Your image is not uploaded.",
+    "detect.scaleRequired": "Set a scale bar or enter µm/px to enable detection.",
     "tabs.toolsAria": "Tool categories",
     "tabs.detect": "Detect",
     "tabs.edit": "Edit",
@@ -363,6 +396,7 @@ const messages = {
     "groups.editTools": "Edit Tools",
     "groups.export": "Export",
     "labels.scaleLength": "Scale length (µm)",
+    "labels.micronsPerPixel": "Length per pixel (µm/px)",
     "labels.sensitivity": "Sensitivity",
     "labels.sensitivityInfoAria": "Show sensitivity explanation",
     "labels.sensitivityInfo": "This is the circle detector's shape-confidence threshold (0.01–0.98), not a physical particle quantity. Lower values relax acceptance, finding weaker, incomplete, or less circular edges but increasing false positives. Higher values are stricter, favoring clear, complete, circular edges but potentially missing particles.",
@@ -409,6 +443,13 @@ const messages = {
     "replace.cancel": "Cancel",
     "replace.export": "Export data first",
     "replace.continue": "Replace image",
+    "legend.aria": "Scale and diameter legend",
+    "legend.title": "Scale and diameter",
+    "legend.hide": "Hide scale legend",
+    "legend.show": "Show scale legend on image",
+    "legend.scale": "Scale",
+    "legend.minimum": "Minimum",
+    "legend.maximum": "Maximum",
     "unit.um": "µm",
     "unit.umPerPx": "µm/px",
     "source.auto": "Auto",
@@ -495,6 +536,101 @@ function resizePareto() {
   if (plotlyApi && els.paretoOverlayPlot?.data && !els.paretoOverlay.hidden) {
     plotlyApi.Plots.resize(els.paretoOverlayPlot);
   }
+}
+
+function overlayBounds(overlay, left, top) {
+  const containerRect = els.canvas.closest(".canvas-wrap").getBoundingClientRect();
+  const overlayRect = overlay.getBoundingClientRect();
+  const topbarRect = document.querySelector(".topbar").getBoundingClientRect();
+  const minimumTop = topbarRect.bottom - containerRect.top;
+  return {
+    left: Math.min(
+      Math.max(8, left),
+      Math.max(8, containerRect.width - overlayRect.width - 8),
+    ),
+    top: Math.min(
+      Math.max(minimumTop + 8, top),
+      Math.max(minimumTop + 8, containerRect.height - overlayRect.height - 8),
+    ),
+  };
+}
+
+function positionFloatingOverlay(overlay, left, top, persist = false) {
+  if (overlay.hidden) return;
+  const position = overlayBounds(overlay, left, top);
+  overlay.classList.add("user-positioned");
+  overlay.style.left = `${position.left}px`;
+  overlay.style.top = `${position.top}px`;
+  overlay.style.right = "auto";
+  overlay.style.bottom = "auto";
+  if (persist) {
+    const positions = savedOverlayPositions();
+    positions[overlay.dataset.overlayId] = position;
+    localStorage.setItem(overlayPositionStorageKey, JSON.stringify(positions));
+  }
+}
+
+function restoreFloatingOverlayPosition(overlay) {
+  const saved = savedOverlayPositions()[overlay.dataset.overlayId];
+  if (!saved || !Number.isFinite(saved.left) || !Number.isFinite(saved.top)) return;
+  positionFloatingOverlay(overlay, saved.left, saved.top);
+}
+
+function clampFloatingOverlays() {
+  for (const overlay of els.floatingOverlays) {
+    if (overlay.hidden || !overlay.classList.contains("user-positioned")) continue;
+    positionFloatingOverlay(
+      overlay,
+      Number.parseFloat(overlay.style.left) || 0,
+      Number.parseFloat(overlay.style.top) || 0,
+      true,
+    );
+  }
+}
+
+function makeFloatingOverlayDraggable(overlay) {
+  const handle = overlay.querySelector(".overlay-drag-handle");
+  if (!handle) return;
+  let drag = null;
+
+  handle.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0 || event.target.closest("button")) return;
+    event.preventDefault();
+    const overlayRect = overlay.getBoundingClientRect();
+    const containerRect = els.canvas.closest(".canvas-wrap").getBoundingClientRect();
+    drag = {
+      pointerId: event.pointerId,
+      dx: event.clientX - overlayRect.left,
+      dy: event.clientY - overlayRect.top,
+      containerLeft: containerRect.left,
+      containerTop: containerRect.top,
+    };
+    overlay.classList.add("is-dragging");
+    handle.setPointerCapture(event.pointerId);
+  });
+
+  handle.addEventListener("pointermove", (event) => {
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    positionFloatingOverlay(
+      overlay,
+      event.clientX - drag.containerLeft - drag.dx,
+      event.clientY - drag.containerTop - drag.dy,
+    );
+  });
+
+  const finishDrag = (event) => {
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    if (handle.hasPointerCapture?.(event.pointerId)) handle.releasePointerCapture(event.pointerId);
+    drag = null;
+    overlay.classList.remove("is-dragging");
+    const left = Number.parseFloat(overlay.style.left);
+    const top = Number.parseFloat(overlay.style.top);
+    if (Number.isFinite(left) && Number.isFinite(top)) {
+      positionFloatingOverlay(overlay, left, top, true);
+    }
+  };
+  handle.addEventListener("pointerup", finishDrag);
+  handle.addEventListener("pointercancel", finishDrag);
 }
 
 function canvasToImage(event) {
@@ -728,15 +864,19 @@ function updateStats() {
   }
 
   if (state.micronsPerPx) {
-    els.scaleReadout.textContent = `${state.micronsPerPx.toFixed(4)} ${t("unit.umPerPx")}`;
+    const sourceKey = state.scaleSource === "line" ? "scale.sourceLine" : "scale.sourceDirect";
+    els.scaleReadout.textContent =
+      `${state.micronsPerPx.toFixed(4)} ${t("unit.umPerPx")} · ${t(sourceKey)}`;
     els.scaleReadout.dataset.micronsPerPx = String(state.micronsPerPx);
   } else {
     els.scaleReadout.textContent = t("scale.unset");
     delete els.scaleReadout.dataset.micronsPerPx;
   }
 
+  els.detectRequirement.hidden = Boolean(state.micronsPerPx);
   renderTable();
   renderPareto(values);
+  renderScaleLegend();
 }
 
 function paretoSeries(values) {
@@ -863,6 +1003,78 @@ function paretoConfig(compact = false) {
   };
 }
 
+function renderScaleLegend() {
+  const visible = Boolean(
+    state.image &&
+    state.micronsPerPx &&
+    state.ui.showScaleLegend,
+  );
+  els.showScaleLegend.checked = state.ui.showScaleLegend;
+  els.scaleLegendOverlay.hidden = !visible;
+  if (!visible) {
+    els.scaleLegendDescription.textContent = "";
+    return;
+  }
+
+  restoreFloatingOverlayPosition(els.scaleLegendOverlay);
+  const scaleUm = Number(els.scaleUm.value || 50);
+  const minUm = Number(els.minDiameter.value || 0);
+  const maxUm = Number(els.maxDiameter.value || 0);
+  const entries = [
+    { label: t("legend.scale"), um: scaleUm, px: scaleUm / state.micronsPerPx, color: "#e6d54a" },
+    { label: t("legend.minimum"), um: minUm, px: minUm / state.micronsPerPx, color: "#74c69d" },
+    { label: t("legend.maximum"), um: maxUm, px: maxUm / state.micronsPerPx, color: "#5aa7ff" },
+  ];
+  const displayUm = (value) => value.toLocaleString(state.lang === "zh" ? "zh-CN" : "en", {
+    maximumFractionDigits: 4,
+  });
+  const description = entries
+    .map((entry) => `${entry.label}: ${displayUm(entry.um)} ${t("unit.um")} = ${entry.px.toFixed(1)} px`)
+    .join(". ");
+  els.scaleLegendDescription.textContent = description;
+
+  const canvas = els.scaleLegendCanvas;
+  const cssWidth = Math.max(240, Math.round(canvas.clientWidth || 270));
+  const cssHeight = Math.max(126, Math.round(canvas.clientHeight || 126));
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.round(cssWidth * dpr);
+  canvas.height = Math.round(cssHeight * dpr);
+  const legendCtx = canvas.getContext("2d");
+  legendCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  legendCtx.clearRect(0, 0, cssWidth, cssHeight);
+
+  const labelX = 12;
+  const barX = 12;
+  const maxBarWidth = cssWidth - 24;
+  const largestPx = Math.max(1, ...entries.map((entry) => entry.px));
+  legendCtx.font = '11px "Segoe UI", system-ui, sans-serif';
+  legendCtx.textBaseline = "middle";
+
+  entries.forEach((entry, index) => {
+    const labelY = 17 + index * 38;
+    const barY = labelY + 13;
+    const barWidth = Math.max(4, (entry.px / largestPx) * maxBarWidth);
+    legendCtx.fillStyle = "#dce2e5";
+    legendCtx.fillText(
+      `${entry.label}  ${displayUm(entry.um)} ${t("unit.um")}  ·  ${entry.px.toFixed(1)} px`,
+      labelX,
+      labelY,
+    );
+    legendCtx.strokeStyle = entry.color;
+    legendCtx.lineWidth = 2;
+    legendCtx.beginPath();
+    legendCtx.moveTo(barX, barY);
+    legendCtx.lineTo(barX + barWidth, barY);
+    legendCtx.stroke();
+    legendCtx.beginPath();
+    legendCtx.moveTo(barX, barY - 3);
+    legendCtx.lineTo(barX, barY + 3);
+    legendCtx.moveTo(barX + barWidth, barY - 3);
+    legendCtx.lineTo(barX + barWidth, barY + 3);
+    legendCtx.stroke();
+  });
+}
+
 async function renderPareto(inputValues = null) {
   const values = inputValues ||
     distributionParticles().map(diameterUm).filter((value) => value > 0).sort((a, b) => a - b);
@@ -872,6 +1084,7 @@ async function renderPareto(inputValues = null) {
   const showOverlay = Boolean(series) && state.ui.showParetoOverlay;
   els.paretoOverlay.hidden = !showOverlay;
   els.showParetoOverlay.checked = state.ui.showParetoOverlay;
+  if (showOverlay) restoreFloatingOverlayPosition(els.paretoOverlay);
   if (!series && !plotlyApi) {
     els.paretoPlot.classList.add("is-empty");
     els.paretoPlot.textContent = t("pareto.empty");
@@ -973,8 +1186,9 @@ function updateQuickToolbar() {
   els.exportPng.disabled = !hasImage;
   els.exportAll.disabled = !hasImage;
   els.downloadPareto.disabled = distributionParticles().every((particle) => diameterUm(particle) <= 0);
+  els.micronsPerPixel.disabled = !hasImage;
   if (state.statusKey !== "status.running") {
-    els.runDetect.disabled = !hasImage || !state.detector;
+    els.runDetect.disabled = !hasImage || !state.detector || !state.micronsPerPx;
   }
 }
 
@@ -1036,20 +1250,37 @@ function setScaleFromLine(line) {
   const px = Math.hypot(line.x2 - line.x1, line.y2 - line.y1);
   if (px > 1) {
     state.micronsPerPx = Number(els.scaleUm.value || 50) / px;
+    state.scaleSource = "line";
+    els.micronsPerPixel.value = state.micronsPerPx.toFixed(6);
   }
 }
 
+function setScaleFromDirectInput() {
+  const value = Number(els.micronsPerPixel.value);
+  if (Number.isFinite(value) && value > 0) {
+    state.micronsPerPx = value;
+    state.scaleSource = "direct";
+  } else if (state.scaleLine) {
+    setScaleFromLine(state.scaleLine);
+  } else {
+    state.micronsPerPx = null;
+    state.scaleSource = null;
+  }
+  refresh();
+}
+
 async function runDetection() {
-  if (!state.imageBytes || !state.detector) return;
+  if (!state.imageBytes || !state.detector || !state.micronsPerPx) return;
   setStatus("status.running");
   els.runDetect.disabled = true;
 
-  const scalePx = state.scaleLine
+  const scaleUm = Number(els.scaleUm.value || 50);
+  const scalePx = state.scaleSource === "line" && state.scaleLine
     ? Math.hypot(state.scaleLine.x2 - state.scaleLine.x1, state.scaleLine.y2 - state.scaleLine.y1)
-    : null;
+    : scaleUm / state.micronsPerPx;
 
   const payload = {
-    scaleUm: Number(els.scaleUm.value || 50),
+    scaleUm,
     scalePx,
     minDiameterUm: Number(els.minDiameter.value || 2),
     maxDiameterUm: Number(els.maxDiameter.value || 95),
@@ -1061,6 +1292,7 @@ async function runDetection() {
     const data = await state.detector.analyze(state.imageBytes, payload);
 
     state.micronsPerPx = data.micronsPerPx;
+    els.micronsPerPixel.value = state.micronsPerPx.toFixed(6);
     state.particles = data.particles.map((p) => ({ ...p, deleted: false }));
     state.nextId = Math.max(0, ...state.particles.map((p) => p.id)) + 1;
     state.selectedIds.clear();
@@ -1074,7 +1306,7 @@ async function runDetection() {
     setStatus("status.fail");
     alert(error.message);
   } finally {
-    els.runDetect.disabled = !state.image || !state.detector;
+    els.runDetect.disabled = !state.image || !state.detector || !state.micronsPerPx;
   }
 }
 
@@ -1169,6 +1401,8 @@ function loadImageData(imageUrl, imageName, imageBytes, revokeUrl = false) {
     state.particles = [];
     state.scaleLine = null;
     state.micronsPerPx = null;
+    state.scaleSource = null;
+    els.micronsPerPixel.value = "";
     state.selectedIds.clear();
     state.nextId = 1;
     resetView();
@@ -1417,6 +1651,15 @@ els.hideParetoOverlay.addEventListener("click", () => {
   state.ui.showParetoOverlay = false;
   els.showParetoOverlay.checked = false;
   renderPareto();
+});
+els.showScaleLegend.addEventListener("change", () => {
+  state.ui.showScaleLegend = els.showScaleLegend.checked;
+  renderScaleLegend();
+});
+els.hideScaleLegend.addEventListener("click", () => {
+  state.ui.showScaleLegend = false;
+  els.showScaleLegend.checked = false;
+  renderScaleLegend();
 });
 els.downloadPareto.addEventListener("click", async () => {
   const Plotly = await loadPlotly();
@@ -1763,16 +2006,20 @@ window.addEventListener("keydown", (event) => {
   }
 });
 
-for (const input of [els.scaleUm, els.labelLimit]) {
-  input.addEventListener("change", () => {
-    if (state.scaleLine) setScaleFromLine(state.scaleLine);
-    refresh();
-  });
+els.micronsPerPixel.addEventListener("change", setScaleFromDirectInput);
+els.scaleUm.addEventListener("change", () => {
+  if (state.scaleLine) setScaleFromLine(state.scaleLine);
+  refresh();
+});
+for (const input of [els.minDiameter, els.maxDiameter]) {
+  input.addEventListener("input", renderScaleLegend);
 }
+els.labelLimit.addEventListener("change", refresh);
 
 new ResizeObserver(resizeCanvas).observe(els.canvas);
 new ResizeObserver(resizePareto).observe(els.paretoPlot);
 new ResizeObserver(resizePareto).observe(els.paretoOverlayPlot);
+window.addEventListener("resize", clampFloatingOverlays);
 
 function formatBytes(bytes) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
@@ -1811,7 +2058,7 @@ async function initializeRuntime() {
     state.detector = await createDetector(showRuntimeProgress);
     showRuntimeProgress({ phase: "ready" });
     els.runtimeLoader.classList.add("hidden");
-    els.runDetect.disabled = !state.image;
+    els.runDetect.disabled = !state.image || !state.micronsPerPx;
     await cacheApplicationShell();
     els.runtimeLoader.dataset.offlineReady = "true";
   } catch (error) {
@@ -1858,6 +2105,7 @@ async function bootstrap() {
       ZoomOut,
     },
   });
+  for (const overlay of els.floatingOverlays) makeFloatingOverlayDraggable(overlay);
   setToolbarPosition(state.ui.toolbarPosition, false);
   syncPanels();
   setInteractionMode("select");
