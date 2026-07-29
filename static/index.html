@@ -276,10 +276,22 @@
                 <span data-i18n="labels.scaleLength">Scale length (µm)</span>
                 <input id="scaleUm" type="number" min="0.1" step="0.1" value="50" />
               </label>
-              <label>
-                <span data-i18n="labels.micronsPerPixel">Length per pixel (µm/px)</span>
-                <input id="micronsPerPixel" type="number" min="0.000001" step="any" placeholder="0.625" />
-              </label>
+              <div id="micronsPerPixelField" class="field direct-scale-field">
+                <div class="field-label">
+                  <label for="micronsPerPixel">
+                    <span id="micronsPerPixelLabel" data-i18n="labels.micronsPerPixel">Length per pixel (µm/px)</span>
+                  </label>
+                  <span id="micronsPerPixelInfo" class="info-point">
+                    <button class="info-point-trigger" type="button" aria-describedby="micronsPerPixelInfoText" aria-label="Show why this value cannot be edited" data-i18n-aria="labels.micronsPerPixelInfoAria">i</button>
+                    <span id="micronsPerPixelInfoText" class="info-tooltip" role="tooltip" data-i18n="labels.micronsPerPixelNoImageInfo">Open an image before editing this value.</span>
+                  </span>
+                </div>
+                <input id="micronsPerPixel" type="number" min="0.000001" step="any" value="0.625" />
+                <button id="removeScaleLine" class="remove-scale-line" type="button" hidden>
+                  <i data-lucide="x" aria-hidden="true"></i>
+                  <span data-i18n="buttons.removeScaleLine">Remove drawn scale bar</span>
+                </button>
+              </div>
               <div class="field">
                 <div class="field-label">
                   <label for="sensitivity" data-i18n="labels.sensitivity">Sensitivity</label>

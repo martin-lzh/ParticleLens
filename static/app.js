@@ -33,6 +33,7 @@ const compactLayout = window.matchMedia(
   "(max-width: 820px), (max-width: 900px) and (max-height: 560px)",
 );
 const toolbarPositions = new Set(["left", "right", "top", "bottom"]);
+const defaultMicronsPerPixel = 0.625;
 const savedToolbarPosition = localStorage.getItem("particleLensToolbarPosition");
 const savedLanguage =
   localStorage.getItem("particleLensLang") || localStorage.getItem("particleAnnotatorLang");
@@ -76,8 +77,8 @@ const state = {
   mode: "select",
   drag: null,
   scaleLine: null,
-  micronsPerPx: null,
-  scaleSource: null,
+  micronsPerPx: defaultMicronsPerPixel,
+  scaleSource: "direct",
   nextId: 1,
   view: {
     zoom: 1,
@@ -156,7 +157,12 @@ const els = {
   medianStat: document.getElementById("medianStat"),
   rangeStat: document.getElementById("rangeStat"),
   scaleUm: document.getElementById("scaleUm"),
+  micronsPerPixelField: document.getElementById("micronsPerPixelField"),
+  micronsPerPixelLabel: document.getElementById("micronsPerPixelLabel"),
+  micronsPerPixelInfo: document.getElementById("micronsPerPixelInfo"),
+  micronsPerPixelInfoText: document.getElementById("micronsPerPixelInfoText"),
   micronsPerPixel: document.getElementById("micronsPerPixel"),
+  removeScaleLine: document.getElementById("removeScaleLine"),
   sensitivity: document.getElementById("sensitivity"),
   minDiameter: document.getElementById("minDiameter"),
   maxDiameter: document.getElementById("maxDiameter"),
@@ -339,6 +345,10 @@ const messages = {
     "groups.export": "导出",
     "labels.scaleLength": "比例尺长度 (微米)",
     "labels.micronsPerPixel": "每像素长度 (微米/px)",
+    "labels.micronsPerPixelLocked": "每像素长度已停用：请先移除手绘标尺",
+    "labels.micronsPerPixelInfoAria": "查看为什么当前无法修改每像素长度",
+    "labels.micronsPerPixelNoImageInfo": "请先打开图片；图片加载后即可修改此值。",
+    "labels.micronsPerPixelLockedInfo": "当前比例由手绘标尺计算。移除手绘标尺后，才能使用这里的每像素长度。",
     "labels.sensitivity": "灵敏度",
     "labels.sensitivityInfoAria": "查看灵敏度说明",
     "labels.sensitivityInfo": "这是圆形检测的形状置信阈值（0.01–0.98），不是颗粒的物理量。数值越低，判定越宽松：可检出边缘较弱、残缺或不够圆的颗粒，但误检会增加；数值越高，判定越严格：更偏向边缘清晰、完整且接近圆形的颗粒，但可能漏检。",
@@ -351,6 +361,7 @@ const messages = {
     "buttons.runDetect": "自动识别",
     "buttons.drawCircle": "按直径画圆",
     "buttons.redrawScale": "重画比例尺",
+    "buttons.removeScaleLine": "移除手绘标尺",
     "buttons.deleteSelected": "删除选中",
     "buttons.clearManual": "清除手绘",
     "buttons.annotatedImage": "标注图",
@@ -535,6 +546,10 @@ const messages = {
     "groups.export": "Export",
     "labels.scaleLength": "Scale length (µm)",
     "labels.micronsPerPixel": "Length per pixel (µm/px)",
+    "labels.micronsPerPixelLocked": "Length per pixel is inactive: remove the drawn scale bar first",
+    "labels.micronsPerPixelInfoAria": "Show why length per pixel cannot be edited",
+    "labels.micronsPerPixelNoImageInfo": "Open an image before editing this value.",
+    "labels.micronsPerPixelLockedInfo": "The drawn scale bar currently controls calibration. Remove it to use the length-per-pixel value here.",
     "labels.sensitivity": "Sensitivity",
     "labels.sensitivityInfoAria": "Show sensitivity explanation",
     "labels.sensitivityInfo": "This is the circle detector's shape-confidence threshold (0.01–0.98), not a physical particle quantity. Lower values relax acceptance, finding weaker, incomplete, or less circular edges but increasing false positives. Higher values are stricter, favoring clear, complete, circular edges but potentially missing particles.",
@@ -547,6 +562,7 @@ const messages = {
     "buttons.runDetect": "Run Detection",
     "buttons.drawCircle": "Draw Circle by Diameter",
     "buttons.redrawScale": "Redraw Scale Bar",
+    "buttons.removeScaleLine": "Remove drawn scale bar",
     "buttons.deleteSelected": "Delete Selected",
     "buttons.clearManual": "Clear Manual",
     "buttons.annotatedImage": "Annotated Image",
@@ -1128,9 +1144,29 @@ function updateStats() {
   }
 
   els.detectRequirement.hidden = Boolean(state.micronsPerPx);
+  syncScaleInputState();
   renderTable();
   renderPareto(values);
   renderScaleLegend();
+}
+
+function syncScaleInputState() {
+  const overriddenByLine = Boolean(state.scaleLine);
+  const disabled = !state.image || overriddenByLine;
+  const labelKey = overriddenByLine
+    ? "labels.micronsPerPixelLocked"
+    : "labels.micronsPerPixel";
+  const infoKey = overriddenByLine
+    ? "labels.micronsPerPixelLockedInfo"
+    : "labels.micronsPerPixelNoImageInfo";
+  els.micronsPerPixelField.classList.toggle("is-disabled", disabled);
+  els.micronsPerPixelLabel.dataset.i18n = labelKey;
+  els.micronsPerPixelLabel.textContent = t(labelKey);
+  els.micronsPerPixelInfo.hidden = !disabled;
+  els.micronsPerPixelInfoText.dataset.i18n = infoKey;
+  els.micronsPerPixelInfoText.textContent = t(infoKey);
+  els.micronsPerPixel.disabled = disabled;
+  els.removeScaleLine.hidden = !overriddenByLine;
 }
 
 function paretoSeries(values) {
@@ -1460,7 +1496,6 @@ function updateQuickToolbar() {
   els.exportPaddingColor.disabled = !hasImage;
   els.exportPaddingWidth.disabled = !hasImage;
   els.downloadPareto.disabled = distributionParticles().every((particle) => diameterUm(particle) <= 0);
-  els.micronsPerPixel.disabled = !hasImage;
   if (state.statusKey !== "status.running") {
     els.runDetect.disabled = !hasImage || !state.detector || !state.micronsPerPx;
   }
@@ -1525,22 +1560,29 @@ function setScaleFromLine(line) {
   if (px > 1) {
     state.micronsPerPx = Number(els.scaleUm.value || 50) / px;
     state.scaleSource = "line";
-    els.micronsPerPixel.value = state.micronsPerPx.toFixed(6);
   }
 }
 
 function setScaleFromDirectInput() {
+  if (state.scaleLine) {
+    setScaleFromLine(state.scaleLine);
+    refresh();
+    return;
+  }
   const value = Number(els.micronsPerPixel.value);
   if (Number.isFinite(value) && value > 0) {
     state.micronsPerPx = value;
     state.scaleSource = "direct";
-  } else if (state.scaleLine) {
-    setScaleFromLine(state.scaleLine);
   } else {
     state.micronsPerPx = null;
     state.scaleSource = null;
   }
   refresh();
+}
+
+function removeScaleLine() {
+  state.scaleLine = null;
+  setScaleFromDirectInput();
 }
 
 async function runDetection() {
@@ -1566,7 +1608,6 @@ async function runDetection() {
     const data = await state.detector.analyze(state.imageBytes, payload);
 
     state.micronsPerPx = data.micronsPerPx;
-    els.micronsPerPixel.value = state.micronsPerPx.toFixed(6);
     state.particles = data.particles.map((p) => ({ ...p, deleted: false }));
     state.nextId = Math.max(0, ...state.particles.map((p) => p.id)) + 1;
     state.selectedIds.clear();
@@ -1674,9 +1715,9 @@ function loadImageData(imageUrl, imageName, imageBytes, revokeUrl = false) {
   state.image.onload = () => {
     state.particles = [];
     state.scaleLine = null;
-    state.micronsPerPx = null;
-    state.scaleSource = null;
-    els.micronsPerPixel.value = "";
+    state.micronsPerPx = defaultMicronsPerPixel;
+    state.scaleSource = "direct";
+    els.micronsPerPixel.value = String(defaultMicronsPerPixel);
     state.selectedIds.clear();
     state.nextId = 1;
     resetView();
@@ -2452,6 +2493,7 @@ window.addEventListener("keydown", (event) => {
 });
 
 els.micronsPerPixel.addEventListener("change", setScaleFromDirectInput);
+els.removeScaleLine.addEventListener("click", removeScaleLine);
 els.scaleUm.addEventListener("change", () => {
   if (state.scaleLine) setScaleFromLine(state.scaleLine);
   refresh();

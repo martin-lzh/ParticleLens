@@ -113,9 +113,8 @@ async function uploadAndDetect(page) {
     buffer: syntheticBitmap(),
   });
   await expect(page.locator("#imageName")).toHaveText("synthetic.bmp");
-  await expect(page.locator("#runDetect")).toBeDisabled();
-  await page.locator("#micronsPerPixel").fill("0.625");
-  await page.locator("#micronsPerPixel").press("Tab");
+  await expect(page.locator("#micronsPerPixel")).toHaveValue("0.625");
+  await expect(page.locator("#micronsPerPixelInfo")).toBeHidden();
   await expect(page.locator("#runDetect")).toBeEnabled();
 
   await page.locator("#contrastMode").selectOption("none");
@@ -186,6 +185,11 @@ test("falls back to the browser detector when native configuration is stale", as
   await openReadyApp(page);
   await expect(page.locator("#runtimeLoader")).toHaveClass(/hidden/);
   await expect(page.locator("#runDetect")).toBeDisabled();
+  await expect(page.locator("#micronsPerPixelLabel")).toHaveCSS("color", "rgb(255, 107, 99)");
+  await expect(page.locator("#micronsPerPixelInfo")).toBeVisible();
+  await expect(page.locator("#micronsPerPixelInfoText")).toContainText(
+    /Open an image|请先打开图片/,
+  );
 });
 
 test("removes legacy local-image parameters without requesting local files", async ({ page }) => {
@@ -466,7 +470,20 @@ test("supports manual correction, scale redraw, zoom, pan, move, and delete", as
   );
   expect(correctedScale).not.toBe(initialScale);
   await expect(page.locator("#scaleReadout")).toContainText(/Scale bar|比例尺/);
+  await expect(page.locator("#micronsPerPixel")).toBeDisabled();
+  await expect(page.locator("#micronsPerPixel")).toHaveValue("0.625");
+  await expect(page.locator("#micronsPerPixelLabel")).toHaveCSS("color", "rgb(255, 107, 99)");
+  await expect(page.locator("#micronsPerPixelLabel")).toContainText(
+    /remove the drawn scale bar|移除手绘标尺/,
+  );
+  await expect(page.locator("#micronsPerPixelInfo")).toBeVisible();
+  await expect(page.locator("#micronsPerPixelInfoText")).toContainText(
+    /drawn scale bar currently controls|当前比例由手绘标尺计算/,
+  );
 
+  await page.locator("#removeScaleLine").click();
+  await expect(page.locator("#micronsPerPixel")).toBeEnabled();
+  await expect(page.locator("#scaleReadout")).toContainText(/Direct input|直接输入/);
   await page.locator("#micronsPerPixel").fill("0.5");
   await page.locator("#micronsPerPixel").press("Tab");
   await expect(page.locator("#scaleReadout")).toContainText(/Direct input|直接输入/);
@@ -739,9 +756,7 @@ test("adapts the workspace for mobile and supports touch canvas gestures", async
   await page.locator("#sensitivity").fill("0.7");
   await page.locator("#minDiameter").fill("15");
   await page.locator("#maxDiameter").fill("80");
-  await expect(page.locator("#runDetect")).toBeDisabled();
-  await page.locator("#micronsPerPixel").fill("0.625");
-  await page.locator("#micronsPerPixel").press("Tab");
+  await expect(page.locator("#micronsPerPixel")).toHaveValue("0.625");
   await expect(page.locator("#runDetect")).toBeEnabled();
   await page.locator("#runDetect").click();
   await expect(page.locator("#statusBadge")).toHaveText(/已识别|Detected/, {
@@ -808,7 +823,7 @@ test("switches language and restores the app shell offline", async ({ page }) =>
       timeout: 30_000,
     });
     const cacheState = await page.evaluate(async () => {
-      const shell = await caches.open("particlelens-shell-v0.2.3");
+      const shell = await caches.open("particlelens-shell-v0.2.4");
       const runtime = await caches.open("particlelens-runtime-v0.2.0");
       const moduleUrl = document.querySelector("script[type='module']").src;
       return {
