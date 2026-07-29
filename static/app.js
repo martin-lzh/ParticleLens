@@ -22,6 +22,8 @@ import {
   Trash2,
   TriangleAlert,
   X,
+  ZoomIn,
+  ZoomOut,
 } from "lucide";
 import { circleVisibleFraction, summarizeDiameters } from "./particle-math.js";
 
@@ -110,7 +112,6 @@ const els = {
   zoomReadout: document.getElementById("zoomReadout"),
   zoomOut: document.getElementById("zoomOut"),
   zoomIn: document.getElementById("zoomIn"),
-  resetZoom: document.getElementById("resetZoom"),
   hintText: document.getElementById("hintText"),
   table: document.getElementById("particleTable"),
   countStat: document.getElementById("countStat"),
@@ -184,11 +185,8 @@ const messages = {
     "language.target": "EN",
     "image.none": "未选择图片",
     "scale.unset": "比例尺未设置",
-    "zoom.aria": "观察窗缩放",
     "zoom.outTitle": "缩小",
     "zoom.inTitle": "放大",
-    "zoom.resetTitle": "重置视图",
-    "zoom.fit": "适配",
     "hint.initial": "选择图片后可自动识别，也可手动画圆补充。",
     "hint.scale": "拖动一条线覆盖比例尺；完成后自动回到选择。",
     "hint.draw": "从颗粒一侧拖到另一侧，按直径添加圆；再次点按工具可退出。",
@@ -318,11 +316,8 @@ const messages = {
     "language.target": "中文",
     "image.none": "No image selected",
     "scale.unset": "Scale not set",
-    "zoom.aria": "Viewport zoom",
     "zoom.outTitle": "Zoom out",
     "zoom.inTitle": "Zoom in",
-    "zoom.resetTitle": "Reset view",
-    "zoom.fit": "Fit",
     "hint.initial": "Choose an image to detect particles automatically or add circles manually.",
     "hint.scale": "Drag a line across the scale bar; selection mode resumes when you release.",
     "hint.draw": "Drag from one particle edge to the other to add a circle; tap the tool again to exit.",
@@ -971,6 +966,8 @@ function updateQuickToolbar() {
     button.disabled = !state.image && button.dataset.canvasTool !== "select";
   }
   els.quickFitView.disabled = !hasImage;
+  els.zoomOut.disabled = !hasImage;
+  els.zoomIn.disabled = !hasImage;
   els.quickDeleteSelected.disabled = state.selectedIds.size === 0;
   els.exportCsv.disabled = !hasImage;
   els.exportPng.disabled = !hasImage;
@@ -1324,7 +1321,6 @@ els.exportPng.addEventListener("click", exportPng);
 els.exportAll.addEventListener("click", exportAll);
 els.zoomOut.addEventListener("click", () => zoomAt(1 / 1.25));
 els.zoomIn.addEventListener("click", () => zoomAt(1.25));
-els.resetZoom.addEventListener("click", resetView);
 for (const button of els.quickToolButtons) {
   button.addEventListener("click", () => setInteractionMode(button.dataset.canvasTool));
 }
@@ -1858,6 +1854,8 @@ async function bootstrap() {
       Trash2,
       TriangleAlert,
       X,
+      ZoomIn,
+      ZoomOut,
     },
   });
   setToolbarPosition(state.ui.toolbarPosition, false);

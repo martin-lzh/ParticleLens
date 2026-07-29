@@ -282,6 +282,11 @@ test("keeps the analysis entry visible across transitional navbar widths", async
   await page.setViewportSize({ width: 1180, height: 768 });
   await openReadyApp(page);
 
+  await expect(page.locator(".topbar #zoomIn")).toHaveCount(0);
+  await expect(page.locator(".quick-toolbar #zoomOut")).toHaveCount(1);
+  await expect(page.locator(".quick-toolbar #zoomIn")).toHaveCount(1);
+  await expect(page.locator(".quick-toolbar #quickFitView")).toHaveCount(1);
+
   for (const width of [1280, 1180, 1024, 900, 821]) {
     await page.setViewportSize({ width, height: 768 });
     await expect(page.locator("#rightToggle")).toBeVisible();
@@ -319,6 +324,12 @@ test("adapts the workspace for mobile and supports touch canvas gestures", async
   expect(
     await page.evaluate(() => localStorage.getItem("particleLensToolbarPosition")),
   ).toBe("bottom");
+  await page.setViewportSize({ width: 320, height: 844 });
+  await page.waitForTimeout(250);
+  const narrowToolbarBox = await quickToolbar.boundingBox();
+  expect(narrowToolbarBox?.x).toBeGreaterThanOrEqual(0);
+  expect((narrowToolbarBox?.x || 0) + (narrowToolbarBox?.width || 0)).toBeLessThanOrEqual(320);
+  await page.setViewportSize({ width: 390, height: 844 });
 
   await page.locator("#leftToggle").click();
   await expect(page.locator("#leftToggle")).toHaveAttribute("aria-expanded", "true");

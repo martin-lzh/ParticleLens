@@ -52,13 +52,6 @@
         <span id="hintText" data-i18n="hint.initial">Choose an image to detect particles automatically or add circles manually.</span>
 
         <div class="topbar-actions">
-          <div class="view-controls" aria-label="Viewport zoom" data-i18n-aria="zoom.aria">
-            <button id="zoomOut" type="button" title="Zoom out" data-i18n-title="zoom.outTitle">−</button>
-            <span id="zoomReadout">100%</span>
-            <button id="zoomIn" type="button" title="Zoom in" data-i18n-title="zoom.inTitle">+</button>
-            <button id="resetZoom" type="button" title="Reset view" data-i18n="zoom.fit" data-i18n-title="zoom.resetTitle">Fit</button>
-          </div>
-
           <button id="languageToggle" class="language-toggle" type="button" aria-label="Switch to Chinese" title="Switch to Chinese" data-i18n-aria="nav.languageToggle" data-i18n-title="nav.languageToggle">
             <svg aria-hidden="true" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="10"></circle>
@@ -96,6 +89,15 @@
               <span class="sr-only" data-i18n="toolbar.scale">Redraw scale bar</span>
             </button>
             <span class="quick-toolbar-separator" aria-hidden="true"></span>
+            <button id="zoomOut" class="quick-tool" type="button" title="Zoom out" data-i18n-title="zoom.outTitle">
+              <i data-lucide="zoom-out" aria-hidden="true"></i>
+              <span class="sr-only" data-i18n="zoom.outTitle">Zoom out</span>
+            </button>
+            <span id="zoomReadout" class="quick-zoom-readout" aria-live="polite">100%</span>
+            <button id="zoomIn" class="quick-tool" type="button" title="Zoom in" data-i18n-title="zoom.inTitle">
+              <i data-lucide="zoom-in" aria-hidden="true"></i>
+              <span class="sr-only" data-i18n="zoom.inTitle">Zoom in</span>
+            </button>
             <button id="quickFitView" class="quick-tool" type="button" data-canvas-action="fit" title="Fit view (F)" data-i18n-title="toolbar.fitTitle">
               <i data-lucide="maximize-2" aria-hidden="true"></i>
               <span class="sr-only" data-i18n="toolbar.fit">Fit view</span>
