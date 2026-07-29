@@ -1,0 +1,26 @@
+{
+  "name": "particlelens-web",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --config vite.config.js",
+    "preview": "vite preview --config vite.config.js",
+    "prepare:runtime": "node scripts/prepare_web_runtime.mjs",
+    "build:web": "npm run prepare:runtime && node scripts/build_frontend.mjs web",
+    "build:native": "node scripts/build_frontend.mjs native",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "lint": "eslint static scripts vite.config.js playwright.config.js tests/e2e"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.62.0",
+    "eslint": "10.8.0",
+    "globals": "17.8.0",
+    "jsdom": "26.1.0",
+    "pyodide": "0.28.3",
+    "vite": "7.3.6",
+    "vitest": "3.2.7"
+  }
+}

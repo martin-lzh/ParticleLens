@@ -1,9 +1,14 @@
+import { cacheApplicationShell, clearRuntimeCache, createDetector } from "./detection.js";
+import { circleVisibleFraction, summarizeDiameters } from "./particle-math.js";
+
 const state = {
   lang: localStorage.getItem("particleLensLang") || localStorage.getItem("particleAnnotatorLang") || "zh",
   statusKey: "status.idle",
   image: null,
   imageName: "",
-  imageData: "",
+  imageBytes: null,
+  imageObjectUrl: "",
+  detector: null,
   particles: [],
   selectedIds: new Set(),
   mode: "select",
@@ -61,6 +66,11 @@ const els = {
   scaleTool: document.getElementById("scaleTool"),
   languageToggle: document.getElementById("languageToggle"),
   languageToggleText: document.getElementById("languageToggleText"),
+  runtimeLoader: document.getElementById("runtimeLoader"),
+  runtimePhase: document.getElementById("runtimePhase"),
+  runtimeProgress: document.getElementById("runtimeProgress"),
+  runtimeBytes: document.getElementById("runtimeBytes"),
+  runtimeRetry: document.getElementById("runtimeRetry"),
 };
 
 const ctx = els.canvas.getContext("2d");
@@ -93,6 +103,17 @@ const messages = {
     "status.loaded": "已加载",
     "status.loading": "载入中",
     "status.loadFail": "载入失败",
+    "runtime.loading": "正在准备本地识别引擎",
+    "runtime.download": "下载运行组件",
+    "runtime.python": "初始化 Python",
+    "runtime.opencv": "加载 OpenCV",
+    "runtime.detector": "加载识别模块",
+    "runtime.native": "连接离线识别引擎",
+    "runtime.ready": "准备完成",
+    "runtime.failed": "识别引擎加载失败",
+    "runtime.retry": "重试",
+    "runtime.offline": "下载 Windows 离线版",
+    "warnings.largeImage": "图片超过 2000 万像素，识别可能占用较多内存并需要更长时间。",
     "errors.imageOnly": "请拖放图片文件。",
     "tabs.toolsAria": "工具分类",
     "tabs.detect": "检测",
@@ -165,6 +186,17 @@ const messages = {
     "status.loaded": "Loaded",
     "status.loading": "Loading",
     "status.loadFail": "Load failed",
+    "runtime.loading": "Preparing the local detection engine",
+    "runtime.download": "Downloading runtime components",
+    "runtime.python": "Initializing Python",
+    "runtime.opencv": "Loading OpenCV",
+    "runtime.detector": "Loading the detector",
+    "runtime.native": "Connecting to the offline detector",
+    "runtime.ready": "Ready",
+    "runtime.failed": "The detection engine failed to load",
+    "runtime.retry": "Retry",
+    "runtime.offline": "Download the Windows offline app",
+    "warnings.largeImage": "This image exceeds 20 megapixels. Detection may use substantial memory and take longer.",
     "errors.imageOnly": "Drop an image file.",
     "tabs.toolsAria": "Tool categories",
     "tabs.detect": "Detect",
@@ -225,6 +257,7 @@ function applyTranslations() {
   document.documentElement.lang = state.lang === "zh" ? "zh-CN" : "en";
   document.title = t("app.title");
   if (els.languageToggleText) els.languageToggleText.textContent = t("language.target");
+  if (els.runtimeRetry) els.runtimeRetry.textContent = t("runtime.retry");
 
   document.querySelectorAll("[data-i18n]").forEach((node) => {
     node.textContent = t(node.dataset.i18n);
@@ -291,11 +324,6 @@ function resizeHistogram() {
   drawHistogram();
 }
 
-function imageToCanvas(point) {
-  const t = fitTransform();
-  return { x: point.x * t.scale + t.ox, y: point.y * t.scale + t.oy };
-}
-
 function canvasToImage(event) {
   const point = canvasPoint(event);
   const t = fitTransform();
@@ -358,35 +386,7 @@ function imageSize() {
 function visibleFraction(particle) {
   const size = imageSize();
   if (!size || particle.r <= 0) return 0;
-  const { width, height } = size;
-
-  if (
-    particle.x - particle.r >= 0 &&
-    particle.x + particle.r <= width &&
-    particle.y - particle.r >= 0 &&
-    particle.y + particle.r <= height
-  ) {
-    return 1;
-  }
-
-  const xMin = Math.max(0, particle.x - particle.r);
-  const xMax = Math.min(width, particle.x + particle.r);
-  if (xMin >= xMax || particle.y + particle.r <= 0 || particle.y - particle.r >= height) {
-    return 0;
-  }
-
-  const samples = 240;
-  const dx = (xMax - xMin) / samples;
-  let visibleArea = 0;
-  for (let idx = 0; idx < samples; idx += 1) {
-    const x = xMin + (idx + 0.5) * dx;
-    const halfHeight = Math.sqrt(Math.max(0, particle.r * particle.r - (x - particle.x) ** 2));
-    const yMin = Math.max(0, particle.y - halfHeight);
-    const yMax = Math.min(height, particle.y + halfHeight);
-    visibleArea += Math.max(0, yMax - yMin) * dx;
-  }
-
-  return Math.min(1, Math.max(0, visibleArea / (Math.PI * particle.r * particle.r)));
+  return circleVisibleFraction(particle, size.width, size.height);
 }
 
 function includedInDistribution(particle) {
@@ -543,23 +543,23 @@ function updateStats() {
   const distribution = distributionParticles();
   const values = distribution.map(diameterUm).filter((v) => v > 0).sort((a, b) => a - b);
   els.countStat.textContent = distribution.length.toString();
-  if (!values.length) {
+  const summary = summarizeDiameters(values);
+  if (!summary) {
     els.meanStat.textContent = "-";
     els.medianStat.textContent = "-";
     els.rangeStat.textContent = "-";
   } else {
-    const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
-    const mid = Math.floor(values.length / 2);
-    const median = values.length % 2 ? values[mid] : (values[mid - 1] + values[mid]) / 2;
-    els.meanStat.textContent = `${mean.toFixed(2)} ${t("unit.um")}`;
-    els.medianStat.textContent = `${median.toFixed(2)} ${t("unit.um")}`;
-    els.rangeStat.textContent = `${values[0].toFixed(2)}-${values[values.length - 1].toFixed(2)} ${t("unit.um")}`;
+    els.meanStat.textContent = `${summary.mean.toFixed(2)} ${t("unit.um")}`;
+    els.medianStat.textContent = `${summary.median.toFixed(2)} ${t("unit.um")}`;
+    els.rangeStat.textContent = `${summary.min.toFixed(2)}-${summary.max.toFixed(2)} ${t("unit.um")}`;
   }
 
   if (state.micronsPerPx) {
     els.scaleReadout.textContent = `${state.micronsPerPx.toFixed(4)} ${t("unit.umPerPx")}`;
+    els.scaleReadout.dataset.micronsPerPx = String(state.micronsPerPx);
   } else {
     els.scaleReadout.textContent = t("scale.unset");
+    delete els.scaleReadout.dataset.micronsPerPx;
   }
 
   renderTable();
@@ -638,7 +638,7 @@ function renderTable() {
         includedInDistribution(p) ? "" : "excluded",
       ].filter(Boolean);
       const classAttr = classes.length ? ` class="${classes.join(" ")}"` : "";
-      return `<tr${classAttr} data-id="${p.id}">
+      return `<tr${classAttr} data-id="${p.id}" data-radius-px="${p.r}">
         <td>${p.id}</td>
         <td>${t(`source.${p.source}`)}</td>
         <td>${p.x.toFixed(1)}</td>
@@ -733,7 +733,7 @@ function setScaleFromLine(line) {
 }
 
 async function runDetection() {
-  if (!state.imageData) return;
+  if (!state.imageBytes || !state.detector) return;
   setStatus("status.running");
   els.runDetect.disabled = true;
 
@@ -742,7 +742,6 @@ async function runDetection() {
     : null;
 
   const payload = {
-    imageData: state.imageData,
     scaleUm: Number(els.scaleUm.value || 50),
     scalePx,
     minDiameterUm: Number(els.minDiameter.value || 2),
@@ -752,13 +751,7 @@ async function runDetection() {
   };
 
   try {
-    const response = await fetch("/api/analyze", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "Detection failed");
+    const data = await state.detector.analyze(state.imageBytes, payload);
 
     state.micronsPerPx = data.micronsPerPx;
     state.particles = data.particles.map((p) => ({ ...p, deleted: false }));
@@ -778,12 +771,10 @@ async function runDetection() {
   }
 }
 
-function loadImage(file) {
-  const reader = new FileReader();
-  reader.onload = () => {
-    loadImageData(reader.result, file.name);
-  };
-  reader.readAsDataURL(file);
+async function loadImage(file) {
+  const imageBytes = await file.arrayBuffer();
+  const imageUrl = URL.createObjectURL(file);
+  loadImageData(imageUrl, file.name, imageBytes, true);
 }
 
 function isImageFile(file) {
@@ -834,8 +825,10 @@ function handleDrop(event) {
   loadImage(file);
 }
 
-function loadImageData(imageData, imageName) {
-  state.imageData = imageData;
+function loadImageData(imageUrl, imageName, imageBytes, revokeUrl = false) {
+  if (state.imageObjectUrl) URL.revokeObjectURL(state.imageObjectUrl);
+  state.imageBytes = imageBytes;
+  state.imageObjectUrl = revokeUrl ? imageUrl : "";
   state.imageName = imageName;
   state.image = new Image();
   state.image.onload = () => {
@@ -847,10 +840,13 @@ function loadImageData(imageData, imageName) {
     resetView();
     els.emptyState.classList.add("hidden");
     els.imageName.textContent = imageName;
+    if (state.image.naturalWidth * state.image.naturalHeight > 20_000_000) {
+      alert(t("warnings.largeImage"));
+    }
     setStatus("status.loaded");
     refresh();
   };
-  state.image.src = imageData;
+  state.image.src = imageUrl;
 }
 
 async function loadImageFromQuery() {
@@ -863,19 +859,11 @@ async function loadImageFromQuery() {
     const response = await fetch(`/api/local-image?path=${encodeURIComponent(imagePath)}`);
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "Could not load image");
-    loadImageData(data.imageData, data.name);
+    const imageBytes = await (await fetch(data.imageData)).arrayBuffer();
+    loadImageData(data.imageData, data.name, imageBytes);
   } catch (error) {
     setStatus("status.loadFail");
     alert(error.message);
-  }
-}
-
-function deleteParticle(id) {
-  const particle = state.particles.find((p) => p.id === id);
-  if (particle) {
-    particle.deleted = true;
-    state.selectedIds.delete(id);
-    refresh();
   }
 }
 
@@ -1155,8 +1143,70 @@ for (const input of [els.scaleUm, els.labelLimit]) {
 
 new ResizeObserver(resizeCanvas).observe(els.canvas);
 new ResizeObserver(resizeHistogram).observe(els.histogram);
-applyTranslations();
-resizeCanvas();
-resizeHistogram();
-updateZoomReadout();
-loadImageFromQuery();
+
+function formatBytes(bytes) {
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function showRuntimeProgress(progress) {
+  const labels = {
+    download: "runtime.download",
+    "initialize-python": "runtime.python",
+    "initialize-opencv": "runtime.opencv",
+    "initialize-detector": "runtime.detector",
+    native: "runtime.native",
+    ready: "runtime.ready",
+  };
+  els.runtimePhase.textContent = t(labels[progress.phase] || "runtime.loading");
+  if (progress.phase === "download" && progress.totalBytes > 0) {
+    els.runtimeProgress.max = progress.totalBytes;
+    els.runtimeProgress.value = Math.min(progress.loadedBytes, progress.totalBytes);
+    els.runtimeBytes.textContent =
+      `${formatBytes(progress.loadedBytes)} / ${formatBytes(progress.totalBytes)}`;
+  } else {
+    els.runtimeProgress.removeAttribute("value");
+    els.runtimeBytes.textContent = "";
+  }
+}
+
+async function initializeRuntime() {
+  els.runtimeLoader.classList.remove("hidden", "failed");
+  els.runtimeRetry.hidden = true;
+  els.runtimePhase.textContent = t("runtime.loading");
+  els.runtimeProgress.removeAttribute("value");
+  els.runtimeBytes.textContent = "";
+  els.runDetect.disabled = true;
+  state.detector?.close();
+  try {
+    state.detector = await createDetector(showRuntimeProgress);
+    showRuntimeProgress({ phase: "ready" });
+    els.runtimeLoader.classList.add("hidden");
+    els.runDetect.disabled = false;
+    await cacheApplicationShell();
+    els.runtimeLoader.dataset.offlineReady = "true";
+  } catch (error) {
+    state.detector = null;
+    els.runtimeLoader.classList.add("failed");
+    delete els.runtimeLoader.dataset.offlineReady;
+    els.runtimePhase.textContent = `${t("runtime.failed")}: ${error.message}`;
+    els.runtimeProgress.removeAttribute("value");
+    els.runtimeBytes.textContent = "";
+    els.runtimeRetry.hidden = false;
+  }
+}
+
+els.runtimeRetry.addEventListener("click", async () => {
+  await clearRuntimeCache();
+  await initializeRuntime();
+});
+
+async function bootstrap() {
+  applyTranslations();
+  resizeCanvas();
+  resizeHistogram();
+  updateZoomReadout();
+  await initializeRuntime();
+  await loadImageFromQuery();
+}
+
+bootstrap();

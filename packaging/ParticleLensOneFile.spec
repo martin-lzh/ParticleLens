@@ -10,7 +10,7 @@ a = Analysis(
     [str(ROOT / "particle_app_launcher.py")],
     pathex=[str(ROOT)],
     binaries=[],
-    datas=[(str(ROOT / "static"), "static")],
+    datas=[(str(ROOT / "dist" / "native"), "static")],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

@@ -1,0 +1,38 @@
+name: Detection result
+description: Report a reproducible false positive, missed particle, scale error, or parity issue.
+title: "[Detection]: "
+labels: ["detection"]
+body:
+  - type: checkboxes
+    attributes:
+      label: Image permission
+      options:
+        - label: I have permission to share every attached image publicly under the license stated below.
+          required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Result type
+      options: [Missed particle, False positive, Incorrect radius, Scale-bar error, Browser/native mismatch, Other]
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: ParticleLens version and browser or OS
+    validations:
+      required: true
+  - type: textarea
+    id: settings
+    attributes:
+      label: Detection settings and expected result
+      placeholder: Include scale, diameter limits, sensitivity, contrast mode, expected count, and observed count.
+    validations:
+      required: true
+  - type: input
+    id: license
+    attributes:
+      label: Image source and license
+      placeholder: e.g. Own work, CC0
+    validations:
+      required: true

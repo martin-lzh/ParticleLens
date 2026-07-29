@@ -1,0 +1,36 @@
+name: Bug report
+description: Report a reproducible problem in the Web App, CLI, or Windows app.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: checkboxes
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and removed private or sensitive image data.
+          required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Product
+      options: [Web App, Windows app, Python CLI, Local server]
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      placeholder: Include browser/app version, image dimensions, settings, and exact steps.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected and actual result
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Do not upload confidential microscope images.
