@@ -15,8 +15,8 @@ jobs:
     name: python-tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v8
         with:
           enable-cache: true
       - run: uv sync --locked
@@ -27,8 +27,8 @@ jobs:
     name: frontend-tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
@@ -41,8 +41,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
@@ -50,7 +50,7 @@ jobs:
       - run: npx playwright install --with-deps chromium firefox webkit msedge
       - run: npm run build:web
       - run: npm run test:e2e
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: failure()
         with:
           name: playwright-report
@@ -61,15 +61,15 @@ jobs:
     name: pages-build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
       - run: npm ci
       - run: npm run build:web
       - run: test "$(cat dist/web/CNAME)" = "particlelens.liuzhaohan.com"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: pages-build
           path: dist/web/
@@ -80,17 +80,17 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v8
         with:
           enable-cache: true
       - shell: pwsh
         run: ./scripts/build_windows_release.ps1
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: windows-release
           path: release/
@@ -101,12 +101,12 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v8
         with:
           enable-cache: true
       - run: npm ci
