@@ -4,178 +4,163 @@
   <img src="static/particlelens-logo.png" alt="ParticleLens logo" width="160">
 </p>
 
-ParticleLens is an open-source tool for measuring particle-size distributions
-from microscope images. It was originally built for counting droplets in optical
-microscope images, then expanded into a lightweight workflow for automatic
-detection, manual correction, and export of droplet or particle measurements.
+ParticleLens is an open-source particle-size analysis tool for approximately
+circular objects in microscope images.
 
-The project includes both a command-line analyzer and a local browser-based app.
+**Use the Web App:** [particlelens.liuzhaohan.com](https://particlelens.liuzhaohan.com)
 
-## Features
+The Web App runs entirely in the browser. Images are decoded and analyzed on
+your device and are not uploaded to ParticleLens or an analysis server. No
+Python installation is required.
 
-- Detect approximately circular droplets or particles in microscope images.
-- Estimate pixel-to-micrometer calibration from a lower-right scale bar.
-- Override or redraw the scale bar when automatic detection is not reliable.
-- Review and correct detections in a local interactive app.
-- Add missed droplets manually by drawing across their diameter.
-- Select, move, delete, and nudge detected circles.
-- Zoom and pan large microscope images without changing the source image.
-- Inspect live count, mean, median, range, and histogram statistics.
-- Export corrected CSV measurements and annotated images.
-- Run fully locally; no microscope image data is uploaded to an external service.
-- Use the bilingual Chinese/English web UI.
+## What it does
 
-## Methods
+- Detects circular droplets or particles and estimates their diameters.
+- Detects a lower-right scale bar or accepts a manual calibration.
+- Supports manual add, move, delete, and scale correction.
+- Provides count, distribution statistics, and a histogram.
+- Exports corrected CSV data and an annotated PNG.
+- Works in Chinese and English.
+- Caches its browser runtime for repeat visits and offline use after a
+  successful first load.
 
-ParticleLens uses a classical computer-vision pipeline rather than a trained
-machine-learning model. The current workflow is:
+The first visit downloads about 27 MB of pinned Pyodide, NumPy, OpenCV, and
+shared detector resources. ParticleLens reports verified downloaded bytes
+against the manifest total, then reports each initialization phase. Images over
+20 megapixels receive a memory warning and are supported on a best-effort basis.
 
-1. Convert the microscope image to grayscale.
-2. Detect the lower-right scale bar by thresholding dark pixels and finding long
-   horizontal runs in the expected annotation region.
-3. Convert pixels to micrometers from the detected or manually supplied scale.
-4. Preprocess contrast with CLAHE or background correction.
-5. Detect circular candidates with OpenCV's Hough circle transform.
-6. Refine each circle against edge pixels with a least-squares circle fit.
-7. Score candidates by edge support, remove duplicates, and exclude detections
-   in the scale-bar annotation area.
-8. Compute visible-area fraction so partially clipped droplets or particles can
-   be excluded from the main distribution.
-9. Export per-object measurements and summary statistics.
+## Privacy
 
-The interactive app keeps the automatic detections editable, because microscope
-images often contain overlapping droplets, partial objects near the image edge,
-uneven illumination, or scale-bar annotations that need human correction.
+The hosted Web App has no image-upload endpoint. Detection runs in a Web Worker,
+and automated network tests verify that selecting and analyzing an image creates
+no outbound image request. Browser extensions, operating-system services, and
+manually opened external links are outside the project's control.
 
-## Credits
+For offline or restricted environments, use the Windows release or run the
+Python CLI locally.
 
-ParticleLens builds on several open-source tools and algorithms:
+## Validation and limitations
 
-- [OpenCV](https://opencv.org/) for image decoding, Canny edge detection,
-  contrast preprocessing, Hough circle detection, drawing, and image export.
-- [NumPy](https://numpy.org/) for numerical operations and circle-fit math.
-- [Pandas](https://pandas.pydata.org/) for CSV tables and batch summaries.
-- [Matplotlib](https://matplotlib.org/) for histogram generation.
-- [PyInstaller](https://pyinstaller.org/) for Windows executable packaging.
-- [uv](https://docs.astral.sh/uv/) for dependency management and reproducible
-  local builds.
+ParticleLens uses classical computer vision, not a trained scientific model.
+The pipeline combines scale-bar detection, contrast preprocessing, OpenCV Hough
+circles, edge-supported least-squares fitting, duplicate suppression, and
+visible-area calculation.
 
-The droplet/particle detector itself is project code in `analyze_particles.py`.
-It combines OpenCV primitives with custom scale-bar detection, edge-supported
-circle refinement, duplicate suppression, and visible-area filtering.
+Release validation covers:
 
-## Outputs
+- deterministic synthetic images with clear and weak edges, overlaps, partial
+  objects, background gradients, three contrast modes, no scale bar, and no
+  particles;
+- clearly licensed public microscopy samples documented in
+  [`tests/fixtures/public/README.md`](tests/fixtures/public/README.md);
+- native Python and browser execution of the same detector core;
+- Chrome, Edge-compatible Chromium, Firefox, Playwright WebKit, and a macOS
+  Safari smoke test in CI;
+- responsive browser processing and memory behavior through 20 MP.
 
-ParticleLens can export:
+The current validation set does not include private research samples and does
+not establish suitability for every imaging modality or scientific decision.
+Always review detections and preserve the original data.
 
-- `*_annotated.png`: source image with fitted circles, diameter lines, and labels.
-- `*_particles.csv`: per-droplet or per-particle center, radius, diameter, and scale data.
-- `*_histogram.png`: particle-size or droplet-size histogram.
-- `summary.csv`: batch-level statistics.
-- `all_particles.csv`: combined batch measurement table.
+## Web development
 
-The interactive app exports CSV rows with `particle_id`, `center_x_px`,
-`center_y_px`, `radius_px`, `radius_micrometer`, and `diameter_micrometer`.
-
-## Installation
-
-Install dependencies with [uv](https://docs.astral.sh/uv/):
+Requirements: Node.js 22+, Python 3.11+, [npm](https://docs.npmjs.com/), and
+[uv](https://docs.astral.sh/uv/).
 
 ```powershell
-uv sync
+npm ci
+uv sync --locked
+npm run dev
 ```
 
-Python 3.11 or newer is required.
+Build the hosted Web App:
 
-## Command-Line Usage
+```powershell
+npm run build:web
+```
 
-Analyze one image:
+The build downloads the pinned Pyodide 0.28.3, NumPy 2.2.5, and OpenCV 4.11.0
+assets into an ignored local cache, verifies every SHA-256 value, and creates
+`dist/web`. Runtime files are not committed.
+
+## Tests
+
+```powershell
+uv run ruff check .
+uv run pytest -q
+npm run lint
+npm test
+npm run build:web
+npm run test:e2e
+uv run python scripts/benchmark_20mp.py
+```
+
+CI requires the `python-tests`, `frontend-tests`, `browser-parity`,
+`pages-build`, and `windows-package` checks before release.
+
+## Python CLI and local app
+
+The CLI remains the reference batch workflow:
 
 ```powershell
 uv run python analyze_particles.py "image.jpeg" --out output
-```
-
-Analyze a batch:
-
-```powershell
 uv run python analyze_particles.py "E:\MicroscopeImages\*.jpeg" --out output
 ```
 
-Useful tuning options:
+Start the local browser UI backed by native Python:
 
 ```powershell
-# If automatic scale-bar detection is off, provide the scale-bar length in pixels.
-uv run python analyze_particles.py "image.jpeg" --scale-px 223 --out output
-
-# Reduce text clutter on dense images.
-uv run python analyze_particles.py "image.jpeg" --label-limit 30 --out output
-
-# Detect more or fewer candidates. Lower sensitivity finds more circles.
-uv run python analyze_particles.py "image.jpeg" --sensitivity 0.84 --out output
-uv run python analyze_particles.py "image.jpeg" --sensitivity 0.92 --out output
-```
-
-## Interactive App
-
-Start the local app:
-
-```powershell
+npm run build:native
 uv run python particle_web_app.py
 ```
 
-Open `http://127.0.0.1:8765`, choose a microscope image, and run automatic
-detection. Stop the server with `Ctrl+C`.
+Open `http://127.0.0.1:8765`. The local API sends raw image bytes instead of
+Base64. Existing CLI arguments remain compatible.
 
-In the app you can:
-
-- collapse the tool panel and open the data panel to maximize the image canvas;
-- draw a scale line manually with `Redraw Scale Bar`;
-- add missed droplets or particles with right-drag across the diameter;
-- select with left click, multi-select with `Shift` + left click, and drag selected circles;
-- delete selected circles with `Delete` or `Backspace`;
-- nudge selected circles with arrow keys, or `Shift` + arrow keys for larger moves;
-- zoom the canvas with the mouse wheel or the `+`/`-` buttons;
-- pan with the middle mouse button;
-- inspect live statistics and the histogram;
-- export corrected CSV and annotated images with `Export CSV + Image`.
-
-## Windows Release
-
-Build a click-to-run Windows release:
+## Windows release
 
 ```powershell
 .\scripts\build_windows_release.ps1
 ```
 
-The build creates:
+This creates:
 
 ```text
-release/ParticleLens-Windows-v0.1.1.zip
-release/ParticleLens-Windows-OneFile-v0.1.1.exe
+release/ParticleLens-Windows-v0.2.0.zip
+release/ParticleLens-Windows-OneFile-v0.2.0.exe
 release/SHA256SUMS.txt
 ```
 
-Users can extract the ZIP and double-click `ParticleLens.exe`. The launcher
-starts the local app, opens it in the default browser, and provides a small
-window with `Open App` and `Quit` buttons. The one-file EXE provides the same
-app as a single executable.
+Both packaged launchers run `--self-test` during the release build.
 
-## Repository Layout
+## Contributing
+
+Bug reports, feature proposals, reproducible detection cases, documentation
+improvements, and pull requests are welcome. Read
+[`CONTRIBUTING.md`](CONTRIBUTING.md) before submitting data or code.
+
+- External feature PRs target `development`.
+- Releases use a maintainer PR from `development` to protected `main`.
+- Please do not attach private microscope images.
+- Detection samples must include a source and compatible license.
+
+See the [issue tracker](https://github.com/martin-lzh/ParticleLens/issues),
+[Discussions](https://github.com/martin-lzh/ParticleLens/discussions), and
+[`SECURITY.md`](SECURITY.md).
+
+## Project layout
 
 ```text
-analyze_particles.py          Command-line detection and export workflow
-particle_web_app.py           Local HTTP API and static file server
-particle_app_launcher.py      Desktop launcher for packaged Windows builds
-static/                       Browser UI for correction and export
-packaging/                    PyInstaller specs
-scripts/                      Release build scripts
+particle_detection_core.py   Shared browser/native detector
+analyze_particles.py         CLI and batch exports
+particle_web_app.py          Native local HTTP API
+particle_app_launcher.py     Windows launcher and self-test
+static/                      Vite UI, Worker, and Service Worker
+scripts/                     Runtime preparation and release builds
+tests/                       Python, browser, and licensed fixtures
 ```
 
-## Citation
+## Citation and license
 
-If you use ParticleLens in academic work, cite it with the BibTeX entry in
-[`CITATION.bib`](CITATION.bib).
-
-## License
-
-ParticleLens is licensed under the MIT License. See [`LICENSE`](LICENSE).
+Academic users can cite the BibTeX entry in [`CITATION.bib`](CITATION.bib).
+ParticleLens is available under the [MIT License](LICENSE).

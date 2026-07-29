@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import base64
 import argparse
+import base64
 import json
 import mimetypes
-import re
 import sys
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -12,81 +11,28 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, unquote, urlparse
 
-import cv2
-import numpy as np
-
-from analyze_particles import circle_rect_visible_fraction, detect_particles, detect_scale_bar
-
+from particle_detection_core import analyze_image_bytes
 
 ROOT = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 STATIC_DIR = ROOT / "static"
+MAX_IMAGE_BYTES = 100 * 1024 * 1024
 
 
-def decode_data_url(data_url: str) -> np.ndarray:
-    match = re.match(r"^data:[^;]+;base64,(.+)$", data_url, flags=re.DOTALL)
-    if not match:
-        raise ValueError("Expected an image data URL.")
+def parse_analysis_options(query: str) -> dict[str, Any]:
+    params = parse_qs(query)
 
-    raw = base64.b64decode(match.group(1))
-    image = cv2.imdecode(np.frombuffer(raw, dtype=np.uint8), cv2.IMREAD_COLOR)
-    if image is None:
-        raise ValueError("Could not decode image data.")
-    return image
+    def value(name: str, default: str) -> str:
+        return params.get(name, [default])[0]
 
-
-def circle_to_payload(
-    circle: Any, idx: int, microns_per_px: float, image_shape: tuple[int, int]
-) -> dict[str, float | int | str | bool]:
-    visible_fraction = circle_rect_visible_fraction(circle, image_shape)
+    scale_px_text = value("scalePx", "")
     return {
-        "id": idx,
-        "x": circle.x,
-        "y": circle.y,
-        "r": circle.r,
-        "diameterPx": circle.diameter_px,
-        "diameterUm": circle.diameter_px * microns_per_px,
-        "visibleFraction": visible_fraction,
-        "includedInDistribution": visible_fraction >= 0.5,
-        "edgeScore": circle.score,
-        "source": "auto",
-    }
-
-
-def analyze_payload(payload: dict[str, Any]) -> dict[str, Any]:
-    image = decode_data_url(str(payload.get("imageData", "")))
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-    scale_um = float(payload.get("scaleUm", 50.0))
-    scale_threshold = int(payload.get("scaleThreshold", 120))
-    scale_px = payload.get("scalePx")
-    scale_bar_bbox: tuple[int, int, int, int] | None
-
-    if scale_px:
-        microns_per_px = scale_um / float(scale_px)
-        scale_bar_bbox = None
-    else:
-        microns_per_px, scale_bar_bbox = detect_scale_bar(gray, scale_um, scale_threshold)
-
-    circles = detect_particles(
-        gray=gray,
-        microns_per_px=microns_per_px,
-        scale_bar_bbox=scale_bar_bbox,
-        min_diameter_um=float(payload.get("minDiameterUm", 2.0)),
-        max_diameter_um=float(payload.get("maxDiameterUm", 95.0)),
-        sensitivity=float(payload.get("sensitivity", 0.88)),
-        contrast=str(payload.get("contrast", "clahe")),
-    )
-
-    circles = sorted(circles, key=lambda c: (c.y, c.x))
-    return {
-        "width": int(image.shape[1]),
-        "height": int(image.shape[0]),
-        "micronsPerPx": microns_per_px,
-        "scaleBar": scale_bar_bbox,
-        "particles": [
-            circle_to_payload(circle, idx, microns_per_px, gray.shape)
-            for idx, circle in enumerate(circles, start=1)
-        ],
+        "scaleUm": float(value("scaleUm", "50")),
+        "scaleThreshold": int(value("scaleThreshold", "120")),
+        "scalePx": float(scale_px_text) if scale_px_text else None,
+        "minDiameterUm": float(value("minDiameterUm", "2")),
+        "maxDiameterUm": float(value("maxDiameterUm", "95")),
+        "sensitivity": float(value("sensitivity", "0.88")),
+        "contrast": value("contrast", "clahe"),
     }
 
 
@@ -104,10 +50,18 @@ def local_image_payload(path_text: str) -> dict[str, str]:
 
 
 class ParticleHandler(BaseHTTPRequestHandler):
-    server_version = "ParticleLens/0.1.1"
+    server_version = "ParticleLens/0.2.0"
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
+        if parsed.path == "/api/health":
+            self.send_json({"status": "ok", "version": "0.2.0", "detector": "native"})
+            return
+
+        if parsed.path == "/runtime-config.json":
+            self.send_json({"detector": "native"})
+            return
+
         if parsed.path == "/api/local-image":
             try:
                 path = parse_qs(parsed.query).get("path", [""])[0]
@@ -124,20 +78,25 @@ class ParticleHandler(BaseHTTPRequestHandler):
 
         safe_path = parsed.path.lstrip("/").replace("\\", "/")
         target = (STATIC_DIR / safe_path).resolve()
-        if not str(target).startswith(str(STATIC_DIR.resolve())):
+        if not target.is_relative_to(STATIC_DIR.resolve()):
             self.send_error(HTTPStatus.FORBIDDEN)
             return
         self.send_static_file(target)
 
     def do_POST(self) -> None:
-        if urlparse(self.path).path != "/api/analyze":
+        parsed = urlparse(self.path)
+        if parsed.path != "/api/analyze":
             self.send_error(HTTPStatus.NOT_FOUND)
             return
 
         try:
             length = int(self.headers.get("Content-Length", "0"))
-            payload = json.loads(self.rfile.read(length))
-            response = analyze_payload(payload)
+            if length <= 0:
+                raise ValueError("Image body is empty.")
+            if length > MAX_IMAGE_BYTES:
+                raise ValueError("Image exceeds the 100 MB local-app limit.")
+            image_bytes = self.rfile.read(length)
+            response = analyze_image_bytes(image_bytes, parse_analysis_options(parsed.query))
         except Exception as exc:  # Keep local app errors visible to the UI.
             self.send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
             return

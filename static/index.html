@@ -4,18 +4,29 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>ParticleLens</title>
-    <link rel="icon" href="/favicon.ico" sizes="any" />
-    <link rel="icon" type="image/png" href="/favicon-32x32.png" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/styles.css" />
+    <link rel="icon" href="./favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" href="./favicon-32x32.png" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
+    <section id="runtimeLoader" class="runtime-loader" aria-live="polite" aria-busy="true">
+      <div class="runtime-card">
+        <img src="./particlelens-logo.png" alt="" width="88" height="88" />
+        <h1>ParticleLens</h1>
+        <p id="runtimePhase">正在准备本地识别引擎</p>
+        <progress id="runtimeProgress"></progress>
+        <span id="runtimeBytes" class="runtime-bytes"></span>
+        <button id="runtimeRetry" type="button" hidden>重试</button>
+        <a href="https://github.com/martin-lzh/ParticleLens/releases/latest" data-i18n="runtime.offline">下载 Windows 离线版</a>
+      </div>
+    </section>
     <main class="app-shell">
       <header class="topbar" role="banner">
         <button id="leftToggle" class="nav-button" type="button" data-i18n="nav.toolsPanel" data-i18n-title="nav.toolsPanel">工具</button>
 
         <div class="nav-brand">
-          <img class="brand-mark" src="/particlelens-logo.png" alt="" aria-hidden="true" />
+          <img class="brand-mark" src="./particlelens-logo.png" alt="" aria-hidden="true" />
           <div>
             <strong data-i18n="brand.title">粒径标注</strong>
             <span data-i18n="brand.subtitle">自动识别后人工校正</span>
@@ -202,6 +213,6 @@
         </div>
       </aside>
     </main>
-    <script src="/app.js"></script>
+    <script type="module" src="./app.js"></script>
   </body>
 </html>

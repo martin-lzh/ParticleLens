@@ -1,16 +1,18 @@
 from __future__ import annotations
 
+import argparse
+import json
 import os
 import socket
 import sys
 import threading
 import tkinter as tk
+import urllib.request
 import webbrowser
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
 from particle_web_app import ParticleHandler
-
 
 HOST = "127.0.0.1"
 
@@ -34,7 +36,27 @@ def start_server() -> tuple[ThreadingHTTPServer, str]:
     return server, f"http://{HOST}:{port}/"
 
 
+def run_self_test() -> int:
+    server, url = start_server()
+    try:
+        with urllib.request.urlopen(f"{url}api/health", timeout=10) as response:
+            payload = json.load(response)
+        if payload != {"status": "ok", "version": "0.2.0", "detector": "native"}:
+            raise RuntimeError(f"Unexpected health response: {payload}")
+        print("ParticleLens self-test passed.", flush=True)
+        return 0
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Launch the ParticleLens offline app.")
+    parser.add_argument("--self-test", action="store_true")
+    args = parser.parse_args()
+    if args.self_test:
+        raise SystemExit(run_self_test())
+
     server, url = start_server()
     if os.environ.get("PARTICLE_APP_NO_BROWSER") != "1":
         webbrowser.open(url)

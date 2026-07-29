@@ -1,0 +1,34 @@
+# Changelog
+
+All notable changes are documented here. Versions follow Semantic Versioning.
+
+## [Unreleased]
+
+## [0.2.0] - 2026-07-29
+
+### Added
+
+- Browser-only GitHub Pages app powered by Pyodide 0.28.3, NumPy 2.2.5, and
+  OpenCV 4.11.0 in a Web Worker.
+- Verified byte-accurate runtime download progress and integrity manifest.
+- Service Worker caching, retry, cache repair, and offline reload.
+- Custom domain configuration for `particlelens.liuzhaohan.com`.
+- Browser parity, offline, privacy, 20 MP, Pages, and Windows packaging checks.
+- Open-source contribution, conduct, security, ownership, issue, and PR files.
+- Packaged launcher `--self-test`.
+
+### Changed
+
+- Shared the detection algorithm between CLI, native local app, Windows builds,
+  and browser execution.
+- Sent raw image bytes to the native local API instead of Base64.
+- Made the Web App the primary documented entry point.
+
+### Validation note
+
+Validation uses deterministic synthetic images and clearly licensed public
+samples. It does not yet include private research images or claim coverage of
+every scientific imaging workflow.
+
+[Unreleased]: https://github.com/martin-lzh/ParticleLens/compare/v0.2.0...development
+[0.2.0]: https://github.com/martin-lzh/ParticleLens/compare/v0.1.1...v0.2.0

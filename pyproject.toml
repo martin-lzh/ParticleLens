@@ -1,6 +1,6 @@
 [project]
 name = "particlelens"
-version = "0.1.1"
+version = "0.2.0"
 description = "Analyze microscope images and export particle size distributions."
 license = "MIT"
 requires-python = ">=3.11"
@@ -14,16 +14,33 @@ keywords = [
 ]
 dependencies = [
     "matplotlib>=3.9",
-    "numpy>=2.0",
-    "opencv-python>=4.10",
+    "numpy==2.2.5",
+    "opencv-python==4.11.0.86",
     "pandas>=2.2",
 ]
 
 [project.urls]
-Homepage = "https://github.com/martin-lzh/ParticleLens"
+Homepage = "https://particlelens.liuzhaohan.com"
 Repository = "https://github.com/martin-lzh/ParticleLens"
 Issues = "https://github.com/martin-lzh/ParticleLens/issues"
 Releases = "https://github.com/martin-lzh/ParticleLens/releases"
 
 [tool.uv]
 package = false
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4",
+    "ruff>=0.12",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+ignore = ["BLE001", "RUF046"]
