@@ -16,6 +16,7 @@ from particle_detection_core import (
 )
 
 PUBLIC_FIXTURES = Path(__file__).parent / "fixtures" / "public"
+GENERATED_FIXTURES = Path(__file__).parent / "fixtures" / "generated"
 
 
 def synthetic_micrograph() -> np.ndarray:
@@ -168,4 +169,21 @@ def test_public_microscopy_fixtures_decode_and_analyze(filename: str) -> None:
     )
     assert result["width"] > 0
     assert result["height"] > 0
+    assert isinstance(result["particles"], list)
+
+
+def test_generated_mixed_droplet_fixture_decodes_and_analyzes() -> None:
+    result = analyze_image_bytes(
+        (GENERATED_FIXTURES / "mixed-droplet-emulsion-1024.jpg").read_bytes(),
+        {
+            "scaleUm": 100,
+            "scalePx": 200,
+            "minDiameterUm": 4,
+            "maxDiameterUm": 180,
+            "sensitivity": 0.75,
+            "contrast": "clahe",
+        },
+    )
+    assert result["width"] == 1024
+    assert result["height"] == 1024
     assert isinstance(result["particles"], list)

@@ -1,4 +1,4 @@
-const SHELL_CACHE = "particlelens-shell-v0.2.0";
+const SHELL_CACHE = "particlelens-shell-v0.2.5";
 const RUNTIME_CACHE = "particlelens-runtime-v0.2.0";
 
 self.addEventListener("install", () => {
@@ -29,7 +29,11 @@ self.addEventListener("message", (event) => {
   if (event.data?.type !== "CACHE_SHELL") return;
   const urls = event.data.urls.filter((url) => {
     const parsed = new URL(url);
-    return parsed.origin === self.location.origin && !parsed.pathname.includes("/runtime/");
+    return (
+      parsed.origin === self.location.origin &&
+      !parsed.pathname.includes("/runtime/") &&
+      !parsed.pathname.endsWith("/runtime-config.json")
+    );
   });
   event.waitUntil(
     caches.open(SHELL_CACHE).then(async (cache) => {
@@ -53,6 +57,11 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin || url.pathname.includes("/api/")) return;
 
+  if (url.pathname.endsWith("/runtime-config.json")) {
+    event.respondWith(fetch(event.request, { cache: "no-store" }));
+    return;
+  }
+
   if (url.pathname.includes("/runtime/")) {
     event.respondWith(
       caches.open(RUNTIME_CACHE).then(async (cache) => {
@@ -61,6 +70,24 @@ self.addEventListener("fetch", (event) => {
         const response = await fetch(event.request);
         if (response.ok) await cache.put(event.request, response.clone());
         return response;
+      }),
+    );
+    return;
+  }
+
+  if (event.request.mode === "navigate") {
+    event.respondWith(
+      caches.open(SHELL_CACHE).then(async (cache) => {
+        try {
+          const response = await fetch(event.request);
+          if (response.ok) await cache.put(event.request, response.clone());
+          return response;
+        } catch {
+          const fallback = await cache.match(event.request) ||
+            await cache.match(new URL("./", self.registration.scope));
+          if (fallback) return fallback;
+          throw new Error("Offline document is unavailable.");
+        }
       }),
     );
     return;
@@ -83,10 +110,6 @@ self.addEventListener("fetch", (event) => {
 
       const response = await update;
       if (response) return response;
-      if (event.request.mode === "navigate") {
-        const fallback = await cache.match(new URL("./", self.registration.scope));
-        if (fallback) return fallback;
-      }
       throw new Error("Offline resource is unavailable.");
     }),
   );

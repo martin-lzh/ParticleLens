@@ -68,6 +68,8 @@ test("keeps the main thread responsive while analyzing a 20 MP image", async ({
     await page.locator("#sensitivity").fill("0.7");
     await page.locator("#minDiameter").fill("10");
     await page.locator("#maxDiameter").fill("40");
+    await page.locator("#micronsPerPixel").fill("0.0833333333");
+    await page.locator("#micronsPerPixel").press("Tab");
     await page.evaluate(() => {
       window.__particleLensFrames = 0;
       window.__particleLensCounting = true;
