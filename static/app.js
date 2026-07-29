@@ -1,6 +1,10 @@
 import { cacheApplicationShell, clearRuntimeCache, createDetector } from "./detection.js";
 import { circleVisibleFraction, summarizeDiameters } from "./particle-math.js";
 
+const compactLayout = window.matchMedia(
+  "(max-width: 820px), (max-width: 900px) and (max-height: 560px)",
+);
+
 const state = {
   lang: localStorage.getItem("particleLensLang") || localStorage.getItem("particleAnnotatorLang") || "zh",
   statusKey: "status.idle",
@@ -22,11 +26,14 @@ const state = {
     panY: 0,
   },
   ui: {
-    leftCollapsed: false,
+    leftCollapsed: compactLayout.matches,
     rightOpen: false,
     dragDepth: 0,
   },
 };
+
+const activePointers = new Map();
+let pinchGesture = null;
 
 const els = {
   appShell: document.querySelector(".app-shell"),
@@ -34,11 +41,13 @@ const els = {
   leftToggle: document.getElementById("leftToggle"),
   rightPanel: document.getElementById("rightPanel"),
   rightToggle: document.getElementById("rightToggle"),
+  panelBackdrop: document.getElementById("panelBackdrop"),
   canvas: document.getElementById("imageCanvas"),
   imageInput: document.getElementById("imageInput"),
   runDetect: document.getElementById("runDetect"),
   statusBadge: document.getElementById("statusBadge"),
   emptyState: document.getElementById("emptyState"),
+  gestureHint: document.getElementById("canvasGestureHint"),
   imageName: document.getElementById("imageName"),
   scaleReadout: document.getElementById("scaleReadout"),
   zoomReadout: document.getElementById("zoomReadout"),
@@ -63,6 +72,7 @@ const els = {
   exportCsv: document.getElementById("exportCsv"),
   exportPng: document.getElementById("exportPng"),
   exportAll: document.getElementById("exportAll"),
+  circleTool: document.getElementById("circleTool"),
   scaleTool: document.getElementById("scaleTool"),
   languageToggle: document.getElementById("languageToggle"),
   languageToggleText: document.getElementById("languageToggleText"),
@@ -79,10 +89,12 @@ const messages = {
   zh: {
     "app.title": "ParticleLens",
     "workspace.aria": "图像观察窗",
+    "canvas.aria": "图像编辑画布",
     "brand.title": "ParticleLens",
     "brand.subtitle": "显微粒径识别与校正",
     "nav.toolsPanel": "工具",
     "nav.dataPanel": "数据",
+    "nav.closePanels": "关闭面板",
     "nav.languageToggle": "切换到 English",
     "language.target": "EN",
     "image.none": "未选择图片",
@@ -94,8 +106,10 @@ const messages = {
     "zoom.fit": "适配",
     "hint.initial": "选择图片后可自动识别，也可手动画圆补充。",
     "hint.scale": "拖动一条线覆盖比例尺；完成后自动回到选择。",
-    "hint.edit": "左键选择，Shift 多选，右键按直径画圆，Delete 删除，方向键移动，滚轮缩放，中键平移。",
+    "hint.draw": "从颗粒一侧拖到另一侧，按直径添加圆；再次点按工具可退出。",
+    "hint.edit": "点按选择，拖动颗粒可移动，拖动空白处可平移，双指捏合可缩放。",
     "emptyState": "拖放或选择一张显微图片",
+    "gesture.guide": "点按选择 · 拖动平移或移动 · 双指缩放",
     "status.idle": "待加载",
     "status.running": "识别中",
     "status.success": "已识别",
@@ -137,12 +151,13 @@ const messages = {
     "contrast.background": "背景校正",
     "contrast.none": "不处理",
     "buttons.runDetect": "自动识别",
+    "buttons.drawCircle": "按直径画圆",
     "buttons.redrawScale": "重画比例尺",
     "buttons.deleteSelected": "删除选中",
     "buttons.clearManual": "清除手绘",
     "buttons.annotatedImage": "标注图",
     "buttons.exportAll": "导出 CSV + 标注图",
-    "edit.note": "左键选择，Shift + 左键多选，右键从颗粒一侧边缘拖到另一侧边缘画圆。Delete 删除选中圆，方向键移动选中圆，Shift + 方向键大步移动。滚轮缩放，中键拖动画布。",
+    "edit.note": "触控：点按选择颗粒，拖动颗粒可移动，拖动空白处可平移，双指捏合可缩放；选择“按直径画圆”后拖过颗粒直径。鼠标仍支持右键画圆、滚轮缩放与中键平移。",
     "stats.title": "统计",
     "stats.count": "主分布颗粒",
     "stats.mean": "平均直径",
@@ -162,10 +177,12 @@ const messages = {
   en: {
     "app.title": "ParticleLens",
     "workspace.aria": "Image viewport",
+    "canvas.aria": "Image editing canvas",
     "brand.title": "ParticleLens",
     "brand.subtitle": "Microscope particle sizing and correction",
     "nav.toolsPanel": "Tools",
     "nav.dataPanel": "Data",
+    "nav.closePanels": "Close panels",
     "nav.languageToggle": "Switch to Chinese",
     "language.target": "中文",
     "image.none": "No image selected",
@@ -177,8 +194,10 @@ const messages = {
     "zoom.fit": "Fit",
     "hint.initial": "Choose an image to detect particles automatically or add circles manually.",
     "hint.scale": "Drag a line across the scale bar; selection mode resumes when you release.",
-    "hint.edit": "Left-click to select, Shift for multi-select, right-drag to draw a diameter, Delete to remove, arrow keys to move, wheel to zoom, middle-drag to pan.",
+    "hint.draw": "Drag from one particle edge to the other to add a circle; tap the tool again to exit.",
+    "hint.edit": "Tap to select, drag a particle to move it, drag empty image space to pan, and pinch to zoom.",
     "emptyState": "Drop or choose a microscope image",
+    "gesture.guide": "Tap to select · Drag to pan or move · Pinch to zoom",
     "status.idle": "Waiting",
     "status.running": "Detecting",
     "status.success": "Detected",
@@ -220,12 +239,13 @@ const messages = {
     "contrast.background": "Background correction",
     "contrast.none": "None",
     "buttons.runDetect": "Run Detection",
+    "buttons.drawCircle": "Draw Circle by Diameter",
     "buttons.redrawScale": "Redraw Scale Bar",
     "buttons.deleteSelected": "Delete Selected",
     "buttons.clearManual": "Clear Manual",
     "buttons.annotatedImage": "Annotated Image",
     "buttons.exportAll": "Export CSV + Image",
-    "edit.note": "Left-click to select, Shift + left-click to multi-select, and right-drag from one particle edge to the opposite edge to draw a circle. Delete removes selected circles. Arrow keys move selected circles; Shift + arrow keys move farther. Use the wheel to zoom and middle-drag to pan.",
+    "edit.note": "Touch: tap a particle to select it, drag a particle to move it, drag empty image space to pan, and pinch to zoom. Choose “Draw Circle by Diameter” and drag across a particle to add one. Mouse input still supports right-drag drawing, wheel zoom, and middle-drag panning.",
     "stats.title": "Statistics",
     "stats.count": "Main distribution",
     "stats.mean": "Mean diameter",
@@ -657,12 +677,12 @@ function refresh() {
   draw();
 }
 
-function nearestParticle(point) {
+function nearestParticle(point, extraTolerance = 0) {
   let best = null;
   let bestDistance = Infinity;
   for (const particle of activeParticles()) {
     const distance = Math.hypot(point.x - particle.x, point.y - particle.y);
-    const tolerance = Math.max(6, particle.r * 0.25);
+    const tolerance = Math.max(6, particle.r * 0.25, extraTolerance);
     if (distance <= particle.r + tolerance && distance < bestDistance) {
       best = particle;
       bestDistance = distance;
@@ -674,6 +694,8 @@ function nearestParticle(point) {
 function setHint() {
   if (state.mode === "scale") {
     els.hintText.textContent = t("hint.scale");
+  } else if (state.mode === "draw") {
+    els.hintText.textContent = t("hint.draw");
   } else if (!state.image) {
     els.hintText.textContent = t("hint.initial");
   } else {
@@ -681,16 +703,24 @@ function setHint() {
   }
 }
 
-function setScaleMode() {
-  state.mode = "scale";
-  els.scaleTool.classList.add("active");
+function setInteractionMode(mode) {
+  state.mode = mode;
+  els.circleTool.classList.toggle("active", mode === "draw");
+  els.scaleTool.classList.toggle("active", mode === "scale");
+  els.canvas.dataset.mode = mode;
   setHint();
 }
 
+function toggleDrawMode() {
+  setInteractionMode(state.mode === "draw" ? "select" : "draw");
+}
+
+function setScaleMode() {
+  setInteractionMode(state.mode === "scale" ? "select" : "scale");
+}
+
 function clearScaleMode() {
-  state.mode = "select";
-  els.scaleTool.classList.remove("active");
-  setHint();
+  setInteractionMode("select");
 }
 
 function selectParticle(id, additive = false) {
@@ -839,11 +869,13 @@ function loadImageData(imageUrl, imageName, imageBytes, revokeUrl = false) {
     state.nextId = 1;
     resetView();
     els.emptyState.classList.add("hidden");
+    els.gestureHint.classList.remove("hidden");
     els.imageName.textContent = imageName;
     if (state.image.naturalWidth * state.image.naturalHeight > 20_000_000) {
       alert(t("warnings.largeImage"));
     }
     setStatus("status.loaded");
+    closeCompactPanels();
     refresh();
   };
   state.image.src = imageUrl;
@@ -924,6 +956,35 @@ function exportAll() {
   window.setTimeout(exportPng, 120);
 }
 
+function syncPanels() {
+  els.leftPanel.classList.toggle("collapsed", state.ui.leftCollapsed);
+  els.rightPanel.classList.toggle("open", state.ui.rightOpen);
+  els.leftToggle.setAttribute("aria-expanded", String(!state.ui.leftCollapsed));
+  els.rightToggle.setAttribute("aria-expanded", String(state.ui.rightOpen));
+  els.appShell.classList.toggle(
+    "panels-open",
+    compactLayout.matches && (!state.ui.leftCollapsed || state.ui.rightOpen),
+  );
+}
+
+function closeCompactPanels() {
+  if (!compactLayout.matches) return;
+  state.ui.leftCollapsed = true;
+  state.ui.rightOpen = false;
+  syncPanels();
+}
+
+function handleLayoutChange(event) {
+  if (event.matches) {
+    state.ui.leftCollapsed = true;
+    state.ui.rightOpen = false;
+  } else {
+    state.ui.leftCollapsed = false;
+    state.ui.rightOpen = false;
+  }
+  syncPanels();
+}
+
 els.imageInput.addEventListener("change", (event) => {
   const file = event.target.files?.[0];
   if (file) loadImage(file);
@@ -946,16 +1007,27 @@ els.exportAll.addEventListener("click", exportAll);
 els.zoomOut.addEventListener("click", () => zoomAt(1 / 1.25));
 els.zoomIn.addEventListener("click", () => zoomAt(1.25));
 els.resetZoom.addEventListener("click", resetView);
-els.scaleTool.addEventListener("click", setScaleMode);
+els.circleTool.addEventListener("click", () => {
+  toggleDrawMode();
+  if (state.mode === "draw") closeCompactPanels();
+});
+els.scaleTool.addEventListener("click", () => {
+  setScaleMode();
+  if (state.mode === "scale") closeCompactPanels();
+});
 els.languageToggle.addEventListener("click", toggleLanguage);
 els.leftToggle.addEventListener("click", () => {
   state.ui.leftCollapsed = !state.ui.leftCollapsed;
-  els.leftPanel.classList.toggle("collapsed", state.ui.leftCollapsed);
+  if (compactLayout.matches && !state.ui.leftCollapsed) state.ui.rightOpen = false;
+  syncPanels();
 });
 els.rightToggle.addEventListener("click", () => {
   state.ui.rightOpen = !state.ui.rightOpen;
-  els.rightPanel.classList.toggle("open", state.ui.rightOpen);
+  if (compactLayout.matches && state.ui.rightOpen) state.ui.leftCollapsed = true;
+  syncPanels();
 });
+els.panelBackdrop.addEventListener("click", closeCompactPanels);
+compactLayout.addEventListener("change", handleLayoutChange);
 
 document.querySelectorAll("[data-left-tab]").forEach((button) => {
   button.addEventListener("click", () => {
@@ -986,93 +1058,185 @@ els.table.addEventListener("click", (event) => {
   selectParticle(Number(row.dataset.id), event.shiftKey);
 });
 
-els.canvas.addEventListener("mousedown", (event) => {
-  if (!state.image) return;
-  if (event.button === 1) {
-    event.preventDefault();
-    const point = canvasPoint(event);
+function pointerPair() {
+  return Array.from(activePointers.values()).slice(0, 2);
+}
+
+function pointerPairMetrics() {
+  const [first, second] = pointerPair();
+  if (!first || !second) return null;
+  return {
+    distance: Math.hypot(second.x - first.x, second.y - first.y),
+    center: {
+      x: (first.x + second.x) / 2,
+      y: (first.y + second.y) / 2,
+    },
+  };
+}
+
+function beginPinchGesture() {
+  const metrics = pointerPairMetrics();
+  if (!metrics || metrics.distance < 1) return;
+  if (state.drag?.kind === "move") {
+    for (const item of state.drag.particles) {
+      item.p.x = item.x;
+      item.p.y = item.y;
+    }
+  }
+  state.drag = null;
+  delete els.canvas.dataset.dragging;
+  pinchGesture = metrics;
+}
+
+function startPointerDrag(event) {
+  const canvasPos = canvasPoint(event);
+  const imagePos = canvasToImage(event);
+  const isMouse = event.pointerType === "mouse";
+  const pointerId = event.pointerId;
+
+  if (isMouse && event.button === 1) {
     state.drag = {
       kind: "pan",
-      startX: point.x,
-      startY: point.y,
+      pointerId,
+      startX: canvasPos.x,
+      startY: canvasPos.y,
       startPanX: state.view.panX,
       startPanY: state.view.panY,
+      didMove: false,
+      clearSelectionOnTap: false,
+    };
+    els.canvas.dataset.dragging = "pan";
+    return;
+  }
+
+  if ((isMouse && event.button === 2) || state.mode === "draw") {
+    state.drag = {
+      kind: "diameter",
+      pointerId,
+      x1: imagePos.x,
+      y1: imagePos.y,
+      x2: imagePos.x,
+      y2: imagePos.y,
     };
     return;
   }
 
-  const point = canvasToImage(event);
-  if (event.button === 2) {
-    event.preventDefault();
-    state.drag = { kind: "diameter", x1: point.x, y1: point.y, x2: point.x, y2: point.y };
-  } else if (state.mode === "scale") {
-    state.drag = { kind: "scale", x1: point.x, y1: point.y, x2: point.x, y2: point.y };
-  } else {
-    const particle = nearestParticle(point);
-    if (particle) {
-      if (event.shiftKey) {
-        selectParticle(particle.id, true);
-      } else {
-        if (!state.selectedIds.has(particle.id)) {
-          state.selectedIds.clear();
-          state.selectedIds.add(particle.id);
-          refresh();
-        }
-        const selected = selectedParticles();
-        state.drag = {
-          kind: "move",
-          startX: point.x,
-          startY: point.y,
-          particles: selected.map((p) => ({ p, x: p.x, y: p.y })),
-        };
-      }
-    } else {
-      selectParticle(null, event.shiftKey);
-    }
+  if (state.mode === "scale") {
+    state.drag = {
+      kind: "scale",
+      pointerId,
+      x1: imagePos.x,
+      y1: imagePos.y,
+      x2: imagePos.x,
+      y2: imagePos.y,
+    };
+    return;
   }
-});
 
-els.canvas.addEventListener("mousemove", (event) => {
-  if (!state.drag) return;
+  const dpr = window.devicePixelRatio || 1;
+  const touchTolerance = event.pointerType === "touch"
+    ? (18 * dpr) / fitTransform().scale
+    : 0;
+  const particle = nearestParticle(imagePos, touchTolerance);
+  if (particle) {
+    if (event.shiftKey) {
+      selectParticle(particle.id, true);
+      return;
+    }
+    if (!state.selectedIds.has(particle.id)) {
+      state.selectedIds.clear();
+      state.selectedIds.add(particle.id);
+      refresh();
+    }
+    state.drag = {
+      kind: "move",
+      pointerId,
+      startX: imagePos.x,
+      startY: imagePos.y,
+      startCanvasX: canvasPos.x,
+      startCanvasY: canvasPos.y,
+      didMove: false,
+      particles: selectedParticles().map((p) => ({ p, x: p.x, y: p.y })),
+    };
+    return;
+  }
+
+  if (isMouse) {
+    selectParticle(null, event.shiftKey);
+    return;
+  }
+
+  state.drag = {
+    kind: "pan",
+    pointerId,
+    startX: canvasPos.x,
+    startY: canvasPos.y,
+    startPanX: state.view.panX,
+    startPanY: state.view.panY,
+    didMove: false,
+    clearSelectionOnTap: true,
+  };
+  els.canvas.dataset.dragging = "pan";
+}
+
+function updatePointerDrag(event) {
+  if (!state.drag || state.drag.pointerId !== event.pointerId) return;
+  const canvasPos = canvasPoint(event);
+
   if (state.drag.kind === "pan") {
-    const point = canvasPoint(event);
-    state.view.panX = state.drag.startPanX + point.x - state.drag.startX;
-    state.view.panY = state.drag.startPanY + point.y - state.drag.startY;
+    const dx = canvasPos.x - state.drag.startX;
+    const dy = canvasPos.y - state.drag.startY;
+    state.drag.didMove ||= Math.hypot(dx, dy) > 4 * (window.devicePixelRatio || 1);
+    state.view.panX = state.drag.startPanX + dx;
+    state.view.panY = state.drag.startPanY + dy;
     draw();
     return;
   }
 
-  const point = canvasToImage(event);
+  const imagePos = canvasToImage(event);
   if (state.drag.kind === "move") {
-    const dx = point.x - state.drag.startX;
-    const dy = point.y - state.drag.startY;
+    const canvasDistance = Math.hypot(
+      canvasPos.x - state.drag.startCanvasX,
+      canvasPos.y - state.drag.startCanvasY,
+    );
+    state.drag.didMove ||= canvasDistance > 3 * (window.devicePixelRatio || 1);
+    const dx = imagePos.x - state.drag.startX;
+    const dy = imagePos.y - state.drag.startY;
     for (const item of state.drag.particles) {
       item.p.x = item.x + dx;
       item.p.y = item.y + dy;
     }
   } else if (state.drag.kind === "diameter" || state.drag.kind === "scale") {
-    state.drag.x2 = point.x;
-    state.drag.y2 = point.y;
+    state.drag.x2 = imagePos.x;
+    state.drag.y2 = imagePos.y;
   }
   draw();
-});
+}
 
-window.addEventListener("mouseup", () => {
+function finishPointerDrag(cancelled = false) {
   if (!state.drag) return;
-  if (state.drag.kind === "pan") {
-    state.drag = null;
-    draw();
-    return;
-  }
+  const drag = state.drag;
+  state.drag = null;
+  delete els.canvas.dataset.dragging;
 
-  if (state.drag.kind === "move") {
-    state.drag = null;
+  if (cancelled) {
     refresh();
     return;
   }
 
-  if (state.drag.kind === "diameter") {
-    const circle = circleFromDiameterDrag(state.drag);
+  if (drag.kind === "pan") {
+    if (drag.clearSelectionOnTap && !drag.didMove) selectParticle(null);
+    else draw();
+    return;
+  }
+
+  if (drag.kind === "move") {
+    refresh();
+    return;
+  }
+
+  if (drag.kind === "diameter") {
+    const circle = circleFromDiameterDrag(drag);
     if (circle.r > 3) {
       const id = state.nextId++;
       state.particles.push({
@@ -1086,17 +1250,75 @@ window.addEventListener("mouseup", () => {
       state.selectedIds.clear();
       state.selectedIds.add(id);
     }
-  } else if (state.drag.kind === "scale") {
-    const px = Math.hypot(state.drag.x2 - state.drag.x1, state.drag.y2 - state.drag.y1);
+  } else if (drag.kind === "scale") {
+    const px = Math.hypot(drag.x2 - drag.x1, drag.y2 - drag.y1);
     if (px > 5) {
-      state.scaleLine = { ...state.drag };
+      state.scaleLine = { ...drag };
+      delete state.scaleLine.pointerId;
       setScaleFromLine(state.scaleLine);
     }
     clearScaleMode();
   }
-  state.drag = null;
   refresh();
+}
+
+els.canvas.addEventListener("pointerdown", (event) => {
+  if (!state.image) return;
+  event.preventDefault();
+  els.canvas.focus({ preventScroll: true });
+  try {
+    els.canvas.setPointerCapture(event.pointerId);
+  } catch {
+    // Synthetic pointer events may not have an active platform pointer to capture.
+  }
+  activePointers.set(event.pointerId, canvasPoint(event));
+
+  if (activePointers.size === 2) {
+    beginPinchGesture();
+    return;
+  }
+  if (activePointers.size > 2) return;
+  startPointerDrag(event);
 });
+
+els.canvas.addEventListener("pointermove", (event) => {
+  if (!activePointers.has(event.pointerId)) return;
+  event.preventDefault();
+  activePointers.set(event.pointerId, canvasPoint(event));
+
+  if (pinchGesture && activePointers.size >= 2) {
+    const metrics = pointerPairMetrics();
+    if (!metrics || metrics.distance < 1) return;
+    const factor = metrics.distance / pinchGesture.distance;
+    zoomAt(factor, metrics.center);
+    state.view.panX += metrics.center.x - pinchGesture.center.x;
+    state.view.panY += metrics.center.y - pinchGesture.center.y;
+    pinchGesture = metrics;
+    draw();
+    return;
+  }
+  updatePointerDrag(event);
+});
+
+function endPointer(event, cancelled = false) {
+  const wasPinching = Boolean(pinchGesture);
+  activePointers.delete(event.pointerId);
+  if (els.canvas.hasPointerCapture?.(event.pointerId)) {
+    els.canvas.releasePointerCapture(event.pointerId);
+  }
+
+  if (wasPinching) {
+    state.drag = null;
+    delete els.canvas.dataset.dragging;
+    if (activePointers.size < 2) pinchGesture = null;
+    return;
+  }
+
+  if (state.drag?.pointerId === event.pointerId) finishPointerDrag(cancelled);
+}
+
+els.canvas.addEventListener("pointerup", (event) => endPointer(event));
+els.canvas.addEventListener("pointercancel", (event) => endPointer(event, true));
 
 els.canvas.addEventListener("contextmenu", (event) => {
   event.preventDefault();
@@ -1201,6 +1423,8 @@ els.runtimeRetry.addEventListener("click", async () => {
 });
 
 async function bootstrap() {
+  syncPanels();
+  setInteractionMode("select");
   applyTranslations();
   resizeCanvas();
   resizeHistogram();

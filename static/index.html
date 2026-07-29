@@ -23,7 +23,7 @@
     </section>
     <main class="app-shell">
       <header class="topbar" role="banner">
-        <button id="leftToggle" class="nav-button" type="button" data-i18n="nav.toolsPanel" data-i18n-title="nav.toolsPanel">工具</button>
+        <button id="leftToggle" class="nav-button" type="button" aria-controls="leftPanel" aria-expanded="true" data-i18n="nav.toolsPanel" data-i18n-title="nav.toolsPanel">工具</button>
 
         <div class="nav-brand">
           <img class="brand-mark" src="./particlelens-logo.png" alt="" aria-hidden="true" />
@@ -59,15 +59,20 @@
           <span id="languageToggleText">EN</span>
         </button>
 
-        <button id="rightToggle" class="nav-button" type="button" data-i18n="nav.dataPanel" data-i18n-title="nav.dataPanel">数据</button>
+        <button id="rightToggle" class="nav-button" type="button" aria-controls="rightPanel" aria-expanded="false" data-i18n="nav.dataPanel" data-i18n-title="nav.dataPanel">数据</button>
       </header>
 
       <section class="workspace" aria-label="图像观察窗" data-i18n-aria="workspace.aria">
         <div class="canvas-wrap">
-          <canvas id="imageCanvas"></canvas>
+          <canvas id="imageCanvas" tabindex="0" aria-label="图像编辑画布" aria-describedby="canvasGestureHint" data-i18n-aria="canvas.aria"></canvas>
           <div id="emptyState" class="empty-state" data-i18n="emptyState">Drop or choose a microscope image</div>
+          <div id="canvasGestureHint" class="canvas-gesture-hint hidden" data-i18n="gesture.guide">
+            点按选择 · 拖动平移或移动 · 双指缩放
+          </div>
         </div>
       </section>
+
+      <button id="panelBackdrop" class="panel-backdrop" type="button" aria-label="关闭面板" data-i18n-aria="nav.closePanels"></button>
 
       <aside id="leftPanel" class="left-panel">
         <div class="panel-inner">
@@ -143,6 +148,7 @@
           <section class="tab-panel" data-left-panel="edit">
             <div class="control-group first">
               <h2 data-i18n="groups.editTools">编辑工具</h2>
+              <button class="tool" id="circleTool" data-mode="draw" type="button" data-i18n="buttons.drawCircle">按直径画圆</button>
               <button class="tool" id="scaleTool" data-mode="scale" type="button" data-i18n="buttons.redrawScale">重画比例尺</button>
               <div class="button-row">
                 <button id="deleteSelected" type="button" data-i18n="buttons.deleteSelected">删除选中</button>
@@ -150,7 +156,7 @@
               </div>
             </div>
             <div class="note" data-i18n="edit.note">
-              左键选择，Shift + 左键多选，右键从颗粒一侧边缘拖到另一侧边缘画圆。Delete 删除选中圆，方向键移动选中圆，Shift + 方向键大步移动。滚轮缩放，中键拖动画布。
+              触控：点按选择颗粒，拖动颗粒可移动，拖动空白处可平移，双指捏合可缩放；选择“按直径画圆”后拖过颗粒直径。鼠标仍支持右键画圆、滚轮缩放与中键平移。
             </div>
           </section>
 

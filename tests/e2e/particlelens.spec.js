@@ -224,6 +224,77 @@ test("supports manual correction, scale redraw, zoom, pan, move, and delete", as
   expect(Buffer.compare(beforeZoom, afterPan)).not.toBe(0);
 });
 
+test("adapts the workspace for mobile and supports touch canvas gestures", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openReadyApp(page);
+
+  await expect(page.locator("#leftPanel")).toHaveClass(/collapsed/);
+  await expect(page.locator("#leftToggle")).toHaveAttribute("aria-expanded", "false");
+  const topbarBox = await page.locator(".topbar").boundingBox();
+  expect(topbarBox?.height).toBeGreaterThanOrEqual(100);
+
+  await page.locator("#leftToggle").click();
+  await expect(page.locator("#leftToggle")).toHaveAttribute("aria-expanded", "true");
+  await page.locator("#imageInput").setInputFiles({
+    name: "synthetic.bmp",
+    mimeType: "image/bmp",
+    buffer: syntheticBitmap(),
+  });
+  await expect(page.locator("#imageName")).toHaveText("synthetic.bmp");
+  await expect(page.locator("#leftToggle")).toHaveAttribute("aria-expanded", "false");
+
+  await page.locator("#leftToggle").click();
+  await page.locator("#contrastMode").selectOption("none");
+  await page.locator("#sensitivity").fill("0.7");
+  await page.locator("#minDiameter").fill("15");
+  await page.locator("#maxDiameter").fill("80");
+  await page.locator("#runDetect").click();
+  await expect(page.locator("#statusBadge")).toHaveText(/已识别|Detected/, {
+    timeout: 60_000,
+  });
+
+  await page.locator("#leftToggle").click();
+  const canvas = page.locator("#imageCanvas");
+  const box = await canvas.boundingBox();
+  expect(box).toBeTruthy();
+  const point = (x, y) => ({ clientX: box.x + x, clientY: box.y + y });
+  const pointer = (pointerId, x, y, isPrimary = false) => ({
+    bubbles: true,
+    cancelable: true,
+    pointerId,
+    pointerType: "touch",
+    isPrimary,
+    button: 0,
+    buttons: 1,
+    ...point(x, y),
+  });
+
+  const zoomBefore = await page.locator("#zoomReadout").textContent();
+  await canvas.dispatchEvent("pointerdown", pointer(1, 150, 380, true));
+  await canvas.dispatchEvent("pointerdown", pointer(2, 240, 380));
+  await canvas.dispatchEvent("pointermove", pointer(2, 300, 380));
+  await canvas.dispatchEvent("pointerup", { ...pointer(2, 300, 380), buttons: 0 });
+  await canvas.dispatchEvent("pointerup", { ...pointer(1, 150, 380, true), buttons: 0 });
+  await expect(page.locator("#zoomReadout")).not.toHaveText(zoomBefore);
+
+  const beforePan = await canvas.screenshot();
+  await canvas.dispatchEvent("pointerdown", pointer(3, 60, 650, true));
+  await canvas.dispatchEvent("pointermove", pointer(3, 115, 610, true));
+  await canvas.dispatchEvent("pointerup", { ...pointer(3, 115, 610, true), buttons: 0 });
+  const afterPan = await canvas.screenshot();
+  expect(Buffer.compare(beforePan, afterPan)).not.toBe(0);
+
+  await page.locator("#leftToggle").click();
+  await page.locator("[data-left-tab='edit']").click();
+  await page.locator("#circleTool").click();
+  await expect(page.locator("#leftToggle")).toHaveAttribute("aria-expanded", "false");
+  const rows = page.locator("#particleTable tr");
+  await canvas.dispatchEvent("pointerdown", pointer(4, 125, 560, true));
+  await canvas.dispatchEvent("pointermove", pointer(4, 190, 560, true));
+  await canvas.dispatchEvent("pointerup", { ...pointer(4, 190, 560, true), buttons: 0 });
+  await expect(rows).toHaveCount(4);
+});
+
 test("switches language and restores the app shell offline", async ({ page }) => {
   const origin = await startStaticServer();
   try {
