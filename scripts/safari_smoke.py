@@ -95,7 +95,12 @@ def main() -> None:
                 };
                 """
             )
-            driver.find_element(By.CSS_SELECTOR, "[data-left-tab='export']").click()
+            driver.find_element(By.ID, "rightToggle").click()
+            wait.until(
+                conditions.element_to_be_clickable(
+                    (By.CSS_SELECTOR, "[data-right-tab='export']")
+                )
+            ).click()
             driver.find_element(By.ID, "exportCsv").click()
             driver.find_element(By.ID, "exportPng").click()
             wait.until(
