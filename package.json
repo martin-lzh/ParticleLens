@@ -18,9 +18,9 @@
     "@playwright/test": "1.62.0",
     "eslint": "10.8.0",
     "globals": "17.8.0",
-    "jsdom": "26.1.0",
-    "pyodide": "0.28.3",
-    "vite": "7.3.6",
-    "vitest": "3.2.7"
+    "jsdom": "30.0.0",
+    "pyodide": "314.0.3",
+    "vite": "8.1.5",
+    "vitest": "4.1.10"
   }
 }
