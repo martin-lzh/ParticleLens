@@ -488,6 +488,85 @@ test("supports manual correction, scale redraw, zoom, pan, move, and delete", as
   expect(Buffer.compare(beforeZoom, afterPan)).not.toBe(0);
 });
 
+test("presents sidebars as panel toggles and analysis views as tabs", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await openReadyApp(page);
+
+  const leftToggle = page.locator("#leftToggle");
+  const rightToggle = page.locator("#rightToggle");
+  await expect(leftToggle).toHaveAttribute("aria-controls", "leftPanel");
+  await expect(leftToggle).toHaveAttribute("aria-expanded", "true");
+  await expect(leftToggle.locator(".lucide-scan-line")).toBeVisible();
+  const activeIndicator = await leftToggle.evaluate(
+    (element) => getComputedStyle(element, "::after").backgroundColor,
+  );
+
+  await leftToggle.click();
+  await expect(leftToggle).toHaveAttribute("aria-expanded", "false");
+  await expect(leftToggle.locator(".lucide-scan-line")).toBeVisible();
+  await expect.poll(
+    async () => leftToggle.evaluate(
+      (element) => getComputedStyle(element, "::after").backgroundColor,
+    ),
+  ).not.toBe(activeIndicator);
+
+  await expect(rightToggle).toHaveAttribute("aria-controls", "rightPanel");
+  await expect(rightToggle).toHaveAttribute("aria-expanded", "false");
+  await expect(rightToggle.locator(".lucide-bar-chart-3")).toBeVisible();
+  await rightToggle.click();
+  await expect(rightToggle).toHaveAttribute("aria-expanded", "true");
+  await expect(rightToggle.locator(".lucide-bar-chart-3")).toBeVisible();
+
+  const rightTabs = page.getByRole("tab");
+  await expect(rightTabs).toHaveCount(3);
+  const tableTab = page.locator("#rightTabTable");
+  const paretoTab = page.locator("#rightTabPareto");
+  await expect(tableTab.locator(".tab-label")).toBeVisible();
+  await expect(paretoTab.locator(".tab-label")).toBeVisible();
+  await expect(tableTab).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#rightPanelTable")).toBeVisible();
+  await expect(page.locator("#rightPanelPareto")).toBeHidden();
+
+  await tableTab.press("ArrowRight");
+  await expect(paretoTab).toBeFocused();
+  await expect(paretoTab).toHaveAttribute("aria-selected", "true");
+  await expect(tableTab).toHaveAttribute("aria-selected", "false");
+  await expect(page.locator("#rightPanelTable")).toBeHidden();
+  await expect(page.locator("#rightPanelPareto")).toBeVisible();
+
+  const selectedBorder = await paretoTab.evaluate(
+    (element) => getComputedStyle(element).borderBottomColor,
+  );
+  const inactiveBorder = await tableTab.evaluate(
+    (element) => getComputedStyle(element).borderBottomColor,
+  );
+  expect(selectedBorder).not.toBe(inactiveBorder);
+
+  await page.locator("#actionManualTrigger").click();
+  await expect(page.locator("#actionManualDialog")).toBeVisible();
+  const mouseTab = page.locator("#mouseManualTab");
+  const touchTab = page.locator("#touchManualTab");
+  await expect(mouseTab).toHaveClass(/navigation-tab/);
+  await expect(mouseTab).toHaveAttribute("aria-selected", "true");
+  await expect(
+    page.locator("[data-i18n='manual.mouse.selectInput']"),
+  ).toBeVisible();
+  const manualSelectedBorder = await mouseTab.evaluate(
+    (element) => getComputedStyle(element).borderBottomColor,
+  );
+  const manualInactiveBorder = await touchTab.evaluate(
+    (element) => getComputedStyle(element).borderBottomColor,
+  );
+  expect(manualSelectedBorder).not.toBe(manualInactiveBorder);
+  await mouseTab.press("ArrowRight");
+  await expect(touchTab).toBeFocused();
+  await expect(touchTab).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#touchManualPanel")).toBeVisible();
+  await expect(
+    page.locator("[data-i18n='manual.touch.selectInput']"),
+  ).toBeVisible();
+});
+
 test("keeps the analysis entry visible across transitional navbar widths", async ({ page }) => {
   await page.setViewportSize({ width: 1180, height: 768 });
   await openReadyApp(page);
@@ -622,13 +701,31 @@ test("adapts the workspace for mobile and supports touch canvas gestures", async
       (element) => getComputedStyle(element).transform,
     ),
   ).toBe("none");
+  await expect.poll(
+    async () => (await page.locator("#leftPanel").boundingBox()).x,
+  ).toBeCloseTo(0, 0);
   const portraitPanelBox = await page.locator("#leftPanel").boundingBox();
-  expect(portraitPanelBox.width).toBeGreaterThan(319);
-  expect(portraitPanelBox.width).toBeLessThanOrEqual(378);
+  expect(portraitPanelBox.x).toBeCloseTo(0, 0);
+  expect(portraitPanelBox.y).toBeCloseTo(topbarBox.height, 0);
+  expect(portraitPanelBox.width).toBeCloseTo(390, 0);
+  expect(portraitPanelBox.height).toBeCloseTo(844 - topbarBox.height, 0);
   const portraitGridColumnCount = await page.locator("#leftPanel .grid-two").evaluate(
     (element) => getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/).length,
   );
   expect(portraitGridColumnCount).toBe(2);
+  await expect(page.locator(".workspace")).toHaveAttribute("aria-hidden", "true");
+  await expect(page.locator("#rightToggle")).toHaveAttribute("aria-expanded", "false");
+
+  await page.locator("#rightToggle").click();
+  await expect(page.locator("#rightToggle")).toHaveAttribute("aria-expanded", "true");
+  await expect(page.locator("#leftToggle")).toHaveAttribute("aria-expanded", "false");
+  const rightPageBox = await page.locator("#rightPanel").boundingBox();
+  expect(rightPageBox.x).toBeCloseTo(0, 0);
+  expect(rightPageBox.width).toBeCloseTo(390, 0);
+
+  await page.locator("#leftToggle").click();
+  await expect(page.locator("#leftToggle")).toHaveAttribute("aria-expanded", "true");
+  await expect(page.locator("#rightToggle")).toHaveAttribute("aria-expanded", "false");
   await page.locator("#imageInput").setInputFiles({
     name: "synthetic.bmp",
     mimeType: "image/bmp",
@@ -711,7 +808,7 @@ test("switches language and restores the app shell offline", async ({ page }) =>
       timeout: 30_000,
     });
     const cacheState = await page.evaluate(async () => {
-      const shell = await caches.open("particlelens-shell-v0.2.2");
+      const shell = await caches.open("particlelens-shell-v0.2.3");
       const runtime = await caches.open("particlelens-runtime-v0.2.0");
       const moduleUrl = document.querySelector("script[type='module']").src;
       return {

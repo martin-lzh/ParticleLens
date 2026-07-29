@@ -5,6 +5,7 @@ import {
   CirclePlus,
   createIcons,
   Download,
+  FileOutput,
   FileSpreadsheet,
   Hand,
   ImageDown,
@@ -120,6 +121,7 @@ async function loadPlotly() {
 
 const els = {
   appShell: document.querySelector(".app-shell"),
+  workspace: document.querySelector(".workspace"),
   leftPanel: document.getElementById("leftPanel"),
   leftPanelResizeHandle: document.getElementById("leftPanelResizeHandle"),
   leftToggle: document.getElementById("leftToggle"),
@@ -246,29 +248,41 @@ const messages = {
     "manual.tabsAria": "输入方式",
     "manual.mouseTab": "鼠标",
     "manual.touchTab": "触控",
+    "manual.mouse.selectInput": "左键 / V",
     "manual.mouse.selectTitle": "选择颗粒",
     "manual.mouse.selectBody": "左键单击圆圈。按住 Shift 单击可添加或移除多选中的圆圈。",
+    "manual.mouse.moveInput": "左键拖动",
     "manual.mouse.moveTitle": "移动颗粒",
     "manual.mouse.moveBody": "按住左键拖动选中的圆圈，可移动整个选择。",
+    "manual.mouse.panInput": "中键 / H",
     "manual.mouse.panTitle": "平移图像",
     "manual.mouse.panBody": "按住鼠标中键拖动任意位置，或选择抓手工具后按住左键拖动。",
+    "manual.mouse.drawInput": "右键 / C",
     "manual.mouse.drawTitle": "添加颗粒",
     "manual.mouse.drawBody": "按住右键沿颗粒直径拖动，或选择画圆工具后按住左键拖动。",
+    "manual.mouse.zoomInput": "滚轮",
     "manual.mouse.zoomTitle": "缩放",
     "manual.mouse.zoomBody": "滚动滚轮，以指针所在位置为中心放大或缩小。",
+    "manual.mouse.scaleInput": "R",
     "manual.mouse.scaleTitle": "设置比例",
     "manual.mouse.scaleBody": "选择比例尺工具，然后沿图中的比例尺按住左键拖动。",
     "manual.mouse.shortcuts": "快捷键：V 选择 · H 抓手 · C 画圆 · R 比例尺 · F 适配视图 · Delete 删除选中",
+    "manual.touch.selectInput": "点按",
     "manual.touch.selectTitle": "选择颗粒",
     "manual.touch.selectBody": "点按圆圈进行选择。点按图像空白处可清除选择。",
+    "manual.touch.moveInput": "拖动颗粒",
     "manual.touch.moveTitle": "移动颗粒",
     "manual.touch.moveBody": "拖动选中的圆圈以调整位置。",
+    "manual.touch.panInput": "拖动空白处 / 抓手",
     "manual.touch.panTitle": "平移图像",
     "manual.touch.panBody": "拖动图像空白处，或选择抓手工具后在任意位置拖动。",
+    "manual.touch.drawInput": "画圆工具",
     "manual.touch.drawTitle": "添加颗粒",
     "manual.touch.drawBody": "选择画圆工具，然后从颗粒的一侧拖到另一侧。",
+    "manual.touch.zoomInput": "双指",
     "manual.touch.zoomTitle": "缩放与平移",
     "manual.touch.zoomBody": "双指捏合缩放；两指同时移动可平移。",
+    "manual.touch.scaleInput": "比例尺工具",
     "manual.touch.scaleTitle": "设置比例",
     "manual.touch.scaleBody": "选择比例尺工具，然后沿图中的比例尺拖动。",
     "image.none": "未选择图片",
@@ -318,6 +332,7 @@ const messages = {
     "tabs.dataAria": "数据视图",
     "tabs.dataPoints": "数据点",
     "tabs.pareto": "Pareto 分布",
+    "tabs.paretoShort": "分布",
     "upload.choose": "选择显微图片",
     "groups.detectParams": "检测参数",
     "groups.editTools": "编辑工具",
@@ -429,29 +444,41 @@ const messages = {
     "manual.tabsAria": "Input method",
     "manual.mouseTab": "Mouse",
     "manual.touchTab": "Touch",
+    "manual.mouse.selectInput": "Left click / V",
     "manual.mouse.selectTitle": "Select particles",
     "manual.mouse.selectBody": "Left-click a circle. Shift-click to add or remove circles from the selection.",
+    "manual.mouse.moveInput": "Left-drag",
     "manual.mouse.moveTitle": "Move particles",
     "manual.mouse.moveBody": "Left-drag a selected circle to move the entire selection.",
+    "manual.mouse.panInput": "Middle-drag / H",
     "manual.mouse.panTitle": "Pan the image",
     "manual.mouse.panBody": "Middle-drag anywhere, or choose the Hand tool and left-drag.",
+    "manual.mouse.drawInput": "Right-drag / C",
     "manual.mouse.drawTitle": "Add a particle",
     "manual.mouse.drawBody": "Right-drag across a particle’s diameter, or use the Draw Circle tool and left-drag.",
+    "manual.mouse.zoomInput": "Wheel",
     "manual.mouse.zoomTitle": "Zoom",
     "manual.mouse.zoomBody": "Scroll the wheel to zoom toward or away from the pointer.",
+    "manual.mouse.scaleInput": "R",
     "manual.mouse.scaleTitle": "Set the scale",
     "manual.mouse.scaleBody": "Choose the Scale tool, then left-drag along the image’s scale bar.",
     "manual.mouse.shortcuts": "Shortcuts: V Select · H Hand · C Draw · R Scale · F Fit view · Delete Remove selected",
+    "manual.touch.selectInput": "Tap",
     "manual.touch.selectTitle": "Select a particle",
     "manual.touch.selectBody": "Tap a circle to select it. Tap empty image space to clear the selection.",
+    "manual.touch.moveInput": "Drag particle",
     "manual.touch.moveTitle": "Move a particle",
     "manual.touch.moveBody": "Drag a selected circle to reposition it.",
+    "manual.touch.panInput": "Drag canvas / Hand",
     "manual.touch.panTitle": "Pan the image",
     "manual.touch.panBody": "Drag empty image space, or choose the Hand tool and drag anywhere.",
+    "manual.touch.drawInput": "Draw Circle tool",
     "manual.touch.drawTitle": "Add a particle",
     "manual.touch.drawBody": "Choose the Draw Circle tool, then drag from one edge of the particle to the other.",
+    "manual.touch.zoomInput": "Two fingers",
     "manual.touch.zoomTitle": "Zoom and pan",
     "manual.touch.zoomBody": "Pinch with two fingers to zoom; move both fingers together to pan.",
+    "manual.touch.scaleInput": "Scale tool",
     "manual.touch.scaleTitle": "Set the scale",
     "manual.touch.scaleBody": "Choose the Scale tool, then drag along the image’s scale bar.",
     "image.none": "No image selected",
@@ -501,6 +528,7 @@ const messages = {
     "tabs.dataAria": "Data views",
     "tabs.dataPoints": "Data points",
     "tabs.pareto": "Pareto distribution",
+    "tabs.paretoShort": "Distribution",
     "upload.choose": "Choose microscope image",
     "groups.detectParams": "Detection Parameters",
     "groups.editTools": "Edit Tools",
@@ -1853,6 +1881,10 @@ function makePanelResizable(handle) {
 }
 
 function syncPanels() {
+  if (compactLayout.matches) window.scrollTo(0, 0);
+  if (compactLayout.matches && !state.ui.leftCollapsed && state.ui.rightOpen) {
+    state.ui.leftCollapsed = true;
+  }
   applyPanelWidths();
   els.leftPanel.classList.toggle("collapsed", state.ui.leftCollapsed);
   els.rightPanel.classList.toggle("open", state.ui.rightOpen);
@@ -1860,9 +1892,16 @@ function syncPanels() {
   els.appShell.classList.toggle("right-panel-open", state.ui.rightOpen);
   els.leftToggle.setAttribute("aria-expanded", String(!state.ui.leftCollapsed));
   els.rightToggle.setAttribute("aria-expanded", String(state.ui.rightOpen));
+  els.leftPanel.inert = state.ui.leftCollapsed;
+  els.rightPanel.inert = !state.ui.rightOpen;
+  const compactPanelOpen =
+    compactLayout.matches && (!state.ui.leftCollapsed || state.ui.rightOpen);
+  els.workspace.inert = compactPanelOpen;
+  if (compactPanelOpen) els.workspace.setAttribute("aria-hidden", "true");
+  else els.workspace.removeAttribute("aria-hidden");
   els.appShell.classList.toggle(
     "panels-open",
-    compactLayout.matches && (!state.ui.leftCollapsed || state.ui.rightOpen),
+    compactPanelOpen,
   );
 }
 
@@ -1999,15 +2038,36 @@ document.querySelectorAll("[data-left-tab]").forEach((button) => {
   });
 });
 
-document.querySelectorAll("[data-right-tab]").forEach((button) => {
-  button.addEventListener("click", () => {
-    document.querySelectorAll("[data-right-tab]").forEach((tab) => {
-      tab.classList.toggle("active", tab === button);
-    });
-    document.querySelectorAll("[data-right-panel]").forEach((panel) => {
-      panel.classList.toggle("active", panel.dataset.rightPanel === button.dataset.rightTab);
-    });
-    resizePareto();
+const rightTabs = Array.from(document.querySelectorAll("[data-right-tab]"));
+const rightTabPanels = Array.from(document.querySelectorAll("[data-right-panel]"));
+
+function setRightTab(nextTab, { focus = false } = {}) {
+  for (const tab of rightTabs) {
+    const active = tab === nextTab;
+    tab.classList.toggle("active", active);
+    tab.setAttribute("aria-selected", String(active));
+    tab.tabIndex = active ? 0 : -1;
+  }
+  for (const panel of rightTabPanels) {
+    const active = panel.dataset.rightPanel === nextTab.dataset.rightTab;
+    panel.classList.toggle("active", active);
+    panel.hidden = !active;
+  }
+  if (focus) nextTab.focus({ preventScroll: true });
+  resizePareto();
+}
+
+rightTabs.forEach((button, index) => {
+  button.addEventListener("click", () => setRightTab(button));
+  button.addEventListener("keydown", (event) => {
+    let nextIndex = null;
+    if (event.key === "ArrowLeft") nextIndex = (index - 1 + rightTabs.length) % rightTabs.length;
+    if (event.key === "ArrowRight") nextIndex = (index + 1) % rightTabs.length;
+    if (event.key === "Home") nextIndex = 0;
+    if (event.key === "End") nextIndex = rightTabs.length - 1;
+    if (nextIndex === null) return;
+    event.preventDefault();
+    setRightTab(rightTabs[nextIndex], { focus: true });
   });
 });
 
@@ -2472,6 +2532,7 @@ async function bootstrap() {
       CircleHelp,
       CirclePlus,
       Download,
+      FileOutput,
       FileSpreadsheet,
       Hand,
       ImageDown,

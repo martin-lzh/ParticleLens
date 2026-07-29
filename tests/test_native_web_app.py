@@ -124,5 +124,5 @@ def test_service_worker_fetches_navigation_before_offline_fallback() -> None:
     navigation_branch = service_worker.index('event.request.mode === "navigate"')
     cache_first_branch = service_worker.rindex("const cached = await cache.match(event.request)")
     assert navigation_branch < cache_first_branch
-    assert 'const SHELL_CACHE = "particlelens-shell-v0.2.2"' in service_worker
+    assert 'const SHELL_CACHE = "particlelens-shell-v0.2.3"' in service_worker
     assert 'url.pathname.endsWith("/runtime-config.json")' in service_worker

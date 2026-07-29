@@ -1,4 +1,4 @@
-const SHELL_CACHE = "particlelens-shell-v0.2.2";
+const SHELL_CACHE = "particlelens-shell-v0.2.3";
 const RUNTIME_CACHE = "particlelens-runtime-v0.2.0";
 
 self.addEventListener("install", () => {

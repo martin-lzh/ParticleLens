@@ -82,9 +82,11 @@
 
     <main class="app-shell">
       <header class="topbar" role="banner">
-        <button id="leftToggle" class="nav-button nav-icon-button" type="button" aria-controls="leftPanel" aria-expanded="true" title="Detection settings" data-i18n-title="nav.toolsPanel">
-          <i data-lucide="scan-line" aria-hidden="true"></i>
-          <span class="sr-only" data-i18n="nav.toolsPanel">Detection settings</span>
+        <button id="leftToggle" class="nav-button nav-icon-button panel-entry panel-entry-left" type="button" aria-controls="leftPanel" aria-expanded="true" title="Detection settings" data-i18n-title="nav.toolsPanel">
+          <span class="panel-entry-icon" aria-hidden="true">
+            <i data-lucide="scan-line"></i>
+          </span>
+          <span class="panel-entry-label" data-i18n="nav.toolsPanel">Detection settings</span>
         </button>
 
         <div class="nav-brand">
@@ -135,9 +137,11 @@
             <span id="languageToggleText">中文</span>
           </button>
 
-          <button id="rightToggle" class="nav-button nav-icon-button" type="button" aria-controls="rightPanel" aria-expanded="false" title="Analysis and export" data-i18n-title="nav.dataPanel">
-            <i data-lucide="bar-chart-3" aria-hidden="true"></i>
-            <span class="sr-only" data-i18n="nav.dataPanel">Analysis and export</span>
+          <button id="rightToggle" class="nav-button nav-icon-button panel-entry panel-entry-right" type="button" aria-controls="rightPanel" aria-expanded="false" title="Analysis and export" data-i18n-title="nav.dataPanel">
+            <span class="panel-entry-label" data-i18n="nav.dataPanel">Analysis and export</span>
+            <span class="panel-entry-icon" aria-hidden="true">
+              <i data-lucide="bar-chart-3"></i>
+            </span>
           </button>
         </div>
       </header>
@@ -343,22 +347,22 @@
             </dl>
           </section>
 
-          <nav class="tabs icon-tabs" aria-label="Data views" data-i18n-aria="tabs.dataAria">
-            <button class="tab active" data-right-tab="table" type="button" title="Data points" data-i18n-title="tabs.dataPoints">
+          <nav class="tabs icon-tabs navigation-tabs" role="tablist" aria-label="Data views" data-i18n-aria="tabs.dataAria">
+            <button id="rightTabTable" class="tab navigation-tab active" data-right-tab="table" type="button" role="tab" aria-selected="true" aria-controls="rightPanelTable" tabindex="0" title="Data points" data-i18n-title="tabs.dataPoints">
               <i data-lucide="table-2" aria-hidden="true"></i>
-              <span class="sr-only" data-i18n="tabs.dataPoints">Data points</span>
+              <span class="tab-label" data-i18n="tabs.dataPoints">Data points</span>
             </button>
-            <button class="tab" data-right-tab="pareto" type="button" title="Pareto distribution" data-i18n-title="tabs.pareto">
+            <button id="rightTabPareto" class="tab navigation-tab" data-right-tab="pareto" type="button" role="tab" aria-selected="false" aria-controls="rightPanelPareto" tabindex="-1" title="Pareto distribution" data-i18n-title="tabs.pareto">
               <i data-lucide="bar-chart-3" aria-hidden="true"></i>
-              <span class="sr-only" data-i18n="tabs.pareto">Pareto distribution</span>
+              <span class="tab-label" data-i18n="tabs.paretoShort">Distribution</span>
             </button>
-            <button class="tab" data-right-tab="export" type="button" title="Export" data-i18n-title="tabs.export">
-              <i data-lucide="download" aria-hidden="true"></i>
-              <span class="sr-only" data-i18n="tabs.export">Export</span>
+            <button id="rightTabExport" class="tab navigation-tab" data-right-tab="export" type="button" role="tab" aria-selected="false" aria-controls="rightPanelExport" tabindex="-1" title="Export" data-i18n-title="tabs.export">
+              <i data-lucide="file-output" aria-hidden="true"></i>
+              <span class="tab-label" data-i18n="tabs.export">Export</span>
             </button>
           </nav>
 
-          <section class="right-tab-panel active" data-right-panel="table">
+          <section id="rightPanelTable" class="right-tab-panel active" data-right-panel="table" role="tabpanel" aria-labelledby="rightTabTable">
             <div class="table-wrap">
               <table>
                 <thead>
@@ -377,7 +381,7 @@
             </div>
           </section>
 
-          <section class="right-tab-panel" data-right-panel="pareto">
+          <section id="rightPanelPareto" class="right-tab-panel" data-right-panel="pareto" role="tabpanel" aria-labelledby="rightTabPareto" hidden>
             <div class="pareto-controls">
               <label class="bin-control">
                 <span><span data-i18n="pareto.binCount">Bin count</span><output id="paretoBinCountValue">10</output></span>
@@ -396,7 +400,7 @@
             </button>
           </section>
 
-          <section class="right-tab-panel" data-right-panel="export">
+          <section id="rightPanelExport" class="right-tab-panel" data-right-panel="export" role="tabpanel" aria-labelledby="rightTabExport" hidden>
             <div class="control-group first">
               <h2 data-i18n="groups.export">Export</h2>
               <p class="section-description" data-i18n="export.description">Save corrected measurements, the annotated image, or both.</p>
@@ -482,10 +486,10 @@
           </button>
         </header>
 
-        <div class="manual-tabs" role="tablist" aria-label="Input method" data-i18n-aria="manual.tabsAria">
+        <div class="manual-tabs navigation-tabs" role="tablist" aria-label="Input method" data-i18n-aria="manual.tabsAria">
           <button
             id="mouseManualTab"
-            class="manual-tab active"
+            class="manual-tab navigation-tab active"
             type="button"
             role="tab"
             aria-selected="true"
@@ -498,7 +502,7 @@
           </button>
           <button
             id="touchManualTab"
-            class="manual-tab"
+            class="manual-tab navigation-tab"
             type="button"
             role="tab"
             aria-selected="false"
@@ -523,42 +527,42 @@
               <li>
                 <span class="manual-action-icon"><i data-lucide="mouse-pointer-2" aria-hidden="true"></i></span>
                 <div>
-                  <h3 data-i18n="manual.mouse.selectTitle">Select particles</h3>
+                  <h3><kbd data-i18n="manual.mouse.selectInput">Left click / V</kbd><span aria-hidden="true">:</span><span data-i18n="manual.mouse.selectTitle">Select particles</span></h3>
                   <p data-i18n="manual.mouse.selectBody">Left-click a circle. Shift-click to add or remove circles from the selection.</p>
                 </div>
               </li>
               <li>
                 <span class="manual-action-icon"><i data-lucide="move" aria-hidden="true"></i></span>
                 <div>
-                  <h3 data-i18n="manual.mouse.moveTitle">Move particles</h3>
+                  <h3><kbd data-i18n="manual.mouse.moveInput">Left-drag</kbd><span aria-hidden="true">:</span><span data-i18n="manual.mouse.moveTitle">Move particles</span></h3>
                   <p data-i18n="manual.mouse.moveBody">Left-drag a selected circle to move the entire selection.</p>
                 </div>
               </li>
               <li>
                 <span class="manual-action-icon"><i data-lucide="hand" aria-hidden="true"></i></span>
                 <div>
-                  <h3 data-i18n="manual.mouse.panTitle">Pan the image</h3>
+                  <h3><kbd data-i18n="manual.mouse.panInput">Middle-drag / H</kbd><span aria-hidden="true">:</span><span data-i18n="manual.mouse.panTitle">Pan the image</span></h3>
                   <p data-i18n="manual.mouse.panBody">Middle-drag anywhere, or choose the Hand tool and left-drag.</p>
                 </div>
               </li>
               <li>
                 <span class="manual-action-icon"><i data-lucide="circle-plus" aria-hidden="true"></i></span>
                 <div>
-                  <h3 data-i18n="manual.mouse.drawTitle">Add a particle</h3>
+                  <h3><kbd data-i18n="manual.mouse.drawInput">Right-drag / C</kbd><span aria-hidden="true">:</span><span data-i18n="manual.mouse.drawTitle">Add a particle</span></h3>
                   <p data-i18n="manual.mouse.drawBody">Right-drag across a particle’s diameter, or use the Draw Circle tool and left-drag.</p>
                 </div>
               </li>
               <li>
                 <span class="manual-action-icon"><i data-lucide="zoom-in" aria-hidden="true"></i></span>
                 <div>
-                  <h3 data-i18n="manual.mouse.zoomTitle">Zoom</h3>
+                  <h3><kbd data-i18n="manual.mouse.zoomInput">Wheel</kbd><span aria-hidden="true">:</span><span data-i18n="manual.mouse.zoomTitle">Zoom</span></h3>
                   <p data-i18n="manual.mouse.zoomBody">Scroll the wheel to zoom toward or away from the pointer.</p>
                 </div>
               </li>
               <li>
                 <span class="manual-action-icon"><i data-lucide="ruler" aria-hidden="true"></i></span>
                 <div>
-                  <h3 data-i18n="manual.mouse.scaleTitle">Set the scale</h3>
+                  <h3><kbd data-i18n="manual.mouse.scaleInput">R</kbd><span aria-hidden="true">:</span><span data-i18n="manual.mouse.scaleTitle">Set the scale</span></h3>
                   <p data-i18n="manual.mouse.scaleBody">Choose the Scale tool, then left-drag along the image’s scale bar.</p>
                 </div>
               </li>
@@ -578,42 +582,42 @@
               <li>
                 <span class="manual-action-icon"><i data-lucide="mouse-pointer-2" aria-hidden="true"></i></span>
                 <div>
-                  <h3 data-i18n="manual.touch.selectTitle">Select a particle</h3>
+                  <h3><kbd data-i18n="manual.touch.selectInput">Tap</kbd><span aria-hidden="true">:</span><span data-i18n="manual.touch.selectTitle">Select a particle</span></h3>
                   <p data-i18n="manual.touch.selectBody">Tap a circle to select it. Tap empty image space to clear the selection.</p>
                 </div>
               </li>
               <li>
                 <span class="manual-action-icon"><i data-lucide="move" aria-hidden="true"></i></span>
                 <div>
-                  <h3 data-i18n="manual.touch.moveTitle">Move a particle</h3>
+                  <h3><kbd data-i18n="manual.touch.moveInput">Drag particle</kbd><span aria-hidden="true">:</span><span data-i18n="manual.touch.moveTitle">Move a particle</span></h3>
                   <p data-i18n="manual.touch.moveBody">Drag a selected circle to reposition it.</p>
                 </div>
               </li>
               <li>
                 <span class="manual-action-icon"><i data-lucide="hand" aria-hidden="true"></i></span>
                 <div>
-                  <h3 data-i18n="manual.touch.panTitle">Pan the image</h3>
+                  <h3><kbd data-i18n="manual.touch.panInput">Drag canvas / Hand</kbd><span aria-hidden="true">:</span><span data-i18n="manual.touch.panTitle">Pan the image</span></h3>
                   <p data-i18n="manual.touch.panBody">Drag empty image space, or choose the Hand tool and drag anywhere.</p>
                 </div>
               </li>
               <li>
                 <span class="manual-action-icon"><i data-lucide="circle-plus" aria-hidden="true"></i></span>
                 <div>
-                  <h3 data-i18n="manual.touch.drawTitle">Add a particle</h3>
+                  <h3><kbd data-i18n="manual.touch.drawInput">Draw Circle tool</kbd><span aria-hidden="true">:</span><span data-i18n="manual.touch.drawTitle">Add a particle</span></h3>
                   <p data-i18n="manual.touch.drawBody">Choose the Draw Circle tool, then drag from one edge of the particle to the other.</p>
                 </div>
               </li>
               <li>
                 <span class="manual-action-icon"><i data-lucide="zoom-in" aria-hidden="true"></i></span>
                 <div>
-                  <h3 data-i18n="manual.touch.zoomTitle">Zoom and pan</h3>
+                  <h3><kbd data-i18n="manual.touch.zoomInput">Two fingers</kbd><span aria-hidden="true">:</span><span data-i18n="manual.touch.zoomTitle">Zoom and pan</span></h3>
                   <p data-i18n="manual.touch.zoomBody">Pinch with two fingers to zoom; move both fingers together to pan.</p>
                 </div>
               </li>
               <li>
                 <span class="manual-action-icon"><i data-lucide="ruler" aria-hidden="true"></i></span>
                 <div>
-                  <h3 data-i18n="manual.touch.scaleTitle">Set the scale</h3>
+                  <h3><kbd data-i18n="manual.touch.scaleInput">Scale tool</kbd><span aria-hidden="true">:</span><span data-i18n="manual.touch.scaleTitle">Set the scale</span></h3>
                   <p data-i18n="manual.touch.scaleBody">Choose the Scale tool, then drag along the image’s scale bar.</p>
                 </div>
               </li>
