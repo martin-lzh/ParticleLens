@@ -1451,13 +1451,23 @@ function loadImageData(imageUrl, imageName, imageBytes, revokeUrl = false) {
 }
 
 async function loadImageFromQuery() {
-  const params = new URLSearchParams(window.location.search);
-  const imagePath = params.get("image");
+  const pageUrl = new URL(window.location.href);
+  const imagePath = pageUrl.searchParams.get("image");
   if (!imagePath) return;
+
+  if (!state.detector?.supportsLocalImages) {
+    pageUrl.searchParams.delete("image");
+    window.history.replaceState(window.history.state, "", pageUrl);
+    return;
+  }
 
   try {
     setStatus("status.loading");
     const response = await fetch(`/api/local-image?path=${encodeURIComponent(imagePath)}`);
+    const contentType = response.headers.get("content-type") || "";
+    if (!contentType.includes("application/json")) {
+      throw new Error("The local image service returned an unexpected response.");
+    }
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "Could not load image");
     const imageBytes = await (await fetch(data.imageData)).arrayBuffer();

@@ -149,6 +149,30 @@ test("falls back to the browser detector when native configuration is stale", as
   await expect(page.locator("#runDetect")).toBeDisabled();
 });
 
+test("ignores desktop local-image parameters in the browser app", async ({ page }) => {
+  const dialogs = [];
+  const localImageRequests = [];
+  page.on("dialog", async (dialog) => {
+    dialogs.push(dialog.message());
+    await dialog.dismiss();
+  });
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname === "/api/local-image") {
+      localImageRequests.push(request.url());
+    }
+  });
+
+  await openReadyApp(
+    page,
+    "./?image=D%3A%5Cmicroscope%5Csample.jpg",
+  );
+
+  expect(new URL(page.url()).searchParams.has("image")).toBe(false);
+  expect(localImageRequests).toEqual([]);
+  expect(dialogs).toEqual([]);
+  await expect(page.locator("#imageName")).toHaveText(/No image selected|未选择图片/);
+});
+
 test("runs detection locally and exports corrected results", async ({ page }) => {
   const requestsAfterUpload = [];
   await openReadyApp(page);

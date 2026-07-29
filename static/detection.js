@@ -54,6 +54,10 @@ function optionsQuery(options) {
 }
 
 class NativeDetector {
+  get supportsLocalImages() {
+    return true;
+  }
+
   async initialize(onProgress) {
     onProgress({ phase: "native", label: "Connecting to the offline detector" });
     const response = await fetch(new URL("./api/health", document.baseURI));
@@ -93,6 +97,10 @@ class BrowserDetector {
     this.worker = null;
     this.nextId = 1;
     this.pending = new Map();
+  }
+
+  get supportsLocalImages() {
+    return false;
   }
 
   initialize(onProgress) {
