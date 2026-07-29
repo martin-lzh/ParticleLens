@@ -41,7 +41,7 @@ def run_self_test() -> int:
     try:
         with urllib.request.urlopen(f"{url}api/health", timeout=10) as response:
             payload = json.load(response)
-        if payload != {"status": "ok", "version": "0.2.0", "detector": "native"}:
+        if payload != {"status": "ok", "version": "0.2.1", "detector": "native"}:
             raise RuntimeError(f"Unexpected health response: {payload}")
         print("ParticleLens self-test passed.", flush=True)
         return 0
