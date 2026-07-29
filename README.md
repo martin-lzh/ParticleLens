@@ -132,6 +132,9 @@ Base64. Existing CLI arguments remain compatible.
 
 ## Windows release
 
+The Windows build also requires
+[Inno Setup 6](https://jrsoftware.org/isinfo.php).
+
 ```powershell
 .\scripts\build_windows_release.ps1
 ```
@@ -139,12 +142,16 @@ Base64. Existing CLI arguments remain compatible.
 This creates:
 
 ```text
+release/ParticleLens-Windows-Setup-v0.2.0.exe
 release/ParticleLens-Windows-v0.2.0.zip
 release/ParticleLens-Windows-OneFile-v0.2.0.exe
 release/SHA256SUMS.txt
 ```
 
-Both packaged launchers run `--self-test` during the release build.
+The setup executable installs ParticleLens for the current Windows user and
+adds Start Menu and uninstall entries. Both packaged launchers run
+`--self-test`, and the setup executable completes a silent install, app
+self-test, and uninstall cycle during the release build.
 
 ## Contributing
 
