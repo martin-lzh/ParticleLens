@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -14,234 +14,230 @@
       <div class="runtime-card">
         <img src="./particlelens-logo.png" alt="" width="88" height="88" />
         <h1>ParticleLens</h1>
-        <p id="runtimePhase">正在准备本地识别引擎</p>
+        <p id="runtimePhase">Preparing the local detection engine</p>
         <progress id="runtimeProgress"></progress>
         <span id="runtimeBytes" class="runtime-bytes"></span>
-        <button id="runtimeRetry" type="button" hidden>重试</button>
-        <a href="https://github.com/martin-lzh/ParticleLens/releases/latest" data-i18n="runtime.offline">下载 Windows 离线版</a>
+        <button id="runtimeRetry" type="button" hidden>Retry</button>
+        <a href="https://github.com/martin-lzh/ParticleLens/releases/latest" data-i18n="runtime.offline">Download the Windows offline app</a>
       </div>
     </section>
+
     <main class="app-shell">
       <header class="topbar" role="banner">
-        <button id="leftToggle" class="nav-button" type="button" aria-controls="leftPanel" aria-expanded="true" data-i18n="nav.toolsPanel" data-i18n-title="nav.toolsPanel">工具</button>
+        <button id="leftToggle" class="nav-button nav-icon-button" type="button" aria-controls="leftPanel" aria-expanded="true" title="Detection settings" data-i18n-title="nav.toolsPanel">
+          <i data-lucide="scan-line" aria-hidden="true"></i>
+          <span class="sr-only" data-i18n="nav.toolsPanel">Detection settings</span>
+        </button>
 
         <div class="nav-brand">
           <img class="brand-mark" src="./particlelens-logo.png" alt="" aria-hidden="true" />
           <div>
-            <strong data-i18n="brand.title">粒径标注</strong>
-            <span data-i18n="brand.subtitle">自动识别后人工校正</span>
+            <strong data-i18n="brand.title">ParticleLens</strong>
+            <span data-i18n="brand.subtitle">Microscope particle sizing and correction</span>
           </div>
         </div>
 
         <div class="nav-divider" aria-hidden="true"></div>
 
-          <div class="image-meta">
-          <strong id="imageName" data-i18n="image.none">未选择图片</strong>
-          <span id="scaleReadout" data-i18n="scale.unset">比例尺未设置</span>
-          </div>
-
-        <span id="hintText" data-i18n="hint.initial">选择图片后可自动识别，也可手动画圆补充。</span>
-
-        <div class="view-controls" aria-label="观察窗缩放" data-i18n-aria="zoom.aria">
-            <button id="zoomOut" type="button" title="缩小" data-i18n-title="zoom.outTitle">−</button>
-            <span id="zoomReadout">100%</span>
-            <button id="zoomIn" type="button" title="放大" data-i18n-title="zoom.inTitle">+</button>
-          <button id="resetZoom" type="button" title="重置视图" data-i18n="zoom.fit" data-i18n-title="zoom.resetTitle">适配</button>
-          </div>
-
-        <button id="languageToggle" class="language-toggle" type="button" aria-label="切换到 English" title="切换到 English" data-i18n-aria="nav.languageToggle" data-i18n-title="nav.languageToggle">
-          <svg aria-hidden="true" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <path d="M2 12h20"></path>
-            <path d="M12 2a15.3 15.3 0 0 1 0 20"></path>
-            <path d="M12 2a15.3 15.3 0 0 0 0 20"></path>
-          </svg>
-          <span id="languageToggleText">EN</span>
+        <button id="imageMenuTrigger" class="image-meta" type="button" title="Open an image" data-i18n-title="upload.openTitle">
+          <i data-lucide="image-plus" aria-hidden="true"></i>
+          <span>
+            <strong id="imageName" data-i18n="image.none">No image selected</strong>
+            <small id="imageAction" data-i18n="upload.openAction">Open an image</small>
+          </span>
         </button>
+        <input id="imageInput" class="sr-only" type="file" accept="image/*" />
+        <span id="scaleReadout" class="scale-readout" data-i18n="scale.unset">Scale not set</span>
 
-        <button id="rightToggle" class="nav-button" type="button" aria-controls="rightPanel" aria-expanded="false" data-i18n="nav.dataPanel" data-i18n-title="nav.dataPanel">数据</button>
+        <span id="hintText" data-i18n="hint.initial">Choose an image to detect particles automatically or add circles manually.</span>
+
+        <div class="topbar-actions">
+          <div class="view-controls" aria-label="Viewport zoom" data-i18n-aria="zoom.aria">
+            <button id="zoomOut" type="button" title="Zoom out" data-i18n-title="zoom.outTitle">−</button>
+            <span id="zoomReadout">100%</span>
+            <button id="zoomIn" type="button" title="Zoom in" data-i18n-title="zoom.inTitle">+</button>
+            <button id="resetZoom" type="button" title="Reset view" data-i18n="zoom.fit" data-i18n-title="zoom.resetTitle">Fit</button>
+          </div>
+
+          <button id="languageToggle" class="language-toggle" type="button" aria-label="Switch to Chinese" title="Switch to Chinese" data-i18n-aria="nav.languageToggle" data-i18n-title="nav.languageToggle">
+            <svg aria-hidden="true" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M2 12h20"></path>
+              <path d="M12 2a15.3 15.3 0 0 1 0 20"></path>
+              <path d="M12 2a15.3 15.3 0 0 0 0 20"></path>
+            </svg>
+            <span id="languageToggleText">中文</span>
+          </button>
+
+          <button id="rightToggle" class="nav-button nav-icon-button" type="button" aria-controls="rightPanel" aria-expanded="false" title="Analysis and export" data-i18n-title="nav.dataPanel">
+            <i data-lucide="bar-chart-3" aria-hidden="true"></i>
+            <span class="sr-only" data-i18n="nav.dataPanel">Analysis and export</span>
+          </button>
+        </div>
       </header>
 
-      <section class="workspace" aria-label="图像观察窗" data-i18n-aria="workspace.aria">
+      <section class="workspace" aria-label="Image viewport" data-i18n-aria="workspace.aria">
         <div class="canvas-wrap">
-          <nav class="quick-toolbar" aria-label="图像编辑工具" data-i18n-aria="toolbar.aria">
-            <button id="quickSelectTool" class="quick-tool active" type="button" data-canvas-tool="select" aria-pressed="true" title="选择 (V)" data-i18n-title="toolbar.selectTitle">
+          <nav class="quick-toolbar" aria-label="Image editing tools" data-i18n-aria="toolbar.aria">
+            <button id="quickSelectTool" class="quick-tool active" type="button" data-canvas-tool="select" aria-pressed="true" title="Select tool (V)" data-i18n-title="toolbar.selectTitle">
               <i data-lucide="mouse-pointer-2" aria-hidden="true"></i>
-              <span class="sr-only" data-i18n="toolbar.select">选择</span>
+              <span class="sr-only" data-i18n="toolbar.select">Select</span>
             </button>
-            <button id="quickPanTool" class="quick-tool" type="button" data-canvas-tool="pan" aria-pressed="false" title="抓手 (H)" data-i18n-title="toolbar.panTitle">
+            <button id="quickPanTool" class="quick-tool" type="button" data-canvas-tool="pan" aria-pressed="false" title="Hand tool (H)" data-i18n-title="toolbar.panTitle">
               <i data-lucide="hand" aria-hidden="true"></i>
-              <span class="sr-only" data-i18n="toolbar.pan">抓手</span>
+              <span class="sr-only" data-i18n="toolbar.pan">Hand</span>
             </button>
-            <button id="quickDrawTool" class="quick-tool" type="button" data-canvas-tool="draw" aria-pressed="false" title="按直径画圆 (C)" data-i18n-title="toolbar.drawTitle">
+            <button id="quickDrawTool" class="quick-tool" type="button" data-canvas-tool="draw" aria-pressed="false" title="Draw circle by diameter (C)" data-i18n-title="toolbar.drawTitle">
               <i data-lucide="circle-plus" aria-hidden="true"></i>
-              <span class="sr-only" data-i18n="toolbar.draw">按直径画圆</span>
+              <span class="sr-only" data-i18n="toolbar.draw">Draw circle by diameter</span>
             </button>
-            <button id="quickScaleTool" class="quick-tool" type="button" data-canvas-tool="scale" aria-pressed="false" title="重画比例尺 (R)" data-i18n-title="toolbar.scaleTitle">
+            <button id="quickScaleTool" class="quick-tool" type="button" data-canvas-tool="scale" aria-pressed="false" title="Redraw scale bar (R)" data-i18n-title="toolbar.scaleTitle">
               <i data-lucide="ruler" aria-hidden="true"></i>
-              <span class="sr-only" data-i18n="toolbar.scale">重画比例尺</span>
+              <span class="sr-only" data-i18n="toolbar.scale">Redraw scale bar</span>
             </button>
             <span class="quick-toolbar-separator" aria-hidden="true"></span>
-            <button id="quickFitView" class="quick-tool" type="button" data-canvas-action="fit" title="适配视图 (F)" data-i18n-title="toolbar.fitTitle">
+            <button id="quickFitView" class="quick-tool" type="button" data-canvas-action="fit" title="Fit view (F)" data-i18n-title="toolbar.fitTitle">
               <i data-lucide="maximize-2" aria-hidden="true"></i>
-              <span class="sr-only" data-i18n="toolbar.fit">适配视图</span>
+              <span class="sr-only" data-i18n="toolbar.fit">Fit view</span>
             </button>
-            <button id="quickDeleteSelected" class="quick-tool danger" type="button" data-canvas-action="delete" title="删除选中 (Delete)" data-i18n-title="toolbar.deleteTitle">
+            <button id="quickDeleteSelected" class="quick-tool danger" type="button" data-canvas-action="delete" title="Delete selected (Delete)" data-i18n-title="toolbar.deleteTitle">
               <i data-lucide="trash-2" aria-hidden="true"></i>
-              <span class="sr-only" data-i18n="toolbar.delete">删除选中</span>
+              <span class="sr-only" data-i18n="toolbar.delete">Delete selected</span>
             </button>
             <span class="quick-toolbar-separator" aria-hidden="true"></span>
-            <button id="quickToolbarPosition" class="quick-tool" type="button" aria-haspopup="menu" aria-expanded="false" title="工具栏位置" data-i18n-title="toolbar.positionTitle">
+            <button id="quickToolbarPosition" class="quick-tool" type="button" aria-haspopup="menu" aria-expanded="false" title="Choose toolbar position" data-i18n-title="toolbar.positionTitle">
               <i data-lucide="move" aria-hidden="true"></i>
-              <span class="sr-only" data-i18n="toolbar.position">工具栏位置</span>
+              <span class="sr-only" data-i18n="toolbar.position">Toolbar position</span>
             </button>
-            <div id="quickToolbarPositionMenu" class="quick-toolbar-position-menu" role="menu" aria-label="工具栏位置" data-i18n-aria="toolbar.positionMenuAria" hidden>
+            <div id="quickToolbarPositionMenu" class="quick-toolbar-position-menu" role="menu" aria-label="Toolbar position" data-i18n-aria="toolbar.positionMenuAria" hidden>
               <button type="button" role="menuitemradio" data-toolbar-position="left" aria-checked="true">
                 <i data-lucide="panel-left" aria-hidden="true"></i>
-                <span data-i18n="toolbar.positionLeft">左侧</span>
+                <span data-i18n="toolbar.positionLeft">Left</span>
               </button>
               <button type="button" role="menuitemradio" data-toolbar-position="right" aria-checked="false">
                 <i data-lucide="panel-right" aria-hidden="true"></i>
-                <span data-i18n="toolbar.positionRight">右侧</span>
+                <span data-i18n="toolbar.positionRight">Right</span>
               </button>
               <button type="button" role="menuitemradio" data-toolbar-position="top" aria-checked="false">
                 <i data-lucide="panel-top" aria-hidden="true"></i>
-                <span data-i18n="toolbar.positionTop">顶部</span>
+                <span data-i18n="toolbar.positionTop">Top</span>
               </button>
               <button type="button" role="menuitemradio" data-toolbar-position="bottom" aria-checked="false">
                 <i data-lucide="panel-bottom" aria-hidden="true"></i>
-                <span data-i18n="toolbar.positionBottom">底部</span>
+                <span data-i18n="toolbar.positionBottom">Bottom</span>
               </button>
             </div>
           </nav>
-          <canvas id="imageCanvas" tabindex="0" aria-label="图像编辑画布" aria-describedby="canvasGestureHint" data-i18n-aria="canvas.aria"></canvas>
-          <div id="emptyState" class="empty-state" data-i18n="emptyState">Drop or choose a microscope image</div>
+
+          <canvas id="imageCanvas" tabindex="0" aria-label="Image editing canvas" aria-describedby="canvasGestureHint" data-i18n-aria="canvas.aria"></canvas>
+
+          <button id="emptyState" class="empty-state" type="button">
+            <span class="empty-state-icon"><i data-lucide="image-plus" aria-hidden="true"></i></span>
+            <strong data-i18n="emptyState.title">Open a microscope image</strong>
+            <span data-i18n="emptyState.detail">Click to choose a file or photo, or drop it here</span>
+          </button>
+
+          <section id="paretoOverlay" class="pareto-overlay" aria-label="Live Pareto distribution" data-i18n-aria="pareto.overlayAria" hidden>
+            <header>
+              <span data-i18n="pareto.live">Live distribution</span>
+              <button id="hideParetoOverlay" type="button" title="Hide live distribution" data-i18n-title="pareto.hideOverlay">
+                <i data-lucide="x" aria-hidden="true"></i>
+                <span class="sr-only" data-i18n="pareto.hideOverlay">Hide live distribution</span>
+              </button>
+            </header>
+            <div id="paretoOverlayPlot" class="pareto-overlay-plot"></div>
+          </section>
+
           <div id="canvasGestureHint" class="canvas-gesture-hint hidden" data-i18n="gesture.guide">
-            点按选择 · 拖动平移或移动 · 双指缩放
+            Tap to select · Drag to pan or move · Pinch to zoom
           </div>
         </div>
       </section>
 
-      <button id="panelBackdrop" class="panel-backdrop" type="button" aria-label="关闭面板" data-i18n-aria="nav.closePanels"></button>
+      <button id="panelBackdrop" class="panel-backdrop" type="button" aria-label="Close panels" data-i18n-aria="nav.closePanels"></button>
 
-      <aside id="leftPanel" class="left-panel">
+      <aside id="leftPanel" class="left-panel" aria-label="Detection settings" data-i18n-aria="nav.toolsPanel">
         <div class="panel-inner">
-          <div class="brand">
+          <header class="panel-heading">
+            <span class="panel-heading-icon"><i data-lucide="scan-line" aria-hidden="true"></i></span>
             <div>
-              <h1 data-i18n="brand.title">粒径标注</h1>
-              <p data-i18n="brand.subtitle">自动识别后人工校正</p>
+              <h1 data-i18n="detect.title">Particle detection</h1>
+              <p data-i18n="detect.subtitle">Tune recognition before running the local detector.</p>
             </div>
-            <span id="statusBadge" class="status" data-i18n="status.idle">待加载</span>
-          </div>
+            <span id="statusBadge" class="status" data-i18n="status.idle">Waiting</span>
+          </header>
 
-          <nav class="tabs" aria-label="工具分类" data-i18n-aria="tabs.toolsAria">
-            <button class="tab active" data-left-tab="detect" type="button" data-i18n="tabs.detect">检测</button>
-            <button class="tab" data-left-tab="edit" type="button" data-i18n="tabs.edit">编辑</button>
-            <button class="tab" data-left-tab="export" type="button" data-i18n="tabs.export">导出</button>
-          </nav>
-
-          <section class="tab-panel active" data-left-panel="detect">
-            <label class="file-picker">
-              <input id="imageInput" type="file" accept="image/*" />
-              <span data-i18n="upload.choose">选择显微图片</span>
-            </label>
-
-            <div class="control-group">
-              <h2 data-i18n="groups.detectParams">检测参数</h2>
-              <div class="grid-two">
-                <label>
-                  <span data-i18n="labels.scaleLength">比例尺长度 (微米)</span>
-                  <input id="scaleUm" type="number" min="0.1" step="0.1" value="50" />
-                </label>
-                <div class="field">
-                  <div class="field-label">
-                    <label for="sensitivity" data-i18n="labels.sensitivity">灵敏度</label>
-                    <span class="info-point">
-                      <button
-                        class="info-point-trigger"
-                        type="button"
-                        aria-describedby="sensitivityInfo"
-                        aria-label="查看灵敏度说明"
-                        data-i18n-aria="labels.sensitivityInfoAria"
-                      >i</button>
-                      <span
-                        id="sensitivityInfo"
-                        class="info-tooltip"
-                        role="tooltip"
-                        data-i18n="labels.sensitivityInfo"
-                      >这是圆形检测的形状置信阈值（0.01–0.98），不是颗粒的物理量。数值越低，判定越宽松：可检出边缘较弱、残缺或不够圆的颗粒，但误检会增加；数值越高，判定越严格：更偏向边缘清晰、完整且接近圆形的颗粒，但可能漏检。</span>
-                    </span>
-                  </div>
-                  <input id="sensitivity" type="number" min="0.01" max="0.98" step="0.01" value="0.88" />
+          <section class="control-group first">
+            <div class="grid-two">
+              <label>
+                <span data-i18n="labels.scaleLength">Scale length (µm)</span>
+                <input id="scaleUm" type="number" min="0.1" step="0.1" value="50" />
+              </label>
+              <div class="field">
+                <div class="field-label">
+                  <label for="sensitivity" data-i18n="labels.sensitivity">Sensitivity</label>
+                  <span class="info-point">
+                    <button class="info-point-trigger" type="button" aria-describedby="sensitivityInfo" aria-label="Show sensitivity explanation" data-i18n-aria="labels.sensitivityInfoAria">i</button>
+                    <span id="sensitivityInfo" class="info-tooltip" role="tooltip" data-i18n="labels.sensitivityInfo">This is the circle detector's shape-confidence threshold (0.01–0.98), not a physical particle quantity.</span>
+                  </span>
                 </div>
-                <label>
-                  <span data-i18n="labels.minDiameter">最小直径 (微米)</span>
-                  <input id="minDiameter" type="number" min="0.1" step="0.1" value="2.0" />
-                </label>
-                <label>
-                  <span data-i18n="labels.maxDiameter">最大直径 (微米)</span>
-                  <input id="maxDiameter" type="number" min="1" step="1" value="95" />
-                </label>
+                <input id="sensitivity" type="number" min="0.01" max="0.98" step="0.01" value="0.88" />
               </div>
               <label>
-                <span data-i18n="labels.contrast">对比度预处理</span>
-                <select id="contrastMode">
-                  <option value="clahe">CLAHE</option>
-                  <option value="background" data-i18n="contrast.background">背景校正</option>
-                  <option value="none" data-i18n="contrast.none">不处理</option>
-                </select>
+                <span data-i18n="labels.minDiameter">Minimum diameter (µm)</span>
+                <input id="minDiameter" type="number" min="0.1" step="0.1" value="2.0" />
               </label>
-              <button id="runDetect" class="primary" type="button" data-i18n="buttons.runDetect">自动识别</button>
-            </div>
-          </section>
-
-          <section class="tab-panel" data-left-panel="edit">
-            <div class="control-group first">
-              <h2 data-i18n="groups.editTools">编辑工具</h2>
-              <button class="tool" id="circleTool" data-mode="draw" type="button" data-i18n="buttons.drawCircle">按直径画圆</button>
-              <button class="tool" id="scaleTool" data-mode="scale" type="button" data-i18n="buttons.redrawScale">重画比例尺</button>
-              <div class="button-row">
-                <button id="deleteSelected" type="button" data-i18n="buttons.deleteSelected">删除选中</button>
-                <button id="clearManual" type="button" data-i18n="buttons.clearManual">清除手绘</button>
-              </div>
-            </div>
-            <div class="note" data-i18n="edit.note">
-              触控：点按选择颗粒，拖动颗粒可移动，拖动空白处可平移，双指捏合可缩放；选择“按直径画圆”后拖过颗粒直径。鼠标仍支持右键画圆、滚轮缩放与中键平移。
-            </div>
-          </section>
-
-          <section class="tab-panel" data-left-panel="export">
-            <div class="control-group first">
-              <h2 data-i18n="groups.export">导出</h2>
               <label>
-                <span data-i18n="labels.labelLimit">图片标注数量</span>
-                <input id="labelLimit" type="number" min="0" step="1" value="80" />
+                <span data-i18n="labels.maxDiameter">Maximum diameter (µm)</span>
+                <input id="maxDiameter" type="number" min="1" step="1" value="95" />
               </label>
-              <div class="button-row">
-                <button id="exportCsv" type="button">CSV</button>
-                <button id="exportPng" type="button" data-i18n="buttons.annotatedImage">标注图</button>
-              </div>
-              <button id="exportAll" class="primary export-all" type="button" data-i18n="buttons.exportAll">导出 CSV + 标注图</button>
             </div>
+            <label>
+              <span data-i18n="labels.contrast">Contrast preprocessing</span>
+              <select id="contrastMode">
+                <option value="clahe">CLAHE</option>
+                <option value="background" data-i18n="contrast.background">Background correction</option>
+                <option value="none" data-i18n="contrast.none">None</option>
+              </select>
+            </label>
+            <button id="runDetect" class="primary detect-action" type="button" data-i18n="buttons.runDetect">Run Detection</button>
           </section>
+
+          <div class="note detection-note">
+            <i data-lucide="shield-check" aria-hidden="true"></i>
+            <span data-i18n="detect.localNote">Detection runs locally in your browser. Your image is not uploaded.</span>
+          </div>
         </div>
       </aside>
 
-      <aside id="rightPanel" class="right-panel">
+      <aside id="rightPanel" class="right-panel" aria-label="Analysis and export" data-i18n-aria="nav.dataPanel">
         <div class="panel-inner">
           <section class="stats">
-            <h2 data-i18n="stats.title">统计</h2>
+            <div class="section-heading">
+              <h2 data-i18n="stats.title">Statistics</h2>
+              <span class="distribution-rule" data-i18n="stats.rule">Visible area ≥ 50%</span>
+            </div>
             <dl>
-              <div><dt data-i18n="stats.count">主分布颗粒</dt><dd id="countStat">0</dd></div>
-              <div><dt data-i18n="stats.mean">平均直径</dt><dd id="meanStat">-</dd></div>
-              <div><dt data-i18n="stats.median">中位数</dt><dd id="medianStat">-</dd></div>
-              <div><dt data-i18n="stats.range">范围</dt><dd id="rangeStat">-</dd></div>
+              <div><dt data-i18n="stats.count">Main distribution</dt><dd id="countStat">0</dd></div>
+              <div><dt data-i18n="stats.mean">Mean diameter</dt><dd id="meanStat">-</dd></div>
+              <div><dt data-i18n="stats.median">Median</dt><dd id="medianStat">-</dd></div>
+              <div><dt data-i18n="stats.range">Range</dt><dd id="rangeStat">-</dd></div>
             </dl>
           </section>
 
-          <nav class="tabs" aria-label="数据视图" data-i18n-aria="tabs.dataAria">
-            <button class="tab active" data-right-tab="table" type="button" data-i18n="tabs.dataPoints">数据点</button>
-            <button class="tab" data-right-tab="histogram" type="button" data-i18n="tabs.histogram">柱状图</button>
+          <nav class="tabs icon-tabs" aria-label="Data views" data-i18n-aria="tabs.dataAria">
+            <button class="tab active" data-right-tab="table" type="button" title="Data points" data-i18n-title="tabs.dataPoints">
+              <i data-lucide="table-2" aria-hidden="true"></i>
+              <span class="sr-only" data-i18n="tabs.dataPoints">Data points</span>
+            </button>
+            <button class="tab" data-right-tab="pareto" type="button" title="Pareto distribution" data-i18n-title="tabs.pareto">
+              <i data-lucide="bar-chart-3" aria-hidden="true"></i>
+              <span class="sr-only" data-i18n="tabs.pareto">Pareto distribution</span>
+            </button>
+            <button class="tab" data-right-tab="export" type="button" title="Export" data-i18n-title="tabs.export">
+              <i data-lucide="download" aria-hidden="true"></i>
+              <span class="sr-only" data-i18n="tabs.export">Export</span>
+            </button>
           </nav>
 
           <section class="right-tab-panel active" data-right-panel="table">
@@ -250,12 +246,12 @@
                 <thead>
                   <tr>
                     <th>ID</th>
-                    <th data-i18n="table.source">来源</th>
+                    <th data-i18n="table.source">Source</th>
                     <th>X</th>
                     <th>Y</th>
-                    <th data-i18n="table.radius">半径(微米)</th>
-                    <th data-i18n="table.diameter">直径(微米)</th>
-                    <th data-i18n="table.visible">可见面积</th>
+                    <th data-i18n="table.radius">Radius (µm)</th>
+                    <th data-i18n="table.diameter">Diameter (µm)</th>
+                    <th data-i18n="table.visible">Visible area</th>
                   </tr>
                 </thead>
                 <tbody id="particleTable"></tbody>
@@ -263,12 +259,57 @@
             </div>
           </section>
 
-          <section class="right-tab-panel" data-right-panel="histogram">
-            <canvas id="histogramCanvas" class="histogram" aria-label="粒径分布柱状图" data-i18n-aria="histogram.aria"></canvas>
+          <section class="right-tab-panel" data-right-panel="pareto">
+            <div class="pareto-controls">
+              <label class="bin-control">
+                <span><span data-i18n="pareto.binCount">Bin count</span><output id="paretoBinCountValue">10</output></span>
+                <input id="paretoBinCount" type="range" min="5" max="30" step="1" value="10" />
+              </label>
+              <div class="trace-toggles">
+                <label><input id="showHistogram" type="checkbox" checked /><span data-i18n="pareto.frequency">Frequency</span></label>
+                <label><input id="showCumulative" type="checkbox" checked /><span data-i18n="pareto.cumulative">Cumulative</span></label>
+                <label><input id="showParetoOverlay" type="checkbox" checked /><span data-i18n="pareto.overlay">Live overlay</span></label>
+              </div>
+            </div>
+            <div id="paretoPlot" class="pareto-plot" aria-label="Particle size Pareto diagram" data-i18n-aria="pareto.aria"></div>
+            <button id="downloadPareto" class="download-chart" type="button">
+              <i data-lucide="download" aria-hidden="true"></i>
+              <span data-i18n="pareto.download">Download current chart</span>
+            </button>
+          </section>
+
+          <section class="right-tab-panel" data-right-panel="export">
+            <div class="control-group first">
+              <h2 data-i18n="groups.export">Export</h2>
+              <p class="section-description" data-i18n="export.description">Save corrected measurements, the annotated image, or both.</p>
+              <label>
+                <span data-i18n="labels.labelLimit">Image label count</span>
+                <input id="labelLimit" type="number" min="0" step="1" value="80" />
+              </label>
+              <div class="export-actions">
+                <button id="exportCsv" type="button"><i data-lucide="file-spreadsheet" aria-hidden="true"></i><span>CSV</span></button>
+                <button id="exportPng" type="button"><i data-lucide="image-down" aria-hidden="true"></i><span data-i18n="buttons.annotatedImage">Annotated Image</span></button>
+              </div>
+              <button id="exportAll" class="primary export-all" type="button" data-i18n="buttons.exportAll">Export CSV + Image</button>
+            </div>
           </section>
         </div>
       </aside>
     </main>
+
+    <dialog id="replaceImageDialog" class="replace-image-dialog">
+      <form method="dialog">
+        <span class="dialog-icon"><i data-lucide="triangle-alert" aria-hidden="true"></i></span>
+        <h2 data-i18n="replace.title">Replace the current image?</h2>
+        <p data-i18n="replace.warning">Opening another image will clear all detected particles, manual corrections, scale settings, and selections. Export anything you need first.</p>
+        <div class="dialog-actions">
+          <button value="cancel" data-i18n="replace.cancel">Cancel</button>
+          <button id="replaceExport" value="export" type="button" data-i18n="replace.export">Export data first</button>
+          <button id="replaceContinue" class="danger-confirm" value="replace" type="button" data-i18n="replace.continue">Replace image</button>
+        </div>
+      </form>
+    </dialog>
+
     <script type="module" src="./app.js"></script>
   </body>
 </html>

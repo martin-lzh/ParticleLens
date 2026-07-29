@@ -103,7 +103,7 @@ async function openReadyApp(page, url = "./") {
   if (await page.locator("#runtimeLoader").evaluate((element) => element.classList.contains("failed"))) {
     throw new Error(await page.locator("#runtimePhase").textContent());
   }
-  await expect(page.locator("#runDetect")).toBeEnabled();
+  await expect(page.locator("#imageMenuTrigger")).toBeEnabled();
 }
 
 async function uploadAndDetect(page) {
@@ -161,7 +161,8 @@ test("runs detection locally and exports corrected results", async ({ page }) =>
   );
   expect(Math.abs(micronsPerPx - 0.625)).toBeLessThanOrEqual(1e-9);
 
-  await page.locator("[data-left-tab='export']").click();
+  await page.locator("#rightToggle").click();
+  await page.locator("[data-right-tab='export']").click();
   const csvDownload = page.waitForEvent("download");
   await page.locator("#exportCsv").click();
   expect((await csvDownload).suggestedFilename()).toMatch(/_corrected\.csv$/);
@@ -171,6 +172,60 @@ test("runs detection locally and exports corrected results", async ({ page }) =>
   expect((await pngDownload).suggestedFilename()).toMatch(/_annotated\.png$/);
 
   expect(requestsAfterUpload.filter((request) => request.method() !== "GET")).toEqual([]);
+});
+
+test("opens images from the canvas and warns before replacing current work", async ({ page }) => {
+  await openReadyApp(page);
+
+  const firstChooser = page.waitForEvent("filechooser");
+  await page.locator("#emptyState").click();
+  await (await firstChooser).setFiles({
+    name: "first.bmp",
+    mimeType: "image/bmp",
+    buffer: syntheticBitmap(),
+  });
+  await expect(page.locator("#imageName")).toHaveText("first.bmp");
+  await expect(page.locator("#imageAction")).toHaveText("Upload a new image");
+
+  await page.locator("#imageMenuTrigger").click();
+  await expect(page.locator("#replaceImageDialog")).toBeVisible();
+  await expect(page.locator("#replaceImageDialog")).toContainText("clear all detected particles");
+  await page.locator("#replaceImageDialog [value='cancel']").click();
+  await expect(page.locator("#replaceImageDialog")).not.toBeVisible();
+
+  await page.locator("#imageMenuTrigger").click();
+  const replacementChooser = page.waitForEvent("filechooser");
+  await page.locator("#replaceContinue").click();
+  await (await replacementChooser).setFiles({
+    name: "replacement.bmp",
+    mimeType: "image/bmp",
+    buffer: syntheticBitmap(),
+  });
+  await expect(page.locator("#imageName")).toHaveText("replacement.bmp");
+});
+
+test("renders a configurable Pareto diagram and live overlay", async ({ page }) => {
+  await openReadyApp(page);
+  await uploadAndDetect(page);
+
+  await expect(page.locator("#paretoOverlay")).toBeVisible();
+  await page.locator("#rightToggle").click();
+  await page.locator("[data-right-tab='pareto']").click();
+  await expect(page.locator("#paretoPlot .plot-container")).toBeVisible();
+
+  await page.locator("#paretoBinCount").fill("14");
+  await expect(page.locator("#paretoBinCountValue")).toHaveText("14");
+  expect(await page.evaluate(() => localStorage.getItem("particleLensParetoBins"))).toBe("14");
+
+  await page.locator("#showHistogram").uncheck();
+  await expect.poll(
+    async () => page.locator("#paretoPlot").evaluate((element) => element.data?.[0]?.visible),
+  ).toBe(false);
+  await page.locator("#showHistogram").check();
+
+  const chartDownload = page.waitForEvent("download");
+  await page.locator("#downloadPareto").click();
+  expect((await chartDownload).suggestedFilename()).toMatch(/_pareto\.png$/);
 });
 
 test("supports manual correction, scale redraw, zoom, pan, move, and delete", async ({ page }) => {
@@ -199,8 +254,7 @@ test("supports manual correction, scale redraw, zoom, pan, move, and delete", as
   const initialScale = Number(
     await page.locator("#scaleReadout").getAttribute("data-microns-per-px"),
   );
-  await page.locator("[data-left-tab='edit']").click();
-  await page.locator("#scaleTool").click();
+  await page.locator("#quickScaleTool").click();
   await page.mouse.move(box.x + box.width * 0.6, box.y + box.height * 0.8);
   await page.mouse.down({ button: "left" });
   await page.mouse.move(box.x + box.width * 0.8, box.y + box.height * 0.8, { steps: 5 });
@@ -210,7 +264,7 @@ test("supports manual correction, scale redraw, zoom, pan, move, and delete", as
   );
   expect(correctedScale).not.toBe(initialScale);
 
-  await page.locator("#deleteSelected").click();
+  await page.locator("#quickDeleteSelected").click();
   await expect(rows).toHaveCount(3);
 
   const beforeZoom = await canvas.screenshot();
@@ -222,6 +276,25 @@ test("supports manual correction, scale redraw, zoom, pan, move, and delete", as
   await page.mouse.up({ button: "middle" });
   const afterPan = await canvas.screenshot();
   expect(Buffer.compare(beforeZoom, afterPan)).not.toBe(0);
+});
+
+test("keeps the analysis entry visible across transitional navbar widths", async ({ page }) => {
+  await page.setViewportSize({ width: 1180, height: 768 });
+  await openReadyApp(page);
+
+  for (const width of [1280, 1180, 1024, 900, 821]) {
+    await page.setViewportSize({ width, height: 768 });
+    await expect(page.locator("#rightToggle")).toBeVisible();
+    const rightEdge = await page.locator("#rightToggle").evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return rect.right;
+    });
+    expect(rightEdge).toBeLessThanOrEqual(width);
+    const topbarOverflow = await page.locator(".topbar").evaluate(
+      (element) => element.scrollWidth - element.clientWidth,
+    );
+    expect(topbarOverflow).toBeLessThanOrEqual(1);
+  }
 });
 
 test("adapts the workspace for mobile and supports touch canvas gestures", async ({ page }) => {
@@ -318,8 +391,9 @@ test("switches language and restores the app shell offline", async ({ page }) =>
   const origin = await startStaticServer();
   try {
     await openReadyApp(page, origin.url);
-    await page.locator("#languageToggle").click();
     await expect(page.locator("#runDetect")).toHaveText("Run Detection");
+    await page.locator("#languageToggle").click();
+    await expect(page.locator("#runDetect")).toHaveText("自动识别");
 
     await page.locator("#runtimeLoader[data-offline-ready='true']").waitFor({
       state: "attached",
@@ -351,7 +425,7 @@ test("switches language and restores the app shell offline", async ({ page }) =>
         },
       ),
     ]);
-    await expect(page.locator("#runDetect")).toHaveText("Run Detection");
+    await expect(page.locator("#runDetect")).toHaveText("自动识别");
   } finally {
     await origin.close();
   }
@@ -372,5 +446,5 @@ test("repairs a failed runtime download on retry", async ({ page }, testInfo) =>
 
   await page.locator("#runtimeRetry").click();
   await page.locator("#runtimeLoader.hidden").waitFor({ state: "attached", timeout: 180_000 });
-  await expect(page.locator("#runDetect")).toBeEnabled();
+  await expect(page.locator("#runDetect")).toBeDisabled();
 });

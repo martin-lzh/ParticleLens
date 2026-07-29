@@ -24,6 +24,7 @@
     "vitest": "3.2.7"
   },
   "dependencies": {
-    "lucide": "^1.27.0"
+    "lucide": "^1.27.0",
+    "plotly.js-basic-dist-min": "^3.7.0"
   }
 }

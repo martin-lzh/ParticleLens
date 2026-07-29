@@ -1,8 +1,13 @@
 import { cacheApplicationShell, clearRuntimeCache, createDetector } from "./detection.js";
 import {
+  BarChart3,
   CirclePlus,
   createIcons,
+  Download,
+  FileSpreadsheet,
   Hand,
+  ImageDown,
+  ImagePlus,
   Maximize2,
   MousePointer2,
   Move,
@@ -11,7 +16,12 @@ import {
   PanelRight,
   PanelTop,
   Ruler,
+  ScanLine,
+  ShieldCheck,
+  Table2,
   Trash2,
+  TriangleAlert,
+  X,
 } from "lucide";
 import { circleVisibleFraction, summarizeDiameters } from "./particle-math.js";
 
@@ -20,9 +30,12 @@ const compactLayout = window.matchMedia(
 );
 const toolbarPositions = new Set(["left", "right", "top", "bottom"]);
 const savedToolbarPosition = localStorage.getItem("particleLensToolbarPosition");
+const savedLanguage =
+  localStorage.getItem("particleLensLang") || localStorage.getItem("particleAnnotatorLang");
+const browserLanguage = navigator.languages?.[0] || navigator.language || "en";
 
 const state = {
-  lang: localStorage.getItem("particleLensLang") || localStorage.getItem("particleAnnotatorLang") || "zh",
+  lang: savedLanguage || (browserLanguage.toLowerCase().startsWith("zh") ? "zh" : "en"),
   statusKey: "status.idle",
   image: null,
   imageName: "",
@@ -46,11 +59,29 @@ const state = {
     rightOpen: false,
     dragDepth: 0,
     toolbarPosition: toolbarPositions.has(savedToolbarPosition) ? savedToolbarPosition : "left",
+    paretoBinCount: Math.min(
+      30,
+      Math.max(5, Number(localStorage.getItem("particleLensParetoBins")) || 10),
+    ),
+    showHistogram: true,
+    showCumulative: true,
+    showParetoOverlay: true,
   },
 };
 
 const activePointers = new Map();
 let pinchGesture = null;
+let pendingImageFile = null;
+let replacementAuthorized = false;
+let plotlyApi = null;
+let plotlyPromise = null;
+
+async function loadPlotly() {
+  if (plotlyApi) return plotlyApi;
+  plotlyPromise ||= import("plotly.js-basic-dist-min").then((module) => module.default);
+  plotlyApi = await plotlyPromise;
+  return plotlyApi;
+}
 
 const els = {
   appShell: document.querySelector(".app-shell"),
@@ -68,6 +99,8 @@ const els = {
   quickToolbarPositionButtons: Array.from(document.querySelectorAll("[data-toolbar-position]")),
   canvas: document.getElementById("imageCanvas"),
   imageInput: document.getElementById("imageInput"),
+  imageMenuTrigger: document.getElementById("imageMenuTrigger"),
+  imageAction: document.getElementById("imageAction"),
   runDetect: document.getElementById("runDetect"),
   statusBadge: document.getElementById("statusBadge"),
   emptyState: document.getElementById("emptyState"),
@@ -84,20 +117,28 @@ const els = {
   meanStat: document.getElementById("meanStat"),
   medianStat: document.getElementById("medianStat"),
   rangeStat: document.getElementById("rangeStat"),
-  histogram: document.getElementById("histogramCanvas"),
   scaleUm: document.getElementById("scaleUm"),
   sensitivity: document.getElementById("sensitivity"),
   minDiameter: document.getElementById("minDiameter"),
   maxDiameter: document.getElementById("maxDiameter"),
   contrastMode: document.getElementById("contrastMode"),
   labelLimit: document.getElementById("labelLimit"),
-  deleteSelected: document.getElementById("deleteSelected"),
-  clearManual: document.getElementById("clearManual"),
   exportCsv: document.getElementById("exportCsv"),
   exportPng: document.getElementById("exportPng"),
   exportAll: document.getElementById("exportAll"),
-  circleTool: document.getElementById("circleTool"),
-  scaleTool: document.getElementById("scaleTool"),
+  paretoPlot: document.getElementById("paretoPlot"),
+  paretoOverlay: document.getElementById("paretoOverlay"),
+  paretoOverlayPlot: document.getElementById("paretoOverlayPlot"),
+  paretoBinCount: document.getElementById("paretoBinCount"),
+  paretoBinCountValue: document.getElementById("paretoBinCountValue"),
+  showHistogram: document.getElementById("showHistogram"),
+  showCumulative: document.getElementById("showCumulative"),
+  showParetoOverlay: document.getElementById("showParetoOverlay"),
+  hideParetoOverlay: document.getElementById("hideParetoOverlay"),
+  downloadPareto: document.getElementById("downloadPareto"),
+  replaceImageDialog: document.getElementById("replaceImageDialog"),
+  replaceExport: document.getElementById("replaceExport"),
+  replaceContinue: document.getElementById("replaceContinue"),
   languageToggle: document.getElementById("languageToggle"),
   languageToggleText: document.getElementById("languageToggleText"),
   runtimeLoader: document.getElementById("runtimeLoader"),
@@ -136,8 +177,8 @@ const messages = {
     "toolbar.positionBottom": "底部",
     "brand.title": "ParticleLens",
     "brand.subtitle": "显微粒径识别与校正",
-    "nav.toolsPanel": "工具",
-    "nav.dataPanel": "数据",
+    "nav.toolsPanel": "识别设置",
+    "nav.dataPanel": "分析与导出",
     "nav.closePanels": "关闭面板",
     "nav.languageToggle": "切换到 English",
     "language.target": "EN",
@@ -153,7 +194,8 @@ const messages = {
     "hint.draw": "从颗粒一侧拖到另一侧，按直径添加圆；再次点按工具可退出。",
     "hint.pan": "拖动画布进行平移；按 V 或选择箭头返回选择工具。",
     "hint.edit": "点按选择，拖动颗粒可移动，拖动空白处可平移，双指捏合可缩放。",
-    "emptyState": "拖放或选择一张显微图片",
+    "emptyState.title": "打开显微图片",
+    "emptyState.detail": "点击选择文件或照片，也可拖放到此处",
     "gesture.guide": "点按选择 · 拖动平移或移动 · 双指缩放",
     "status.idle": "待加载",
     "status.running": "识别中",
@@ -174,13 +216,19 @@ const messages = {
     "runtime.offline": "下载 Windows 离线版",
     "warnings.largeImage": "图片超过 2000 万像素，识别可能占用较多内存并需要更长时间。",
     "errors.imageOnly": "请拖放图片文件。",
+    "upload.openTitle": "打开图片",
+    "upload.openAction": "打开图片",
+    "upload.replaceAction": "上传新图片",
+    "detect.title": "颗粒识别",
+    "detect.subtitle": "运行本地识别前调整参数。",
+    "detect.localNote": "识别在浏览器本地运行，图片不会上传。",
     "tabs.toolsAria": "工具分类",
     "tabs.detect": "检测",
     "tabs.edit": "编辑",
     "tabs.export": "导出",
     "tabs.dataAria": "数据视图",
     "tabs.dataPoints": "数据点",
-    "tabs.histogram": "柱状图",
+    "tabs.pareto": "Pareto 分布",
     "upload.choose": "选择显微图片",
     "groups.detectParams": "检测参数",
     "groups.editTools": "编辑工具",
@@ -208,12 +256,30 @@ const messages = {
     "stats.mean": "平均直径",
     "stats.median": "中位数",
     "stats.range": "范围",
+    "stats.rule": "可见面积 ≥ 50%",
     "table.source": "来源",
     "table.radius": "半径(微米)",
     "table.diameter": "直径(微米)",
     "table.visible": "可见面积",
-    "histogram.aria": "粒径分布柱状图",
-    "histogram.empty": "暂无 visible_fraction >= 0.5 的粒径数据",
+    "pareto.aria": "粒径 Pareto 图",
+    "pareto.overlayAria": "实时 Pareto 分布",
+    "pareto.live": "实时分布",
+    "pareto.hideOverlay": "隐藏实时分布",
+    "pareto.binCount": "分箱数量",
+    "pareto.frequency": "频数",
+    "pareto.cumulative": "累计百分比",
+    "pareto.overlay": "实时叠加图",
+    "pareto.download": "下载当前图表",
+    "pareto.empty": "识别颗粒并设置比例尺后显示分布",
+    "pareto.xAxis": "粒径 (微米)",
+    "pareto.yFrequency": "颗粒数",
+    "pareto.yCumulative": "累计百分比",
+    "export.description": "保存校正后的数据、标注图或同时保存两者。",
+    "replace.title": "替换当前图片？",
+    "replace.warning": "打开另一张图片会清空全部识别结果、人工校正、比例尺和当前选择。请先导出需要保留的数据。",
+    "replace.cancel": "取消",
+    "replace.export": "先导出数据",
+    "replace.continue": "替换图片",
     "unit.um": "微米",
     "unit.umPerPx": "微米/px",
     "source.auto": "自动",
@@ -245,8 +311,8 @@ const messages = {
     "toolbar.positionBottom": "Bottom",
     "brand.title": "ParticleLens",
     "brand.subtitle": "Microscope particle sizing and correction",
-    "nav.toolsPanel": "Tools",
-    "nav.dataPanel": "Data",
+    "nav.toolsPanel": "Detection settings",
+    "nav.dataPanel": "Analysis and export",
     "nav.closePanels": "Close panels",
     "nav.languageToggle": "Switch to Chinese",
     "language.target": "中文",
@@ -262,7 +328,8 @@ const messages = {
     "hint.draw": "Drag from one particle edge to the other to add a circle; tap the tool again to exit.",
     "hint.pan": "Drag the canvas to pan; press V or choose the pointer to return to selection.",
     "hint.edit": "Tap to select, drag a particle to move it, drag empty image space to pan, and pinch to zoom.",
-    "emptyState": "Drop or choose a microscope image",
+    "emptyState.title": "Open a microscope image",
+    "emptyState.detail": "Click to choose a file or photo, or drop it here",
     "gesture.guide": "Tap to select · Drag to pan or move · Pinch to zoom",
     "status.idle": "Waiting",
     "status.running": "Detecting",
@@ -283,13 +350,19 @@ const messages = {
     "runtime.offline": "Download the Windows offline app",
     "warnings.largeImage": "This image exceeds 20 megapixels. Detection may use substantial memory and take longer.",
     "errors.imageOnly": "Drop an image file.",
+    "upload.openTitle": "Open an image",
+    "upload.openAction": "Open an image",
+    "upload.replaceAction": "Upload a new image",
+    "detect.title": "Particle detection",
+    "detect.subtitle": "Tune recognition before running the local detector.",
+    "detect.localNote": "Detection runs locally in your browser. Your image is not uploaded.",
     "tabs.toolsAria": "Tool categories",
     "tabs.detect": "Detect",
     "tabs.edit": "Edit",
     "tabs.export": "Export",
     "tabs.dataAria": "Data views",
     "tabs.dataPoints": "Data points",
-    "tabs.histogram": "Histogram",
+    "tabs.pareto": "Pareto distribution",
     "upload.choose": "Choose microscope image",
     "groups.detectParams": "Detection Parameters",
     "groups.editTools": "Edit Tools",
@@ -317,12 +390,30 @@ const messages = {
     "stats.mean": "Mean diameter",
     "stats.median": "Median",
     "stats.range": "Range",
+    "stats.rule": "Visible area ≥ 50%",
     "table.source": "Source",
     "table.radius": "Radius (µm)",
     "table.diameter": "Diameter (µm)",
     "table.visible": "Visible area",
-    "histogram.aria": "Particle size distribution histogram",
-    "histogram.empty": "No particle-size data with visible_fraction >= 0.5",
+    "pareto.aria": "Particle size Pareto diagram",
+    "pareto.overlayAria": "Live Pareto distribution",
+    "pareto.live": "Live distribution",
+    "pareto.hideOverlay": "Hide live distribution",
+    "pareto.binCount": "Bin count",
+    "pareto.frequency": "Frequency",
+    "pareto.cumulative": "Cumulative",
+    "pareto.overlay": "Live overlay",
+    "pareto.download": "Download current chart",
+    "pareto.empty": "Detect particles and set the scale to show the distribution",
+    "pareto.xAxis": "Diameter (µm)",
+    "pareto.yFrequency": "Particles",
+    "pareto.yCumulative": "Cumulative percentage",
+    "export.description": "Save corrected measurements, the annotated image, or both.",
+    "replace.title": "Replace the current image?",
+    "replace.warning": "Opening another image will clear all detected particles, manual corrections, scale settings, and selections. Export anything you need first.",
+    "replace.cancel": "Cancel",
+    "replace.export": "Export data first",
+    "replace.continue": "Replace image",
     "unit.um": "µm",
     "unit.umPerPx": "µm/px",
     "source.auto": "Auto",
@@ -356,6 +447,8 @@ function applyTranslations() {
   });
 
   els.imageName.textContent = state.image ? state.imageName : t("image.none");
+  els.imageAction.textContent = t(state.image ? "upload.replaceAction" : "upload.openAction");
+  els.imageMenuTrigger.setAttribute("title", t("upload.openTitle"));
   setStatus(state.statusKey);
   setHint();
   updateStats();
@@ -402,12 +495,11 @@ function canvasPoint(event) {
   };
 }
 
-function resizeHistogram() {
-  const rect = els.histogram.getBoundingClientRect();
-  const dpr = window.devicePixelRatio || 1;
-  els.histogram.width = Math.max(1, Math.round(rect.width * dpr));
-  els.histogram.height = Math.max(1, Math.round(rect.height * dpr));
-  drawHistogram();
+function resizePareto() {
+  if (plotlyApi && els.paretoPlot?.data) plotlyApi.Plots.resize(els.paretoPlot);
+  if (plotlyApi && els.paretoOverlayPlot?.data && !els.paretoOverlay.hidden) {
+    plotlyApi.Plots.resize(els.paretoOverlayPlot);
+  }
 }
 
 function canvasToImage(event) {
@@ -649,68 +741,159 @@ function updateStats() {
   }
 
   renderTable();
-  drawHistogram(values);
+  renderPareto(values);
 }
 
-function drawHistogram(inputValues = null) {
-  const canvas = els.histogram;
-  const hctx = canvas.getContext("2d");
-  const values = inputValues || distributionParticles().map(diameterUm).filter((v) => v > 0).sort((a, b) => a - b);
-  const width = canvas.width;
-  const height = canvas.height;
-  hctx.clearRect(0, 0, width, height);
-  hctx.fillStyle = "#0f1114";
-  hctx.fillRect(0, 0, width, height);
+function paretoSeries(values) {
+  if (!values.length) return null;
+  const min = values[0];
+  const max = values[values.length - 1];
+  const binCount = state.ui.paretoBinCount;
+  const span = Math.max(0.001, max - min);
+  const binWidth = span / binCount;
+  const counts = Array.from({ length: binCount }, () => 0);
+  for (const value of values) {
+    const index = Math.min(binCount - 1, Math.floor((value - min) / binWidth));
+    counts[index] += 1;
+  }
+  let cumulative = 0;
+  return {
+    centers: counts.map((_, index) => min + (index + 0.5) * binWidth),
+    counts,
+    cumulative: counts.map((count) => {
+      cumulative += count;
+      return (cumulative / values.length) * 100;
+    }),
+    binWidth,
+  };
+}
 
-  const pad = Math.max(22, Math.round(width * 0.08));
-  const top = 16;
-  const bottom = 26;
-  const plotW = Math.max(1, width - pad - 12);
-  const plotH = Math.max(1, height - top - bottom);
+function paretoTraces(series) {
+  if (!series) return [];
+  return [
+    {
+      x: series.centers,
+      y: series.counts,
+      width: series.binWidth * 0.88,
+      type: "bar",
+      name: t("pareto.frequency"),
+      marker: { color: "#e6d54a", line: { color: "#f3e77c", width: 1 } },
+      opacity: 0.82,
+      hovertemplate: `%{x:.2f} ${t("unit.um")}<br>${t("pareto.yFrequency")}: %{y}<extra></extra>`,
+      visible: state.ui.showHistogram,
+    },
+    {
+      x: series.centers,
+      y: series.cumulative,
+      type: "scatter",
+      mode: "lines+markers",
+      name: t("pareto.cumulative"),
+      yaxis: "y2",
+      line: { color: "#5aa7ff", width: 2.5 },
+      marker: { color: "#5aa7ff", size: 5 },
+      hovertemplate: `%{x:.2f} ${t("unit.um")}<br>%{y:.1f}%<extra></extra>`,
+      visible: state.ui.showCumulative,
+    },
+  ];
+}
 
-  hctx.strokeStyle = "#323840";
-  hctx.lineWidth = 1;
-  hctx.beginPath();
-  hctx.moveTo(pad, top);
-  hctx.lineTo(pad, top + plotH);
-  hctx.lineTo(pad + plotW, top + plotH);
-  hctx.stroke();
+function paretoLayout(compact = false, hasValues = true) {
+  return {
+    autosize: true,
+    paper_bgcolor: "rgba(15,17,20,0)",
+    plot_bgcolor: "rgba(15,17,20,0)",
+    margin: compact ? { l: 28, r: 30, t: 8, b: 24 } : { l: 44, r: 46, t: 18, b: 46 },
+    showlegend: !compact,
+    legend: {
+      orientation: "h",
+      x: 0,
+      y: 1.16,
+      font: { color: "#c8d0d5", size: 11 },
+    },
+    font: { family: "Segoe UI, system-ui, sans-serif", color: "#9aa5ad", size: compact ? 9 : 11 },
+    bargap: 0.08,
+    xaxis: {
+      title: compact ? "" : { text: t("pareto.xAxis"), standoff: 10 },
+      gridcolor: "rgba(255,255,255,0.07)",
+      zerolinecolor: "rgba(255,255,255,0.12)",
+      tickfont: { size: compact ? 8 : 10 },
+      fixedrange: compact,
+    },
+    yaxis: {
+      title: compact ? "" : { text: t("pareto.yFrequency"), standoff: 6 },
+      rangemode: "tozero",
+      gridcolor: "rgba(255,255,255,0.07)",
+      zerolinecolor: "rgba(255,255,255,0.12)",
+      tickfont: { size: compact ? 8 : 10 },
+      fixedrange: compact,
+    },
+    yaxis2: {
+      title: compact ? "" : { text: t("pareto.yCumulative"), standoff: 6 },
+      overlaying: "y",
+      side: "right",
+      range: [0, 105],
+      ticksuffix: "%",
+      showgrid: false,
+      tickfont: { size: compact ? 8 : 10 },
+      fixedrange: compact,
+    },
+    annotations: hasValues
+      ? []
+      : [{
+        text: t("pareto.empty"),
+        x: 0.5,
+        y: 0.5,
+        xref: "paper",
+        yref: "paper",
+        showarrow: false,
+        font: { color: "#7d878e", size: compact ? 9 : 12 },
+      }],
+  };
+}
 
-  if (!values.length) {
-    hctx.fillStyle = "#6f7a83";
-    hctx.font = "12px Segoe UI, sans-serif";
-    hctx.fillText(t("histogram.empty"), pad + 8, top + 24);
+function paretoConfig(compact = false) {
+  return {
+    responsive: true,
+    displaylogo: false,
+    displayModeBar: compact ? false : "hover",
+    scrollZoom: !compact,
+    modeBarButtonsToRemove: ["lasso2d", "select2d"],
+    toImageButtonOptions: {
+      format: "png",
+      filename: `${state.imageName || "particles"}_pareto`,
+      width: 1200,
+      height: 720,
+      scale: 1,
+    },
+  };
+}
+
+async function renderPareto(inputValues = null) {
+  const values = inputValues ||
+    distributionParticles().map(diameterUm).filter((value) => value > 0).sort((a, b) => a - b);
+  const series = paretoSeries(values);
+  const traces = paretoTraces(series);
+
+  const showOverlay = Boolean(series) && state.ui.showParetoOverlay;
+  els.paretoOverlay.hidden = !showOverlay;
+  els.showParetoOverlay.checked = state.ui.showParetoOverlay;
+  if (!series && !plotlyApi) {
+    els.paretoPlot.classList.add("is-empty");
+    els.paretoPlot.textContent = t("pareto.empty");
     return;
   }
 
-  const min = values[0];
-  const max = values[values.length - 1];
-  const binCount = Math.min(18, Math.max(5, Math.round(Math.sqrt(values.length))));
-  const span = Math.max(0.001, max - min);
-  const counts = Array.from({ length: binCount }, () => 0);
-  for (const value of values) {
-    const idx = Math.min(binCount - 1, Math.floor(((value - min) / span) * binCount));
-    counts[idx] += 1;
+  const Plotly = await loadPlotly();
+  els.paretoPlot.classList.remove("is-empty");
+  Plotly.react(els.paretoPlot, traces, paretoLayout(false, Boolean(series)), paretoConfig(false));
+  if (showOverlay) {
+    Plotly.react(
+      els.paretoOverlayPlot,
+      traces,
+      paretoLayout(true, true),
+      paretoConfig(true),
+    );
   }
-
-  const maxCount = Math.max(...counts);
-  const gap = Math.max(2, plotW / binCount * 0.12);
-  const barW = plotW / binCount - gap;
-  hctx.fillStyle = "#e6d54a";
-  for (let i = 0; i < binCount; i += 1) {
-    const barH = (counts[i] / maxCount) * (plotH - 6);
-    const x = pad + i * (plotW / binCount) + gap / 2;
-    const y = top + plotH - barH;
-    hctx.fillRect(x, y, Math.max(1, barW), barH);
-  }
-
-  hctx.fillStyle = "#9aa5ad";
-  hctx.font = "11px Segoe UI, sans-serif";
-  hctx.fillText(`${min.toFixed(1)}`, pad, height - 7);
-  const maxText = `${max.toFixed(1)} ${t("unit.um")}`;
-  const metrics = hctx.measureText(maxText);
-  hctx.fillText(maxText, pad + plotW - metrics.width, height - 7);
-  hctx.fillText(`${maxCount}`, 4, top + 8);
 }
 
 function renderTable() {
@@ -774,22 +957,28 @@ function setHint() {
 
 function setInteractionMode(mode) {
   state.mode = mode;
-  els.circleTool.classList.toggle("active", mode === "draw");
-  els.scaleTool.classList.toggle("active", mode === "scale");
   els.canvas.dataset.mode = mode;
   updateQuickToolbar();
   setHint();
 }
 
 function updateQuickToolbar() {
+  const hasImage = Boolean(state.image);
   for (const button of els.quickToolButtons) {
     const active = button.dataset.canvasTool === state.mode;
     button.classList.toggle("active", active);
     button.setAttribute("aria-pressed", String(active));
     button.disabled = !state.image && button.dataset.canvasTool !== "select";
   }
-  els.quickFitView.disabled = !state.image;
+  els.quickFitView.disabled = !hasImage;
   els.quickDeleteSelected.disabled = state.selectedIds.size === 0;
+  els.exportCsv.disabled = !hasImage;
+  els.exportPng.disabled = !hasImage;
+  els.exportAll.disabled = !hasImage;
+  els.downloadPareto.disabled = distributionParticles().every((particle) => diameterUm(particle) <= 0);
+  if (state.statusKey !== "status.running") {
+    els.runDetect.disabled = !hasImage || !state.detector;
+  }
 }
 
 function setToolbarPositionMenu(open) {
@@ -808,14 +997,6 @@ function setToolbarPosition(position, persist = true) {
   }
   if (persist) localStorage.setItem("particleLensToolbarPosition", nextPosition);
   setToolbarPositionMenu(false);
-}
-
-function toggleDrawMode() {
-  setInteractionMode(state.mode === "draw" ? "select" : "draw");
-}
-
-function setScaleMode() {
-  setInteractionMode(state.mode === "scale" ? "select" : "scale");
 }
 
 function clearScaleMode() {
@@ -896,7 +1077,7 @@ async function runDetection() {
     setStatus("status.fail");
     alert(error.message);
   } finally {
-    els.runDetect.disabled = false;
+    els.runDetect.disabled = !state.image || !state.detector;
   }
 }
 
@@ -904,6 +1085,33 @@ async function loadImage(file) {
   const imageBytes = await file.arrayBuffer();
   const imageUrl = URL.createObjectURL(file);
   loadImageData(imageUrl, file.name, imageBytes, true);
+}
+
+function openImagePicker() {
+  els.imageInput.value = "";
+  els.imageInput.click();
+}
+
+function requestImageSelection(file = null) {
+  if (!state.image) {
+    if (file) loadImage(file);
+    else openImagePicker();
+    return;
+  }
+  pendingImageFile = file;
+  els.replaceImageDialog.showModal();
+}
+
+function acceptImageReplacement() {
+  els.replaceImageDialog.close();
+  if (pendingImageFile) {
+    const file = pendingImageFile;
+    pendingImageFile = null;
+    loadImage(file);
+    return;
+  }
+  replacementAuthorized = true;
+  openImagePicker();
 }
 
 function isImageFile(file) {
@@ -951,7 +1159,7 @@ function handleDrop(event) {
     alert(t("errors.imageOnly"));
     return;
   }
-  loadImage(file);
+  requestImageSelection(file);
 }
 
 function loadImageData(imageUrl, imageName, imageBytes, revokeUrl = false) {
@@ -970,6 +1178,7 @@ function loadImageData(imageUrl, imageName, imageBytes, revokeUrl = false) {
     els.emptyState.classList.add("hidden");
     els.gestureHint.classList.remove("hidden");
     els.imageName.textContent = imageName;
+    els.imageAction.textContent = t("upload.replaceAction");
     if (state.image.naturalWidth * state.image.naturalHeight > 20_000_000) {
       alert(t("warnings.largeImage"));
     }
@@ -1088,8 +1297,21 @@ function handleLayoutChange(event) {
 
 els.imageInput.addEventListener("change", (event) => {
   const file = event.target.files?.[0];
-  if (file) loadImage(file);
+  if (!file) {
+    replacementAuthorized = false;
+    return;
+  }
+  if (state.image && !replacementAuthorized) {
+    requestImageSelection(file);
+    return;
+  }
+  replacementAuthorized = false;
+  loadImage(file);
 });
+els.imageMenuTrigger.addEventListener("click", () => requestImageSelection());
+els.emptyState.addEventListener("click", () => requestImageSelection());
+els.replaceContinue.addEventListener("click", acceptImageReplacement);
+els.replaceExport.addEventListener("click", exportAll);
 
 window.addEventListener("dragenter", handleDragEnter);
 window.addEventListener("dragover", handleDragOver);
@@ -1097,11 +1319,6 @@ window.addEventListener("dragleave", handleDragLeave);
 window.addEventListener("drop", handleDrop);
 
 els.runDetect.addEventListener("click", runDetection);
-els.deleteSelected.addEventListener("click", deleteSelectedParticles);
-els.clearManual.addEventListener("click", () => {
-  state.particles = state.particles.filter((p) => p.source !== "manual");
-  refresh();
-});
 els.exportCsv.addEventListener("click", exportCsv);
 els.exportPng.addEventListener("click", exportPng);
 els.exportAll.addEventListener("click", exportAll);
@@ -1143,14 +1360,6 @@ document.addEventListener("pointerdown", (event) => {
     setToolbarPositionMenu(false);
   }
 });
-els.circleTool.addEventListener("click", () => {
-  toggleDrawMode();
-  if (state.mode === "draw") closeCompactPanels();
-});
-els.scaleTool.addEventListener("click", () => {
-  setScaleMode();
-  if (state.mode === "scale") closeCompactPanels();
-});
 els.languageToggle.addEventListener("click", toggleLanguage);
 els.leftToggle.addEventListener("click", () => {
   state.ui.leftCollapsed = !state.ui.leftCollapsed;
@@ -1184,7 +1393,43 @@ document.querySelectorAll("[data-right-tab]").forEach((button) => {
     document.querySelectorAll("[data-right-panel]").forEach((panel) => {
       panel.classList.toggle("active", panel.dataset.rightPanel === button.dataset.rightTab);
     });
-    resizeHistogram();
+    resizePareto();
+  });
+});
+
+els.paretoBinCount.value = String(state.ui.paretoBinCount);
+els.paretoBinCountValue.textContent = String(state.ui.paretoBinCount);
+els.paretoBinCount.addEventListener("input", () => {
+  state.ui.paretoBinCount = Number(els.paretoBinCount.value);
+  els.paretoBinCountValue.textContent = String(state.ui.paretoBinCount);
+  localStorage.setItem("particleLensParetoBins", String(state.ui.paretoBinCount));
+  renderPareto();
+});
+els.showHistogram.addEventListener("change", () => {
+  state.ui.showHistogram = els.showHistogram.checked;
+  renderPareto();
+});
+els.showCumulative.addEventListener("change", () => {
+  state.ui.showCumulative = els.showCumulative.checked;
+  renderPareto();
+});
+els.showParetoOverlay.addEventListener("change", () => {
+  state.ui.showParetoOverlay = els.showParetoOverlay.checked;
+  renderPareto();
+});
+els.hideParetoOverlay.addEventListener("click", () => {
+  state.ui.showParetoOverlay = false;
+  els.showParetoOverlay.checked = false;
+  renderPareto();
+});
+els.downloadPareto.addEventListener("click", async () => {
+  const Plotly = await loadPlotly();
+  Plotly.downloadImage(els.paretoPlot, {
+    format: "png",
+    filename: `${state.imageName || "particles"}_pareto`,
+    width: 1200,
+    height: 720,
+    scale: 1,
   });
 });
 
@@ -1530,7 +1775,8 @@ for (const input of [els.scaleUm, els.labelLimit]) {
 }
 
 new ResizeObserver(resizeCanvas).observe(els.canvas);
-new ResizeObserver(resizeHistogram).observe(els.histogram);
+new ResizeObserver(resizePareto).observe(els.paretoPlot);
+new ResizeObserver(resizePareto).observe(els.paretoOverlayPlot);
 
 function formatBytes(bytes) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
@@ -1569,7 +1815,7 @@ async function initializeRuntime() {
     state.detector = await createDetector(showRuntimeProgress);
     showRuntimeProgress({ phase: "ready" });
     els.runtimeLoader.classList.add("hidden");
-    els.runDetect.disabled = false;
+    els.runDetect.disabled = !state.image;
     await cacheApplicationShell();
     els.runtimeLoader.dataset.offlineReady = "true";
   } catch (error) {
@@ -1591,8 +1837,13 @@ els.runtimeRetry.addEventListener("click", async () => {
 async function bootstrap() {
   createIcons({
     icons: {
+      BarChart3,
       CirclePlus,
+      Download,
+      FileSpreadsheet,
       Hand,
+      ImageDown,
+      ImagePlus,
       Maximize2,
       MousePointer2,
       Move,
@@ -1601,7 +1852,12 @@ async function bootstrap() {
       PanelRight,
       PanelTop,
       Ruler,
+      ScanLine,
+      ShieldCheck,
+      Table2,
       Trash2,
+      TriangleAlert,
+      X,
     },
   });
   setToolbarPosition(state.ui.toolbarPosition, false);
@@ -1609,7 +1865,7 @@ async function bootstrap() {
   setInteractionMode("select");
   applyTranslations();
   resizeCanvas();
-  resizeHistogram();
+  resizePareto();
   updateZoomReadout();
   await initializeRuntime();
   await loadImageFromQuery();
