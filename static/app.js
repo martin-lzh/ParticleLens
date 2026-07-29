@@ -139,6 +139,9 @@ const els = {
   exportCsv: document.getElementById("exportCsv"),
   exportPng: document.getElementById("exportPng"),
   exportAll: document.getElementById("exportAll"),
+  exportSelection: document.getElementById("exportSelection"),
+  exportScale: document.getElementById("exportScale"),
+  exportLegend: document.getElementById("exportLegend"),
   paretoPlot: document.getElementById("paretoPlot"),
   paretoOverlay: document.getElementById("paretoOverlay"),
   paretoOverlayPlot: document.getElementById("paretoOverlayPlot"),
@@ -297,6 +300,10 @@ const messages = {
     "pareto.yFrequency": "颗粒数",
     "pareto.yCumulative": "累计百分比",
     "export.description": "保存校正后的数据、标注图或同时保存两者。",
+    "export.imageContents": "标注图内容",
+    "export.selection": "选中颗粒高亮",
+    "export.scale": "比例尺",
+    "export.legend": "比例与粒径图例",
     "replace.title": "替换当前图片？",
     "replace.warning": "打开另一张图片会清空全部识别结果、人工校正、比例尺和当前选择。请先导出需要保留的数据。",
     "replace.cancel": "取消",
@@ -440,6 +447,10 @@ const messages = {
     "pareto.yFrequency": "Particles",
     "pareto.yCumulative": "Cumulative percentage",
     "export.description": "Save corrected measurements, the annotated image, or both.",
+    "export.imageContents": "Image contents",
+    "export.selection": "Selected particle highlight",
+    "export.scale": "Scale bar",
+    "export.legend": "Scale and diameter legend",
     "replace.title": "Replace the current image?",
     "replace.warning": "Opening another image will clear all detected particles, manual corrections, scale settings, and selections. Export anything you need first.",
     "replace.cancel": "Cancel",
@@ -753,8 +764,9 @@ function draw(targetCtx = ctx, options = {}) {
   const labelLimit = Number(els.labelLimit.value || 0);
   const labelIds = new Set(sorted.slice(0, labelLimit).map((p) => p.id));
 
+  const showSelection = !options.export || options.includeSelection;
   for (const particle of activeParticles()) {
-    drawParticle(targetCtx, particle, t, labelIds.has(particle.id));
+    drawParticle(targetCtx, particle, t, labelIds.has(particle.id), false, showSelection);
   }
 
   if (state.drag?.kind === "diameter") {
@@ -769,8 +781,11 @@ function draw(targetCtx = ctx, options = {}) {
     drawDiameterLine(targetCtx, state.drag, t);
   }
 
-  const line = state.drag?.kind === "scale" ? state.drag : state.scaleLine;
-  if (line) drawScaleLine(targetCtx, line, t);
+  const line = options.export
+    ? state.scaleLine
+    : state.drag?.kind === "scale" ? state.drag : state.scaleLine;
+  if (line && (!options.export || options.includeScale)) drawScaleLine(targetCtx, line, t);
+  if (options.export && options.includeLegend) drawExportLegend(targetCtx);
 }
 
 function circleFromDiameterDrag(drag) {
@@ -794,11 +809,11 @@ function drawDiameterLine(targetCtx, line, transform) {
   targetCtx.restore();
 }
 
-function drawParticle(targetCtx, particle, transform, showLabel, ghost = false) {
+function drawParticle(targetCtx, particle, transform, showLabel, ghost = false, showSelection = true) {
   const x = particle.x * transform.scale + transform.ox;
   const y = particle.y * transform.scale + transform.oy;
   const r = particle.r * transform.scale;
-  const selected = state.selectedIds.has(particle.id);
+  const selected = showSelection && state.selectedIds.has(particle.id);
 
   targetCtx.save();
   targetCtx.lineWidth = selected ? 3 : 2;
@@ -850,6 +865,85 @@ function drawScaleLine(targetCtx, line, transform) {
   targetCtx.moveTo(a.x, a.y);
   targetCtx.lineTo(b.x, b.y);
   targetCtx.stroke();
+  targetCtx.restore();
+}
+
+function scaleLegendEntries() {
+  if (!state.micronsPerPx) return [];
+  const scaleUm = Number(els.scaleUm.value || 50);
+  const minUm = Number(els.minDiameter.value || 0);
+  const maxUm = Number(els.maxDiameter.value || 0);
+  return [
+    { label: t("legend.scale"), um: scaleUm, px: scaleUm / state.micronsPerPx, color: "#e6d54a" },
+    { label: t("legend.minimum"), um: minUm, px: minUm / state.micronsPerPx, color: "#74c69d" },
+    { label: t("legend.maximum"), um: maxUm, px: maxUm / state.micronsPerPx, color: "#5aa7ff" },
+  ];
+}
+
+function displayMicrons(value) {
+  return value.toLocaleString(state.lang === "zh" ? "zh-CN" : "en", {
+    maximumFractionDigits: 4,
+  });
+}
+
+function drawExportLegend(targetCtx) {
+  const entries = scaleLegendEntries();
+  if (entries.length === 0) return;
+
+  const x = 12;
+  const y = 12;
+  const width = Math.max(160, Math.min(280, targetCtx.canvas.width - 24));
+  const height = 150;
+  const labelX = x + 12;
+  const barX = x + 12;
+  const maxBarWidth = width - 24;
+
+  targetCtx.save();
+  targetCtx.fillStyle = "rgba(15, 17, 20, 0.9)";
+  targetCtx.strokeStyle = "rgba(255, 255, 255, 0.25)";
+  targetCtx.lineWidth = 1;
+  targetCtx.beginPath();
+  targetCtx.roundRect(x, y, width, height, 8);
+  targetCtx.fill();
+  targetCtx.stroke();
+
+  targetCtx.fillStyle = "#dce2e5";
+  targetCtx.font = '600 11px "Segoe UI", system-ui, sans-serif';
+  targetCtx.textBaseline = "middle";
+  targetCtx.fillText(t("legend.title"), labelX, y + 16);
+  targetCtx.font = '11px "Segoe UI", system-ui, sans-serif';
+
+  entries.forEach((entry, index) => {
+    const labelY = y + 42 + index * 34;
+    const barY = labelY + 12;
+    const entryOverflows = entry.px > maxBarWidth;
+    const barWidth = Math.max(1, Math.min(entry.px, maxBarWidth));
+    targetCtx.fillStyle = "#dce2e5";
+    targetCtx.fillText(
+      `${entry.label}  ${displayMicrons(entry.um)} ${t("unit.um")}  ·  ${entry.px.toFixed(1)} px`,
+      labelX,
+      labelY,
+    );
+    targetCtx.strokeStyle = entry.color;
+    targetCtx.lineWidth = 2;
+    targetCtx.beginPath();
+    targetCtx.moveTo(barX, barY);
+    targetCtx.lineTo(barX + barWidth, barY);
+    targetCtx.stroke();
+    targetCtx.beginPath();
+    targetCtx.moveTo(barX, barY - 3);
+    targetCtx.lineTo(barX, barY + 3);
+    if (entryOverflows) {
+      targetCtx.moveTo(barX + barWidth - 7, barY - 4);
+      targetCtx.lineTo(barX + barWidth - 2, barY + 1);
+      targetCtx.moveTo(barX + barWidth - 7, barY + 1);
+      targetCtx.lineTo(barX + barWidth - 2, barY + 6);
+    } else {
+      targetCtx.moveTo(barX + barWidth, barY - 3);
+      targetCtx.lineTo(barX + barWidth, barY + 3);
+    }
+    targetCtx.stroke();
+  });
   targetCtx.restore();
 }
 
@@ -1022,23 +1116,13 @@ function renderScaleLegend() {
   }
 
   restoreFloatingOverlayPosition(els.scaleLegendOverlay);
-  const scaleUm = Number(els.scaleUm.value || 50);
-  const minUm = Number(els.minDiameter.value || 0);
-  const maxUm = Number(els.maxDiameter.value || 0);
-  const entries = [
-    { label: t("legend.scale"), um: scaleUm, px: scaleUm / state.micronsPerPx, color: "#e6d54a" },
-    { label: t("legend.minimum"), um: minUm, px: minUm / state.micronsPerPx, color: "#74c69d" },
-    { label: t("legend.maximum"), um: maxUm, px: maxUm / state.micronsPerPx, color: "#5aa7ff" },
-  ];
+  const entries = scaleLegendEntries();
   const dpr = window.devicePixelRatio || 1;
   const screenScale = fitTransform().scale / dpr;
   for (const entry of entries) entry.screenPx = entry.px * screenScale;
-  const displayUm = (value) => value.toLocaleString(state.lang === "zh" ? "zh-CN" : "en", {
-    maximumFractionDigits: 4,
-  });
   const description = entries
     .map((entry) =>
-      `${entry.label}: ${displayUm(entry.um)} ${t("unit.um")} = ${entry.px.toFixed(1)} px (image), ` +
+      `${entry.label}: ${displayMicrons(entry.um)} ${t("unit.um")} = ${entry.px.toFixed(1)} px (image), ` +
       `${entry.screenPx.toFixed(1)} px (screen)`
     )
     .join(". ");
@@ -1071,7 +1155,7 @@ function renderScaleLegend() {
     const barWidth = Math.max(1, Math.min(entry.screenPx, maxBarWidth));
     legendCtx.fillStyle = "#dce2e5";
     legendCtx.fillText(
-      `${entry.label}  ${displayUm(entry.um)} ${t("unit.um")}  ·  ${entry.px.toFixed(1)} px`,
+      `${entry.label}  ${displayMicrons(entry.um)} ${t("unit.um")}  ·  ${entry.px.toFixed(1)} px`,
       labelX,
       labelY,
     );
@@ -1215,6 +1299,9 @@ function updateQuickToolbar() {
   els.exportCsv.disabled = !hasImage;
   els.exportPng.disabled = !hasImage;
   els.exportAll.disabled = !hasImage;
+  els.exportSelection.disabled = !hasImage;
+  els.exportScale.disabled = !hasImage || !state.scaleLine;
+  els.exportLegend.disabled = !hasImage || !state.micronsPerPx;
   els.downloadPareto.disabled = distributionParticles().every((particle) => diameterUm(particle) <= 0);
   els.micronsPerPixel.disabled = !hasImage;
   if (state.statusKey !== "status.running") {
@@ -1524,7 +1611,13 @@ function exportPng() {
   const out = document.createElement("canvas");
   out.width = state.image.naturalWidth + exportPadding * 2;
   out.height = state.image.naturalHeight + exportPadding * 2;
-  draw(out.getContext("2d"), { export: true, exportPadding });
+  draw(out.getContext("2d"), {
+    export: true,
+    exportPadding,
+    includeSelection: els.exportSelection.checked,
+    includeScale: els.exportScale.checked,
+    includeLegend: els.exportLegend.checked,
+  });
   out.toBlob((blob) => {
     if (blob) downloadBlob(`${state.imageName || "image"}_annotated.png`, blob);
   }, "image/png");

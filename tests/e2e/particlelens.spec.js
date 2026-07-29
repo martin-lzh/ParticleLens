@@ -128,6 +128,42 @@ async function uploadAndDetect(page) {
   });
 }
 
+async function summarizeExportedPng(page) {
+  const downloadPromise = page.waitForEvent("download");
+  await page.locator("#exportPng").click();
+  const download = await downloadPromise;
+  const downloadPath = await download.path();
+  if (!downloadPath) throw new Error("Exported PNG was not available for inspection.");
+  const base64 = (await readFile(downloadPath)).toString("base64");
+
+  return page.evaluate(async (encoded) => {
+    const response = await fetch(`data:image/png;base64,${encoded}`);
+    const bitmap = await createImageBitmap(await response.blob());
+    const canvas = document.createElement("canvas");
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const context = canvas.getContext("2d");
+    context.drawImage(bitmap, 0, 0);
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    const countColor = (red, green, blue) => {
+      let count = 0;
+      for (let index = 0; index < pixels.length; index += 4) {
+        if (pixels[index] === red && pixels[index + 1] === green && pixels[index + 2] === blue) {
+          count += 1;
+        }
+      }
+      return count;
+    };
+    const legendPixelOffset = (20 * canvas.width + 20) * 4;
+    return {
+      selectionBlue: countColor(90, 167, 255),
+      scaleBlue: countColor(47, 120, 255),
+      legendGreen: countColor(116, 198, 157),
+      legendPixel: Array.from(pixels.slice(legendPixelOffset, legendPixelOffset + 3)),
+    };
+  }, base64);
+}
+
 test("falls back to the browser detector when native configuration is stale", async ({ page }) => {
   await page.route("**/runtime-config.json*", (route) =>
     route.fulfill({
@@ -221,6 +257,55 @@ test("runs detection locally and exports corrected results", async ({ page }) =>
   expect((await pngDownload).suggestedFilename()).toMatch(/_annotated\.png$/);
 
   expect(requestsAfterUpload.filter((request) => request.method() !== "GET")).toEqual([]);
+});
+
+test("exports selection, scale bar, and legend only when requested", async ({ page }) => {
+  await openReadyApp(page);
+  await uploadAndDetect(page);
+
+  const canvas = page.locator("#imageCanvas");
+  const box = await canvas.boundingBox();
+  expect(box).toBeTruthy();
+  await page.locator("#quickScaleTool").click();
+  await page.mouse.move(box.x + box.width * 0.55, box.y + box.height * 0.8);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.75, box.y + box.height * 0.8, { steps: 5 });
+  await page.mouse.up();
+  await page.locator("#rightToggle").click();
+  await page.locator("#particleTable tr").first().click();
+  await page.locator("[data-right-tab='export']").click();
+  await expect(page.locator("#exportSelection")).not.toBeChecked();
+  await expect(page.locator("#exportScale")).not.toBeChecked();
+  await expect(page.locator("#exportLegend")).not.toBeChecked();
+  await expect(page.locator("#exportScale")).toBeEnabled();
+  await expect(page.locator("#exportLegend")).toBeEnabled();
+
+  const defaultExport = await summarizeExportedPng(page);
+  expect(defaultExport.selectionBlue).toBe(0);
+  expect(defaultExport.scaleBlue).toBe(0);
+  expect(defaultExport.legendGreen).toBe(0);
+
+  await page.locator("#exportSelection").check();
+  const selectionExport = await summarizeExportedPng(page);
+  expect(selectionExport.selectionBlue).toBeGreaterThan(0);
+  expect(selectionExport.scaleBlue).toBe(0);
+  expect(selectionExport.legendGreen).toBe(0);
+  expect(selectionExport.legendPixel).toEqual(defaultExport.legendPixel);
+
+  await page.locator("#exportSelection").uncheck();
+  await page.locator("#exportScale").check();
+  const scaleExport = await summarizeExportedPng(page);
+  expect(scaleExport.selectionBlue).toBe(0);
+  expect(scaleExport.scaleBlue).toBeGreaterThan(0);
+  expect(scaleExport.legendGreen).toBe(0);
+  expect(scaleExport.legendPixel).toEqual(defaultExport.legendPixel);
+
+  await page.locator("#exportScale").uncheck();
+  await page.locator("#exportLegend").check();
+  const legendExport = await summarizeExportedPng(page);
+  expect(legendExport.scaleBlue).toBe(0);
+  expect(legendExport.legendGreen).toBeGreaterThan(0);
+  expect(legendExport.legendPixel).not.toEqual(defaultExport.legendPixel);
 });
 
 test("opens images from the canvas and warns before replacing current work", async ({ page }) => {

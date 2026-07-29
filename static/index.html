@@ -370,6 +370,21 @@
                 <span data-i18n="labels.labelLimit">Image label count</span>
                 <input id="labelLimit" type="number" min="0" step="1" value="80" />
               </label>
+              <fieldset class="export-options">
+                <legend data-i18n="export.imageContents">Image contents</legend>
+                <label>
+                  <input id="exportSelection" type="checkbox" />
+                  <span data-i18n="export.selection">Selected particle highlight</span>
+                </label>
+                <label>
+                  <input id="exportScale" type="checkbox" />
+                  <span data-i18n="export.scale">Scale bar</span>
+                </label>
+                <label>
+                  <input id="exportLegend" type="checkbox" />
+                  <span data-i18n="export.legend">Scale and diameter legend</span>
+                </label>
+              </fieldset>
               <div class="export-actions">
                 <button id="exportCsv" type="button"><i data-lucide="file-spreadsheet" aria-hidden="true"></i><span>CSV</span></button>
                 <button id="exportPng" type="button"><i data-lucide="image-down" aria-hidden="true"></i><span data-i18n="buttons.annotatedImage">Annotated Image</span></button>
