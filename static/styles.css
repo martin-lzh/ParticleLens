@@ -832,6 +832,64 @@ body.panel-resizing * {
   margin-bottom: 10px;
 }
 
+.image-adjustments {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.image-adjustments .section-heading h2 {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.preview-status {
+  min-height: 16px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.adjustment-control label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.adjustment-control label span {
+  margin: 0;
+}
+
+.adjustment-control output {
+  min-width: 42px;
+  color: var(--text);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.adjustment-control input[type="range"] {
+  min-height: 28px;
+  padding: 0;
+  accent-color: var(--accent);
+}
+
+.adjustment-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.adjustment-actions button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: rgba(230, 213, 74, 0.12);
+  color: var(--accent);
+}
+
 html[lang="en"] .calibration-field-label {
   min-height: 34px;
 }

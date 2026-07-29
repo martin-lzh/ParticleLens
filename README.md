@@ -17,6 +17,9 @@ Python installation is required.
 
 - Detects circular droplets or particles and estimates their diameters.
 - Detects a lower-right scale bar or accepts a manual calibration.
+- Previews brightness, contrast, gamma, CLAHE, and background correction while
+  preserving the original image.
+- Exports processed annotations in color or grayscale.
 - Supports manual add, move, delete, and scale correction.
 - Provides count, distribution statistics, and a histogram.
 - Exports corrected CSV data and an annotated PNG.

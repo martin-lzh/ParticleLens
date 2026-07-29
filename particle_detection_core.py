@@ -114,7 +114,12 @@ def detect_scale_bar_by_runs(
 
 
 def prepare_detection_image(
-    gray: np.ndarray, mask_rect: tuple[int, int, int, int] | None, contrast: str
+    gray: np.ndarray,
+    mask_rect: tuple[int, int, int, int] | None,
+    contrast: str,
+    brightness: float = 0.0,
+    contrast_adjustment: float = 0.0,
+    gamma: float = 1.0,
 ) -> np.ndarray:
     work = gray.copy()
     if mask_rect is not None:
@@ -124,6 +129,38 @@ def prepare_detection_image(
             np.median(gray)
         )
 
+    work = adjust_luminance(work, brightness, contrast_adjustment, gamma)
+    work = apply_contrast_mode(work, contrast)
+    return cv2.medianBlur(work, 5)
+
+
+def adjust_luminance(
+    gray: np.ndarray,
+    brightness: float = 0.0,
+    contrast_adjustment: float = 0.0,
+    gamma: float = 1.0,
+) -> np.ndarray:
+    if not -100 <= brightness <= 100:
+        raise ValueError("Brightness must be between -100 and 100.")
+    if not -100 <= contrast_adjustment <= 100:
+        raise ValueError("Contrast adjustment must be between -100 and 100.")
+    if not 0.2 <= gamma <= 3.0:
+        raise ValueError("Gamma must be between 0.2 and 3.0.")
+
+    work = gray.astype(np.float32)
+    work += float(brightness) * 2.55
+    factor = (259.0 * (float(contrast_adjustment) + 255.0)) / (
+        255.0 * (259.0 - float(contrast_adjustment))
+    )
+    work = factor * (work - 128.0) + 128.0
+    work = np.clip(work, 0, 255)
+    if not math.isclose(gamma, 1.0):
+        work = np.power(work / 255.0, 1.0 / float(gamma)) * 255.0
+    return np.clip(np.rint(work), 0, 255).astype(np.uint8)
+
+
+def apply_contrast_mode(gray: np.ndarray, contrast: str) -> np.ndarray:
+    work = gray
     if contrast == "clahe":
         clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
         work = clahe.apply(work)
@@ -133,7 +170,36 @@ def prepare_detection_image(
     elif contrast != "none":
         raise ValueError(f"Unknown contrast mode: {contrast}")
 
-    return cv2.medianBlur(work, 5)
+    return work
+
+
+def render_image_bytes(
+    image_bytes: bytes | bytearray | memoryview, options: dict[str, Any]
+) -> bytes:
+    image = decode_image_bytes(image_bytes)
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    adjusted = adjust_luminance(
+        gray,
+        brightness=float(options.get("brightness", 0.0)),
+        contrast_adjustment=float(options.get("contrastAdjustment", 0.0)),
+        gamma=float(options.get("gamma", 1.0)),
+    )
+    processed = apply_contrast_mode(adjusted, str(options.get("contrast", "clahe")))
+    color_mode = str(options.get("colorMode", "color"))
+
+    if color_mode == "color":
+        ycrcb = cv2.cvtColor(image, cv2.COLOR_BGR2YCrCb)
+        ycrcb[:, :, 0] = processed
+        rendered = cv2.cvtColor(ycrcb, cv2.COLOR_YCrCb2BGR)
+    elif color_mode == "grayscale":
+        rendered = processed
+    else:
+        raise ValueError(f"Unknown color mode: {color_mode}")
+
+    ok, encoded = cv2.imencode(".png", rendered)
+    if not ok:
+        raise RuntimeError("Could not encode the processed image.")
+    return encoded.tobytes()
 
 
 def fit_circle_from_edges(
@@ -228,6 +294,9 @@ def detect_particles(
     max_diameter_um: float,
     sensitivity: float,
     contrast: str,
+    brightness: float = 0.0,
+    contrast_adjustment: float = 0.0,
+    gamma: float = 1.0,
 ) -> list[Circle]:
     if microns_per_px <= 0:
         raise ValueError("Microns per pixel must be positive.")
@@ -236,7 +305,14 @@ def detect_particles(
     if not 0.01 <= sensitivity <= 0.98:
         raise ValueError("Sensitivity must be between 0.01 and 0.98.")
 
-    work = prepare_detection_image(gray, scale_bar_bbox, contrast)
+    work = prepare_detection_image(
+        gray,
+        scale_bar_bbox,
+        contrast,
+        brightness=brightness,
+        contrast_adjustment=contrast_adjustment,
+        gamma=gamma,
+    )
     work = cv2.GaussianBlur(work, (5, 5), 1.2)
     min_radius = max(2, int(round(min_diameter_um / microns_per_px / 2)))
     max_radius = max(min_radius + 1, int(round(max_diameter_um / microns_per_px / 2)))
@@ -311,6 +387,9 @@ def analyze_image_bytes(image_bytes: bytes | bytearray | memoryview, options: di
         max_diameter_um=float(options.get("maxDiameterUm", 95.0)),
         sensitivity=float(options.get("sensitivity", 0.88)),
         contrast=str(options.get("contrast", "clahe")),
+        brightness=float(options.get("brightness", 0.0)),
+        contrast_adjustment=float(options.get("contrastAdjustment", 0.0)),
+        gamma=float(options.get("gamma", 1.0)),
     )
     circles = sorted(circles, key=lambda circle: (circle.y, circle.x))
     return {

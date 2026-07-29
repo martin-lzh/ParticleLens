@@ -1,8 +1,8 @@
-const RUNTIME_CACHE = "particlelens-runtime-v0.2.1";
+const RUNTIME_CACHE = "particlelens-runtime-v0.2.2";
 
 let pyodide = null;
 let readyPromise = null;
-let analysisQueue = Promise.resolve();
+let processingQueue = Promise.resolve();
 
 function sendProgress(message) {
   self.postMessage({ type: "progress", ...message });
@@ -209,6 +209,39 @@ json.dumps(
   }
 }
 
+async function render(imageBytes, options) {
+  await readyPromise;
+  const inputPath = "/tmp/particlelens-render-input";
+  const outputPath = "/tmp/particlelens-render-output.png";
+  pyodide.FS.writeFile(inputPath, new Uint8Array(imageBytes));
+  pyodide.globals.set("particlelens_options_json", JSON.stringify(options));
+  try {
+    pyodide.runPython(`
+import json
+from pathlib import Path
+from particle_detection_core import render_image_bytes
+
+Path("${outputPath}").write_bytes(
+    render_image_bytes(
+        Path("${inputPath}").read_bytes(),
+        json.loads(particlelens_options_json),
+    )
+)
+`);
+    const output = pyodide.FS.readFile(outputPath);
+    return output.buffer.slice(output.byteOffset, output.byteOffset + output.byteLength);
+  } finally {
+    pyodide.globals.delete("particlelens_options_json");
+    for (const path of [inputPath, outputPath]) {
+      try {
+        pyodide.FS.unlink(path);
+      } catch {
+        // The file may not exist when decoding or rendering fails.
+      }
+    }
+  }
+}
+
 self.addEventListener("message", (event) => {
   const message = event.data;
   if (message.type === "initialize") {
@@ -220,9 +253,19 @@ self.addEventListener("message", (event) => {
   }
 
   if (message.type === "analyze") {
-    analysisQueue = analysisQueue
+    processingQueue = processingQueue
       .then(() => analyze(message.imageBytes, message.options))
       .then((result) => self.postMessage({ id: message.id, type: "result", result }))
+      .catch((error) => self.postMessage({ id: message.id, type: "error", error: error.message }));
+    return;
+  }
+
+  if (message.type === "render") {
+    processingQueue = processingQueue
+      .then(() => render(message.imageBytes, message.options))
+      .then((result) => {
+        self.postMessage({ id: message.id, type: "result", result }, [result]);
+      })
       .catch((error) => self.postMessage({ id: message.id, type: "error", error: error.message }));
   }
 });

@@ -71,6 +71,8 @@ const state = {
   imageName: "",
   imageBytes: null,
   imageObjectUrl: "",
+  previewImage: null,
+  previewObjectUrl: "",
   detector: null,
   particles: [],
   selectedIds: new Set(),
@@ -98,6 +100,7 @@ const state = {
     showCumulative: true,
     showParetoOverlay: true,
     showScaleLegend: true,
+    showOriginal: false,
     panelWidths: {
       left: initialPanelWidths.left,
       right: initialPanelWidths.right,
@@ -112,6 +115,12 @@ let pendingImageFile = null;
 let replacementAuthorized = false;
 let plotlyApi = null;
 let plotlyPromise = null;
+let previewSourceBytes = null;
+let previewTimer = null;
+let previewInFlight = false;
+let previewPending = false;
+let previewGeneration = 0;
+let exportInFlight = false;
 
 async function loadPlotly() {
   if (plotlyApi) return plotlyApi;
@@ -167,6 +176,16 @@ const els = {
   minDiameter: document.getElementById("minDiameter"),
   maxDiameter: document.getElementById("maxDiameter"),
   contrastMode: document.getElementById("contrastMode"),
+  brightness: document.getElementById("brightness"),
+  brightnessValue: document.getElementById("brightnessValue"),
+  contrastAdjustment: document.getElementById("contrastAdjustment"),
+  contrastAdjustmentValue: document.getElementById("contrastAdjustmentValue"),
+  gamma: document.getElementById("gamma"),
+  gammaValue: document.getElementById("gammaValue"),
+  colorMode: document.getElementById("colorMode"),
+  toggleOriginal: document.getElementById("toggleOriginal"),
+  resetAdjustments: document.getElementById("resetAdjustments"),
+  previewStatus: document.getElementById("previewStatus"),
   labelLimit: document.getElementById("labelLimit"),
   exportCsv: document.getElementById("exportCsv"),
   exportPng: document.getElementById("exportPng"),
@@ -310,6 +329,7 @@ const messages = {
     "status.success": "已识别",
     "status.fail": "失败",
     "status.loaded": "已加载",
+    "status.dirty": "设置已更改",
     "status.loading": "载入中",
     "status.loadFail": "载入失败",
     "runtime.loading": "正在准备本地识别引擎",
@@ -355,6 +375,18 @@ const messages = {
     "labels.minDiameter": "最小直径 (微米)",
     "labels.maxDiameter": "最大直径 (微米)",
     "labels.contrast": "对比度预处理",
+    "adjustments.title": "图像调整",
+    "adjustments.brightness": "亮度",
+    "adjustments.manualContrast": "手动对比度",
+    "adjustments.gamma": "伽马",
+    "adjustments.colorMode": "预览与导出颜色",
+    "adjustments.color": "保留颜色",
+    "adjustments.grayscale": "灰度",
+    "adjustments.showOriginal": "查看原图",
+    "adjustments.showProcessed": "查看处理后",
+    "adjustments.reset": "重置调整",
+    "adjustments.updating": "正在更新",
+    "adjustments.failed": "预览失败",
     "labels.labelLimit": "图片标注数量",
     "contrast.background": "背景校正",
     "contrast.none": "不处理",
@@ -511,6 +543,7 @@ const messages = {
     "status.success": "Detected",
     "status.fail": "Failed",
     "status.loaded": "Loaded",
+    "status.dirty": "Settings changed",
     "status.loading": "Loading",
     "status.loadFail": "Load failed",
     "runtime.loading": "Preparing the local detection engine",
@@ -556,6 +589,18 @@ const messages = {
     "labels.minDiameter": "Minimum diameter (µm)",
     "labels.maxDiameter": "Maximum diameter (µm)",
     "labels.contrast": "Contrast preprocessing",
+    "adjustments.title": "Image adjustments",
+    "adjustments.brightness": "Brightness",
+    "adjustments.manualContrast": "Manual contrast",
+    "adjustments.gamma": "Gamma",
+    "adjustments.colorMode": "Preview and export color",
+    "adjustments.color": "Keep color",
+    "adjustments.grayscale": "Grayscale",
+    "adjustments.showOriginal": "View original",
+    "adjustments.showProcessed": "View processed",
+    "adjustments.reset": "Reset adjustments",
+    "adjustments.updating": "Updating",
+    "adjustments.failed": "Preview failed",
     "labels.labelLimit": "Image label count",
     "contrast.background": "Background correction",
     "contrast.none": "None",
@@ -627,6 +672,155 @@ function setStatus(key) {
   els.statusBadge.textContent = t(key);
 }
 
+function setPreviewStatus(stateName = "idle") {
+  els.previewStatus.dataset.state = stateName;
+  const key = {
+    updating: "adjustments.updating",
+    failed: "adjustments.failed",
+  }[stateName];
+  els.previewStatus.textContent = key ? t(key) : "";
+}
+
+function imageAdjustmentOptions() {
+  return {
+    contrast: els.contrastMode.value,
+    brightness: Number(els.brightness.value),
+    contrastAdjustment: Number(els.contrastAdjustment.value),
+    gamma: Number(els.gamma.value),
+    colorMode: els.colorMode.value,
+  };
+}
+
+function updateAdjustmentReadouts() {
+  els.brightnessValue.textContent = String(Number(els.brightness.value));
+  els.contrastAdjustmentValue.textContent = String(Number(els.contrastAdjustment.value));
+  els.gammaValue.textContent = Number(els.gamma.value).toFixed(2);
+}
+
+function setAdjustmentControlsEnabled(enabled) {
+  for (const control of [
+    els.brightness,
+    els.contrastAdjustment,
+    els.gamma,
+    els.contrastMode,
+    els.colorMode,
+    els.toggleOriginal,
+    els.resetAdjustments,
+  ]) {
+    control.disabled = !enabled;
+  }
+}
+
+function updateOriginalToggle() {
+  els.toggleOriginal.setAttribute("aria-pressed", String(state.ui.showOriginal));
+  els.toggleOriginal.textContent = t(
+    state.ui.showOriginal ? "adjustments.showProcessed" : "adjustments.showOriginal",
+  );
+}
+
+function markDetectionSettingsChanged() {
+  if (state.statusKey === "status.success" || state.statusKey === "status.dirty") {
+    setStatus("status.dirty");
+  }
+}
+
+function resetAdjustmentValues({ resetDisplay = false, schedule = true } = {}) {
+  els.brightness.value = "0";
+  els.contrastAdjustment.value = "0";
+  els.gamma.value = "1";
+  if (resetDisplay) {
+    els.contrastMode.value = "clahe";
+    els.colorMode.value = "color";
+    state.ui.showOriginal = false;
+    updateOriginalToggle();
+  }
+  updateAdjustmentReadouts();
+  if (schedule && state.image) schedulePreview();
+}
+
+function clearPreviewImage() {
+  if (state.previewObjectUrl) URL.revokeObjectURL(state.previewObjectUrl);
+  state.previewObjectUrl = "";
+  state.previewImage = null;
+}
+
+function imageFromPngBytes(imageBytes) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(new Blob([imageBytes], { type: "image/png" }));
+    const image = new Image();
+    image.onload = () => resolve({ image, url });
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Could not decode the processed image."));
+    };
+    image.src = url;
+  });
+}
+
+function canvasBlob(canvas, type = "image/png") {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("Could not create the image preview."));
+    }, type);
+  });
+}
+
+async function createPreviewSource(image) {
+  const scale = Math.min(1, 2048 / Math.max(image.naturalWidth, image.naturalHeight));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+  canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+  canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
+  return (await canvasBlob(canvas)).arrayBuffer();
+}
+
+function schedulePreview(delay = 120) {
+  previewGeneration += 1;
+  els.previewStatus.dataset.requestedGeneration = String(previewGeneration);
+  previewPending = true;
+  window.clearTimeout(previewTimer);
+  previewTimer = window.setTimeout(renderPendingPreview, delay);
+}
+
+async function renderPendingPreview() {
+  if (previewInFlight || !previewPending) return;
+  if (!state.image || !state.detector || !previewSourceBytes) return;
+
+  previewPending = false;
+  previewInFlight = true;
+  const generation = previewGeneration;
+  setPreviewStatus("updating");
+  try {
+    const renderedBytes = await state.detector.render(
+      previewSourceBytes,
+      imageAdjustmentOptions(),
+    );
+    const rendered = await imageFromPngBytes(renderedBytes);
+    if (generation !== previewGeneration || !state.image) {
+      URL.revokeObjectURL(rendered.url);
+      return;
+    }
+    clearPreviewImage();
+    state.previewImage = rendered.image;
+    state.previewObjectUrl = rendered.url;
+    els.previewStatus.dataset.renderedGeneration = String(generation);
+    setPreviewStatus();
+    draw();
+  } catch (error) {
+    if (generation === previewGeneration) {
+      setPreviewStatus("failed");
+      console.error(error);
+    }
+  } finally {
+    previewInFlight = false;
+    if (previewPending) {
+      window.clearTimeout(previewTimer);
+      previewTimer = window.setTimeout(renderPendingPreview, 0);
+    }
+  }
+}
+
 function applyTranslations() {
   document.documentElement.lang = state.lang === "zh" ? "zh-CN" : "en";
   document.title = t("app.title");
@@ -647,6 +841,8 @@ function applyTranslations() {
   els.imageAction.textContent = t(state.image ? "upload.replaceAction" : "upload.openAction");
   els.imageMenuTrigger.setAttribute("title", t("upload.openTitle"));
   setStatus(state.statusKey);
+  updateOriginalToggle();
+  setPreviewStatus(els.previewStatus.dataset.state || "idle");
   setHint();
   updateStats();
   draw();
@@ -919,9 +1115,11 @@ function draw(targetCtx = ctx, options = {}) {
   const t = options.export
     ? { scale: 1, ox: exportPadding, oy: exportPadding }
     : fitTransform();
+  const baseImage = options.image
+    || (state.ui.showOriginal ? state.image : state.previewImage || state.image);
 
   targetCtx.drawImage(
-    state.image,
+    baseImage,
     t.ox,
     t.oy,
     state.image.naturalWidth * t.scale,
@@ -1530,8 +1728,8 @@ function updateQuickToolbar() {
   els.zoomIn.disabled = !hasImage;
   els.quickDeleteSelected.disabled = state.selectedIds.size === 0;
   els.exportCsv.disabled = !hasImage;
-  els.exportPng.disabled = !hasImage;
-  els.exportAll.disabled = !hasImage;
+  els.exportPng.disabled = !hasImage || exportInFlight;
+  els.exportAll.disabled = !hasImage || exportInFlight;
   els.exportSelection.disabled = !hasImage;
   els.exportScale.disabled = !hasImage || !state.scaleLine;
   els.exportLegend.disabled = !hasImage || !state.micronsPerPx;
@@ -1643,7 +1841,7 @@ async function runDetection() {
     minDiameterUm: Number(els.minDiameter.value || 2),
     maxDiameterUm: Number(els.maxDiameter.value || 95),
     sensitivity: Number(els.sensitivity.value || 0.88),
-    contrast: els.contrastMode.value,
+    ...imageAdjustmentOptions(),
   };
 
   try {
@@ -1750,11 +1948,22 @@ function handleDrop(event) {
 
 function loadImageData(imageUrl, imageName, imageBytes, revokeUrl = false) {
   if (state.imageObjectUrl) URL.revokeObjectURL(state.imageObjectUrl);
+  clearPreviewImage();
+  previewGeneration += 1;
+  previewPending = false;
+  window.clearTimeout(previewTimer);
+  previewSourceBytes = null;
+  delete els.previewStatus.dataset.requestedGeneration;
+  delete els.previewStatus.dataset.renderedGeneration;
+  setPreviewStatus();
   state.imageBytes = imageBytes;
   state.imageObjectUrl = revokeUrl ? imageUrl : "";
   state.imageName = imageName;
-  state.image = new Image();
-  state.image.onload = () => {
+  const loadingImage = new Image();
+  const loadGeneration = previewGeneration;
+  state.image = loadingImage;
+  loadingImage.onload = () => {
+    if (state.image !== loadingImage) return;
     state.particles = [];
     state.scaleLine = null;
     state.micronsPerPx = defaultMicronsPerPixel;
@@ -1762,19 +1971,31 @@ function loadImageData(imageUrl, imageName, imageBytes, revokeUrl = false) {
     els.micronsPerPixel.value = String(defaultMicronsPerPixel);
     state.selectedIds.clear();
     state.nextId = 1;
+    resetAdjustmentValues({ resetDisplay: true, schedule: false });
+    setAdjustmentControlsEnabled(true);
     resetView();
     els.emptyState.classList.add("hidden");
     els.gestureHint.classList.remove("hidden");
     els.imageName.textContent = imageName;
     els.imageAction.textContent = t("upload.replaceAction");
-    if (state.image.naturalWidth * state.image.naturalHeight > 20_000_000) {
+    if (loadingImage.naturalWidth * loadingImage.naturalHeight > 20_000_000) {
       alert(t("warnings.largeImage"));
     }
     setStatus("status.loaded");
     closeCompactPanels();
     refresh();
+    createPreviewSource(loadingImage)
+      .then((bytes) => {
+        if (state.image !== loadingImage || previewGeneration !== loadGeneration) return;
+        previewSourceBytes = bytes;
+        schedulePreview(0);
+      })
+      .catch((error) => {
+        setPreviewStatus("failed");
+        console.error(error);
+      });
   };
-  state.image.src = imageUrl;
+  loadingImage.src = imageUrl;
 }
 
 function removeLegacyImageQuery() {
@@ -1824,31 +2045,47 @@ function exportCsv() {
   downloadBlob(`${state.imageName || "particles"}_corrected.csv`, new Blob([lines.join("\n")], { type: "text/csv" }));
 }
 
-function exportPng() {
-  if (!state.image) return;
-  const exportPadding = Math.max(
-    0,
-    Math.min(500, Math.round(Number(els.exportPaddingWidth.value) || 0)),
-  );
-  const out = document.createElement("canvas");
-  out.width = state.image.naturalWidth + exportPadding * 2;
-  out.height = state.image.naturalHeight + exportPadding * 2;
-  draw(out.getContext("2d"), {
-    export: true,
-    exportPadding,
-    includeSelection: els.exportSelection.checked,
-    includeScale: els.exportScale.checked,
-    includeLegend: els.exportLegend.checked,
-    exportPaddingColor: els.exportPaddingColor.value,
-  });
-  out.toBlob((blob) => {
-    if (blob) downloadBlob(`${state.imageName || "image"}_annotated.png`, blob);
-  }, "image/png");
+async function exportPng() {
+  if (!state.image || !state.imageBytes || !state.detector || exportInFlight) return;
+  exportInFlight = true;
+  updateQuickToolbar();
+  let rendered = null;
+  try {
+    const renderedBytes = await state.detector.render(
+      state.imageBytes,
+      imageAdjustmentOptions(),
+    );
+    rendered = await imageFromPngBytes(renderedBytes);
+    const exportPadding = Math.max(
+      0,
+      Math.min(500, Math.round(Number(els.exportPaddingWidth.value) || 0)),
+    );
+    const out = document.createElement("canvas");
+    out.width = state.image.naturalWidth + exportPadding * 2;
+    out.height = state.image.naturalHeight + exportPadding * 2;
+    draw(out.getContext("2d"), {
+      export: true,
+      image: rendered.image,
+      exportPadding,
+      includeSelection: els.exportSelection.checked,
+      includeScale: els.exportScale.checked,
+      includeLegend: els.exportLegend.checked,
+      exportPaddingColor: els.exportPaddingColor.value,
+    });
+    const blob = await canvasBlob(out);
+    downloadBlob(`${state.imageName || "image"}_annotated.png`, blob);
+  } catch (error) {
+    alert(error.message);
+  } finally {
+    if (rendered) URL.revokeObjectURL(rendered.url);
+    exportInFlight = false;
+    updateQuickToolbar();
+  }
 }
 
-function exportAll() {
+async function exportAll() {
   exportCsv();
-  window.setTimeout(exportPng, 120);
+  await exportPng();
 }
 
 function panelWidthLimits() {
@@ -2033,6 +2270,30 @@ els.runDetect.addEventListener("click", runDetection);
 els.exportCsv.addEventListener("click", exportCsv);
 els.exportPng.addEventListener("click", exportPng);
 els.exportAll.addEventListener("click", exportAll);
+for (const input of [els.brightness, els.contrastAdjustment, els.gamma]) {
+  input.addEventListener("input", () => {
+    updateAdjustmentReadouts();
+    markDetectionSettingsChanged();
+    schedulePreview();
+  });
+}
+els.contrastMode.addEventListener("change", () => {
+  markDetectionSettingsChanged();
+  schedulePreview();
+});
+els.colorMode.addEventListener("change", () => schedulePreview());
+els.toggleOriginal.addEventListener("click", () => {
+  state.ui.showOriginal = !state.ui.showOriginal;
+  updateOriginalToggle();
+  draw();
+});
+els.resetAdjustments.addEventListener("click", () => {
+  const changed = Number(els.brightness.value) !== 0
+    || Number(els.contrastAdjustment.value) !== 0
+    || Number(els.gamma.value) !== 1;
+  resetAdjustmentValues();
+  if (changed) markDetectionSettingsChanged();
+});
 els.zoomOut.addEventListener("click", () => zoomAt(1 / 1.25));
 els.zoomIn.addEventListener("click", () => zoomAt(1.25));
 for (const button of els.quickToolButtons) {
@@ -2644,6 +2905,8 @@ async function bootstrap() {
   makePanelResizable(els.leftPanelResizeHandle);
   makePanelResizable(els.rightPanelResizeHandle);
   setupInformationTooltips();
+  updateAdjustmentReadouts();
+  setAdjustmentControlsEnabled(false);
   setToolbarPosition(state.ui.toolbarPosition, false);
   syncPanels();
   setInteractionMode("select");

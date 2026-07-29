@@ -1,5 +1,5 @@
-const RUNTIME_CACHE = "particlelens-runtime-v0.2.1";
-const RUNTIME_CONFIG_VERSION = "v2";
+const RUNTIME_CACHE = "particlelens-runtime-v0.2.2";
+const RUNTIME_CONFIG_VERSION = "v3";
 
 async function readRuntimeConfig() {
   try {
@@ -85,6 +85,28 @@ class NativeDetector {
     return result;
   }
 
+  async render(imageBytes, options) {
+    const endpoint = new URL("./api/render", document.baseURI);
+    endpoint.search = optionsQuery(options);
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/octet-stream" },
+      body: imageBytes,
+    });
+    const contentType = response.headers.get("content-type") || "";
+    if (!response.ok) {
+      if (contentType.includes("application/json")) {
+        const result = await response.json();
+        throw new Error(result.error || "Image rendering failed.");
+      }
+      throw new Error("Image rendering failed.");
+    }
+    if (!contentType.includes("image/png")) {
+      throw new Error("The image renderer returned an unexpected response.");
+    }
+    return response.arrayBuffer();
+  }
+
   close() {}
 }
 
@@ -125,6 +147,11 @@ class BrowserDetector {
   analyze(imageBytes, options) {
     const transferable = imageBytes.slice(0);
     return this.request("analyze", { imageBytes: transferable, options }, [transferable]);
+  }
+
+  render(imageBytes, options) {
+    const transferable = imageBytes.slice(0);
+    return this.request("render", { imageBytes: transferable, options }, [transferable]);
   }
 
   request(type, payload, transfer = []) {

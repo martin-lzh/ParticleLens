@@ -311,14 +311,52 @@
                 <input id="maxDiameter" type="number" min="1" step="1" value="95" />
               </label>
             </div>
-            <label>
-              <span data-i18n="labels.contrast">Contrast preprocessing</span>
-              <select id="contrastMode">
-                <option value="clahe">CLAHE</option>
-                <option value="background" data-i18n="contrast.background">Background correction</option>
-                <option value="none" data-i18n="contrast.none">None</option>
-              </select>
-            </label>
+            <section class="image-adjustments" aria-labelledby="imageAdjustmentsTitle">
+              <div class="section-heading">
+                <h2 id="imageAdjustmentsTitle" data-i18n="adjustments.title">Image adjustments</h2>
+                <span id="previewStatus" class="preview-status" aria-live="polite"></span>
+              </div>
+              <div class="adjustment-control">
+                <label for="brightness">
+                  <span data-i18n="adjustments.brightness">Brightness</span>
+                  <output id="brightnessValue" for="brightness">0</output>
+                </label>
+                <input id="brightness" type="range" min="-100" max="100" step="1" value="0" disabled />
+              </div>
+              <div class="adjustment-control">
+                <label for="contrastAdjustment">
+                  <span data-i18n="adjustments.manualContrast">Manual contrast</span>
+                  <output id="contrastAdjustmentValue" for="contrastAdjustment">0</output>
+                </label>
+                <input id="contrastAdjustment" type="range" min="-100" max="100" step="1" value="0" disabled />
+              </div>
+              <div class="adjustment-control">
+                <label for="gamma">
+                  <span data-i18n="adjustments.gamma">Gamma</span>
+                  <output id="gammaValue" for="gamma">1.00</output>
+                </label>
+                <input id="gamma" type="range" min="0.2" max="3" step="0.01" value="1" disabled />
+              </div>
+              <label>
+                <span data-i18n="labels.contrast">Contrast preprocessing</span>
+                <select id="contrastMode" disabled>
+                  <option value="clahe">CLAHE</option>
+                  <option value="background" data-i18n="contrast.background">Background correction</option>
+                  <option value="none" data-i18n="contrast.none">None</option>
+                </select>
+              </label>
+              <label>
+                <span data-i18n="adjustments.colorMode">Preview and export color</span>
+                <select id="colorMode" disabled>
+                  <option value="color" data-i18n="adjustments.color">Keep color</option>
+                  <option value="grayscale" data-i18n="adjustments.grayscale">Grayscale</option>
+                </select>
+              </label>
+              <div class="adjustment-actions">
+                <button id="toggleOriginal" type="button" aria-pressed="false" disabled data-i18n="adjustments.showOriginal">View original</button>
+                <button id="resetAdjustments" type="button" disabled data-i18n="adjustments.reset">Reset adjustments</button>
+              </div>
+            </section>
             <label class="sidebar-toggle">
               <input id="showScaleLegend" type="checkbox" checked />
               <span data-i18n="legend.show">Show scale legend on image</span>

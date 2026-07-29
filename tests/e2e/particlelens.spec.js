@@ -309,6 +309,73 @@ test("runs detection locally and exports corrected results", async ({ page }) =>
   expect(requestsAfterUpload.filter((request) => request.method() !== "GET")).toEqual([]);
 });
 
+test("previews image adjustments and keeps detection results until rerun", async ({ page }) => {
+  await openReadyApp(page);
+  await expect(page.locator("#brightness")).toBeDisabled();
+  await expect(page.locator("#colorMode")).toBeDisabled();
+
+  await uploadAndDetect(page);
+  await expect(page.locator("#brightness")).toBeEnabled();
+  await expect(page.locator("#brightness")).toHaveValue("0");
+  await expect(page.locator("#contrastAdjustment")).toHaveValue("0");
+  await expect(page.locator("#gamma")).toHaveValue("1");
+  await expect(page.locator("#colorMode")).toHaveValue("color");
+
+  await expect.poll(
+    async () => Number(
+      await page.locator("#previewStatus").getAttribute("data-rendered-generation") || 0,
+    ),
+  ).toBeGreaterThan(0);
+  const initialPreviewGeneration = Number(
+    await page.locator("#previewStatus").getAttribute("data-rendered-generation"),
+  );
+  const canvas = page.locator("#imageCanvas");
+  const before = await canvas.screenshot();
+  const resultRows = await page.locator("#particleTable tr").count();
+  await page.locator("#brightness").evaluate((input) => {
+    input.value = "35";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+
+  await expect(page.locator("#brightnessValue")).toHaveText("35");
+  await expect(page.locator("#statusBadge")).toHaveText(/设置已更改|Settings changed/);
+  await expect(page.locator("#particleTable tr")).toHaveCount(resultRows);
+  await expect.poll(
+    async () => Number(
+      await page.locator("#previewStatus").getAttribute("data-rendered-generation") || 0,
+    ),
+    { timeout: 30_000 },
+  ).toBeGreaterThan(initialPreviewGeneration);
+  const adjusted = await canvas.screenshot();
+  expect(Buffer.compare(before, adjusted)).not.toBe(0);
+
+  await page.locator("#toggleOriginal").click();
+  await expect(page.locator("#toggleOriginal")).toHaveAttribute("aria-pressed", "true");
+  const original = await canvas.screenshot();
+  expect(Buffer.compare(adjusted, original)).not.toBe(0);
+
+  await page.locator("#resetAdjustments").click();
+  await expect(page.locator("#brightness")).toHaveValue("0");
+  await expect(page.locator("#contrastAdjustment")).toHaveValue("0");
+  await expect(page.locator("#gamma")).toHaveValue("1");
+
+  await page.locator("#runDetect").click();
+  await expect(page.locator("#statusBadge")).toHaveText(/已识别|Detected/, {
+    timeout: 60_000,
+  });
+  const colorPreviewGeneration = Number(
+    await page.locator("#previewStatus").getAttribute("data-rendered-generation"),
+  );
+  await page.locator("#colorMode").selectOption("grayscale");
+  await expect(page.locator("#statusBadge")).toHaveText(/已识别|Detected/);
+  await expect.poll(
+    async () => Number(
+      await page.locator("#previewStatus").getAttribute("data-rendered-generation") || 0,
+    ),
+    { timeout: 30_000 },
+  ).toBeGreaterThan(colorPreviewGeneration);
+});
+
 test("exports optional annotations and outer margins only when requested", async ({ page }) => {
   await openReadyApp(page);
   await uploadAndDetect(page);
@@ -386,6 +453,12 @@ test("opens images from the canvas and warns before replacing current work", asy
   });
   await expect(page.locator("#imageName")).toHaveText("first.bmp");
   await expect(page.locator("#imageAction")).toHaveText("Upload a new image");
+  await page.locator("#brightness").evaluate((input) => {
+    input.value = "40";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await page.locator("#colorMode").selectOption("grayscale");
+  await page.locator("#toggleOriginal").click();
 
   await page.locator("#imageMenuTrigger").click();
   await expect(page.locator("#replaceImageDialog")).toBeVisible();
@@ -402,6 +475,12 @@ test("opens images from the canvas and warns before replacing current work", asy
     buffer: syntheticBitmap(),
   });
   await expect(page.locator("#imageName")).toHaveText("replacement.bmp");
+  await expect(page.locator("#brightness")).toHaveValue("0");
+  await expect(page.locator("#contrastAdjustment")).toHaveValue("0");
+  await expect(page.locator("#gamma")).toHaveValue("1");
+  await expect(page.locator("#contrastMode")).toHaveValue("clahe");
+  await expect(page.locator("#colorMode")).toHaveValue("color");
+  await expect(page.locator("#toggleOriginal")).toHaveAttribute("aria-pressed", "false");
 });
 
 test("renders a configurable Pareto diagram and live overlay", async ({ page }) => {
@@ -866,8 +945,8 @@ test("switches language and restores the app shell offline", async ({ page }) =>
       timeout: 30_000,
     });
     const cacheState = await page.evaluate(async () => {
-      const shell = await caches.open("particlelens-shell-v0.2.5");
-      const runtime = await caches.open("particlelens-runtime-v0.2.1");
+      const shell = await caches.open("particlelens-shell-v0.2.6");
+      const runtime = await caches.open("particlelens-runtime-v0.2.2");
       const moduleUrl = document.querySelector("script[type='module']").src;
       return {
         shellModule: Boolean(await shell.match(moduleUrl)),
@@ -901,7 +980,7 @@ test("repairs a failed runtime download on retry", async ({ page }, testInfo) =>
   test.skip(testInfo.project.name !== "chromium", "The recovery path is engine-independent.");
   await openReadyApp(page);
   await page.evaluate(async () => {
-    const cache = await caches.open("particlelens-runtime-v0.2.1");
+    const cache = await caches.open("particlelens-runtime-v0.2.2");
     await cache.put(
       new URL("./runtime/particle_detection_core.py", document.baseURI),
       new Response("corrupt", { headers: { "Content-Type": "text/x-python" } }),

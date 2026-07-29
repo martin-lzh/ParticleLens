@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
-from particle_detection_core import analyze_image_bytes
+from particle_detection_core import analyze_image_bytes, render_image_bytes
 
 ROOT = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 STATIC_DIR = ROOT / "static"
@@ -68,6 +68,10 @@ def parse_analysis_options(query: str) -> dict[str, Any]:
         "maxDiameterUm": float(value("maxDiameterUm", "95")),
         "sensitivity": float(value("sensitivity", "0.88")),
         "contrast": value("contrast", "clahe"),
+        "brightness": float(value("brightness", "0")),
+        "contrastAdjustment": float(value("contrastAdjustment", "0")),
+        "gamma": float(value("gamma", "1")),
+        "colorMode": value("colorMode", "color"),
     }
 
 
@@ -93,7 +97,7 @@ class ParticleHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
-        if parsed.path != "/api/analyze":
+        if parsed.path not in {"/api/analyze", "/api/render"}:
             self.send_error(HTTPStatus.NOT_FOUND)
             return
 
@@ -104,19 +108,29 @@ class ParticleHandler(BaseHTTPRequestHandler):
             if length > MAX_IMAGE_BYTES:
                 raise ValueError("Image exceeds the 100 MB local-app limit.")
             image_bytes = self.rfile.read(length)
-            response = analyze_image_bytes(image_bytes, parse_analysis_options(parsed.query))
+            options = parse_analysis_options(parsed.query)
+            if parsed.path == "/api/render":
+                response = render_image_bytes(image_bytes, options)
+            else:
+                response = analyze_image_bytes(image_bytes, options)
         except Exception as exc:  # Keep local app errors visible to the UI.
             self.send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
             return
 
-        self.send_json(response)
+        if parsed.path == "/api/render":
+            self.send_bytes(response, "image/png")
+        else:
+            self.send_json(response)
 
     def send_static_asset(self, asset: StaticAsset) -> None:
+        self.send_bytes(asset.data, asset.content_type)
+
+    def send_bytes(self, data: bytes, content_type: str) -> None:
         self.send_response(HTTPStatus.OK)
-        self.send_header("Content-Type", asset.content_type)
-        self.send_header("Content-Length", str(len(asset.data)))
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(data)))
         self.end_headers()
-        self.wfile.write(asset.data)
+        self.wfile.write(data)
 
     def send_json(self, payload: dict[str, Any], status: HTTPStatus = HTTPStatus.OK) -> None:
         data = json.dumps(payload).encode("utf-8")

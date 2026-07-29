@@ -4,6 +4,18 @@ All notable changes are documented here. Versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Added live image-adjustment previews for brightness, manual contrast, gamma,
+  CLAHE, and background correction.
+- Added shared color or grayscale rendering for the workspace and annotated PNG
+  exports without modifying the source image.
+
+### Changed
+
+- Particle detection and annotated-image export now use the same adjustment
+  parameters shown in the preview.
+
 ## [0.2.1] - 2026-07-29
 
 ### Fixed

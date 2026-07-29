@@ -64,7 +64,46 @@ test("keeps the main thread responsive while analyzing a 20 MP image", async ({
     expect(dialog.message()).toMatch(/20|2000/);
     await dialog.accept();
 
+    await expect.poll(
+      async () => Number(
+        await page.locator("#previewStatus").getAttribute("data-rendered-generation") || 0,
+      ),
+      { timeout: 60_000 },
+    ).toBeGreaterThan(0);
+    const initialPreviewGeneration = Number(
+      await page.locator("#previewStatus").getAttribute("data-rendered-generation"),
+    );
+    await page.evaluate(() => {
+      window.__particleLensFrames = 0;
+      window.__particleLensCounting = true;
+      const tick = () => {
+        window.__particleLensFrames += 1;
+        if (window.__particleLensCounting) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+      const brightness = document.querySelector("#brightness");
+      for (let value = -80; value <= 80; value += 8) {
+        brightness.value = String(value);
+        brightness.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    });
+    await expect.poll(
+      async () => Number(
+        await page.locator("#previewStatus").getAttribute("data-rendered-generation") || 0,
+      ),
+      { timeout: 60_000 },
+    ).toBeGreaterThan(initialPreviewGeneration);
+    const previewFrames = await page.evaluate(() => {
+      window.__particleLensCounting = false;
+      return window.__particleLensFrames;
+    });
+    expect(previewFrames).toBeGreaterThan(5);
+
     await page.locator("#contrastMode").selectOption("none");
+    await page.locator("#brightness").evaluate((input) => {
+      input.value = "0";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
     await page.locator("#sensitivity").fill("0.7");
     await page.locator("#minDiameter").fill("10");
     await page.locator("#maxDiameter").fill("40");

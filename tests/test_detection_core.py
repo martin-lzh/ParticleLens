@@ -8,10 +8,12 @@ import pytest
 
 from particle_detection_core import (
     Circle,
+    adjust_luminance,
     analyze_image_bytes,
     circle_rect_visible_fraction,
     detect_scale_bar,
     fit_circle_from_edges,
+    render_image_bytes,
     suppress_duplicates,
 )
 
@@ -88,6 +90,65 @@ def test_duplicate_suppression_prefers_high_score() -> None:
     ]
     kept = suppress_duplicates(circles)
     assert kept == [circles[0], circles[2]]
+
+
+def test_luminance_adjustments_are_neutral_and_directional() -> None:
+    gray = np.arange(32, 224, dtype=np.uint8).reshape(12, 16)
+    assert np.array_equal(adjust_luminance(gray), gray)
+    assert adjust_luminance(gray, brightness=30).mean() > gray.mean()
+    assert adjust_luminance(gray, brightness=-30).mean() < gray.mean()
+    assert adjust_luminance(gray, contrast_adjustment=50).std() > gray.std()
+    assert adjust_luminance(gray, gamma=2).mean() > gray.mean()
+
+
+@pytest.mark.parametrize(
+    ("options", "message"),
+    [
+        ({"brightness": 101}, "Brightness"),
+        ({"contrast_adjustment": -101}, "Contrast"),
+        ({"gamma": 0.1}, "Gamma"),
+    ],
+)
+def test_luminance_adjustments_validate_ranges(options: dict[str, float], message: str) -> None:
+    with pytest.raises(ValueError, match=message):
+        adjust_luminance(np.full((4, 4), 128, dtype=np.uint8), **options)
+
+
+def test_render_image_bytes_supports_color_and_grayscale() -> None:
+    image = np.zeros((20, 30, 3), dtype=np.uint8)
+    image[:, :15] = (30, 90, 210)
+    image[:, 15:] = (180, 70, 40)
+    encoded = encode_png(image)
+    common = {
+        "contrast": "none",
+        "brightness": 10,
+        "contrastAdjustment": 15,
+        "gamma": 1.2,
+    }
+
+    color = cv2.imdecode(
+        np.frombuffer(render_image_bytes(encoded, {**common, "colorMode": "color"}), np.uint8),
+        cv2.IMREAD_UNCHANGED,
+    )
+    grayscale = cv2.imdecode(
+        np.frombuffer(
+            render_image_bytes(encoded, {**common, "colorMode": "grayscale"}), np.uint8
+        ),
+        cv2.IMREAD_UNCHANGED,
+    )
+
+    assert color.shape == image.shape
+    assert grayscale.shape == image.shape[:2]
+    assert not np.array_equal(color[:, :, 0], color[:, :, 2])
+
+
+@pytest.mark.parametrize("contrast", ["clahe", "background", "none"])
+def test_render_image_bytes_supports_all_contrast_modes(contrast: str) -> None:
+    rendered = render_image_bytes(
+        encode_png(synthetic_micrograph()),
+        {"contrast": contrast, "colorMode": "color"},
+    )
+    assert rendered.startswith(b"\x89PNG\r\n\x1a\n")
 
 
 def test_analyze_image_bytes_returns_serializable_payload() -> None:
