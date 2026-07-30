@@ -106,6 +106,14 @@ async function openReadyApp(page, url = "./") {
   await expect(page.locator("#imageMenuTrigger")).toBeEnabled();
 }
 
+async function openAdvancedSettings(page) {
+  const settings = page.locator("#advancedSettings");
+  if (!(await settings.evaluate((element) => element.open))) {
+    await settings.locator("summary").click();
+  }
+  await expect(settings).toHaveAttribute("open", "");
+}
+
 async function uploadAndDetect(page) {
   await page.locator("#imageInput").setInputFiles({
     name: "synthetic.bmp",
@@ -117,6 +125,7 @@ async function uploadAndDetect(page) {
   await expect(page.locator("#micronsPerPixelInfo")).toBeHidden();
   await expect(page.locator("#runDetect")).toBeEnabled();
 
+  await openAdvancedSettings(page);
   await page.locator("#contrastMode").selectOption("none");
   await page.locator("#sensitivity").fill("0.7");
   await page.locator("#minDiameter").fill("15");
@@ -126,6 +135,36 @@ async function uploadAndDetect(page) {
     timeout: 60_000,
   });
 }
+
+test("keeps detector tuning controls in collapsed advanced settings", async ({ page }) => {
+  await openReadyApp(page);
+
+  const settings = page.locator("#advancedSettings");
+  await expect(settings).not.toHaveAttribute("open", "");
+  await expect(page.locator("#sensitivity")).not.toBeVisible();
+  await settings.locator("summary").click();
+  await expect(page.locator("#sensitivity")).toBeVisible();
+  await expect(page.locator("#edgeThresholdLow")).toHaveValue("50");
+  await expect(page.locator("#edgeThresholdHigh")).toHaveValue("140");
+  await expect(page.locator("#minimumEdgeSupport")).toHaveValue("0.10");
+  await expect(page.locator("#circleFitTolerance")).toHaveValue("0.08");
+  await expect(page.locator("#minimumContourCoverage")).toHaveValue("0.30");
+  await expect(page.locator("#edgeSettingsTitle")).toHaveText(/边缘提取|Edge extraction/);
+  await expect(page.locator("#contourSettingsTitle")).toHaveText(/轮廓判定|Contour acceptance/);
+  for (const tooltipId of [
+    "edgeThresholdLowInfo",
+    "edgeThresholdHighInfo",
+    "minimumEdgeSupportInfo",
+    "circleFitToleranceInfo",
+    "minimumContourCoverageInfo",
+  ]) {
+    await expect(page.locator(`[aria-describedby="${tooltipId}"]`)).toBeVisible();
+  }
+  const disclosureIndicator = await settings.locator("summary").evaluate(
+    (element) => getComputedStyle(element, "::after").content,
+  );
+  expect(disclosureIndicator).toMatch(/[>›]/);
+});
 
 async function summarizeExportedPng(page) {
   const downloadPromise = page.waitForEvent("download");
@@ -200,6 +239,7 @@ test("keeps information tooltips inside narrow viewports", async ({ page }) => {
     await page.setViewportSize(viewport);
     await openReadyApp(page);
     await page.locator("#leftToggle").click();
+    await openAdvancedSettings(page);
 
     for (const trigger of await page.locator(".info-point:not([hidden]) .info-point-trigger").all()) {
       await trigger.click();
@@ -330,7 +370,7 @@ test("previews image adjustments and keeps detection results until rerun", async
     await page.locator("#previewStatus").getAttribute("data-rendered-generation"),
   );
   const canvas = page.locator("#imageCanvas");
-  const before = await canvas.screenshot();
+  const before = await canvas.evaluate((element) => element.toDataURL("image/png"));
   const resultRows = await page.locator("#particleTable tr").count();
   await page.locator("#brightness").evaluate((input) => {
     input.value = "35";
@@ -346,18 +386,19 @@ test("previews image adjustments and keeps detection results until rerun", async
     ),
     { timeout: 30_000 },
   ).toBeGreaterThan(initialPreviewGeneration);
-  const adjusted = await canvas.screenshot();
-  expect(Buffer.compare(before, adjusted)).not.toBe(0);
+  const adjusted = await canvas.evaluate((element) => element.toDataURL("image/png"));
+  expect(adjusted).not.toBe(before);
 
   const originalPreview = page.locator("#quickOriginalPreview");
   await originalPreview.dispatchEvent("pointerdown", { button: 0, pointerId: 41 });
   await expect(originalPreview).toHaveAttribute("aria-pressed", "true");
-  const original = await canvas.screenshot();
-  expect(Buffer.compare(adjusted, original)).not.toBe(0);
+  const original = await canvas.evaluate((element) => element.toDataURL("image/png"));
+  expect(original).not.toBe(adjusted);
   await originalPreview.dispatchEvent("pointerup", { button: 0, pointerId: 41 });
   await expect(originalPreview).toHaveAttribute("aria-pressed", "false");
-  const restored = await canvas.screenshot();
-  expect(Buffer.compare(adjusted, restored)).toBe(0);
+  await expect.poll(
+    async () => canvas.evaluate((element) => element.toDataURL("image/png")),
+  ).toBe(adjusted);
 
   await page.locator("#resetAdjustments").click();
   await expect(page.locator("#brightness")).toHaveValue("0");
@@ -448,6 +489,7 @@ test("exports optional annotations and outer margins only when requested", async
 
 test("opens images from the canvas and warns before replacing current work", async ({ page }) => {
   await openReadyApp(page);
+  await openAdvancedSettings(page);
 
   const firstChooser = page.waitForEvent("filechooser");
   await page.locator("#emptyState").click();
@@ -742,7 +784,7 @@ test("resizes desktop sidebars from their inner edges and restores their widths"
 
   const leftPanel = page.locator("#leftPanel");
   const leftHandle = page.locator("#leftPanelResizeHandle");
-  const detectionGrid = page.locator("#leftPanel .grid-two");
+  const detectionGrid = page.locator("#leftPanel .control-group.first > .grid-two");
   const gridColumnCount = () => detectionGrid.evaluate(
     (element) => getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/).length,
   );
@@ -854,9 +896,11 @@ test("adapts the workspace for mobile and supports touch canvas gestures", async
   expect(portraitPanelBox.y).toBeCloseTo(topbarBox.height, 0);
   expect(portraitPanelBox.width).toBeCloseTo(390, 0);
   expect(portraitPanelBox.height).toBeCloseTo(844 - topbarBox.height, 0);
-  const portraitGridColumnCount = await page.locator("#leftPanel .grid-two").evaluate(
-    (element) => getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/).length,
-  );
+  const portraitGridColumnCount = await page
+    .locator("#leftPanel .control-group.first > .grid-two")
+    .evaluate(
+      (element) => getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/).length,
+    );
   expect(portraitGridColumnCount).toBe(2);
   await expect(page.locator(".workspace")).toHaveAttribute("aria-hidden", "true");
   await expect(page.locator("#rightToggle")).toHaveAttribute("aria-expanded", "false");
@@ -880,6 +924,7 @@ test("adapts the workspace for mobile and supports touch canvas gestures", async
   await expect(page.locator("#leftToggle")).toHaveAttribute("aria-expanded", "false");
 
   await page.locator("#leftToggle").click();
+  await openAdvancedSettings(page);
   await page.locator("#contrastMode").selectOption("none");
   await page.locator("#sensitivity").fill("0.7");
   await page.locator("#minDiameter").fill("15");

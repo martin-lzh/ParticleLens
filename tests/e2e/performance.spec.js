@@ -53,6 +53,7 @@ test("keeps the main thread responsive while analyzing a 20 MP image", async ({
 
   await page.goto("./");
   await page.locator("#runtimeLoader.hidden").waitFor({ state: "attached", timeout: 180_000 });
+  await page.locator("#advancedSettings summary").click();
 
   const fixtureDirectory = await mkdtemp(path.join(tmpdir(), "particlelens-20mp-"));
   const fixturePath = path.join(fixtureDirectory, "twenty-megapixel.bmp");

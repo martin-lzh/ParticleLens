@@ -46,7 +46,8 @@ used as evidence of detection accuracy.
 
 ### 2. Enter the example settings
 
-Use these values in the **Detection settings** panel:
+Use these values in the **Detection settings** panel. Expand **Advanced
+settings** for the sensitivity, diameter, and preprocessing controls:
 
 | Setting | Value |
 | --- | ---: |
@@ -56,6 +57,10 @@ Use these values in the **Detection settings** panel:
 | Minimum diameter | 4 µm |
 | Maximum diameter | 180 µm |
 | Contrast preprocessing | CLAHE |
+
+Keep the remaining detector controls at their defaults: low and high edge
+thresholds of 50 and 140, minimum edge support of 0.10, circle fit tolerance of
+0.08, and minimum contour coverage of 0.30.
 
 The example has no scale bar, so **Length per pixel** supplies a tutorial
 calibration directly. For real measurements, replace it with the calibration
@@ -74,9 +79,9 @@ Select **Run Detection**. Yellow circles mark detected particles, red lines show
 their measured diameters, and red labels show diameter values.
 
 Open **Analysis and export** to inspect the summary and the **Data points**
-table. With the version and settings shown here, the example produces 92 items
-in the main distribution, a mean diameter of 15.06 µm, and a median of
-10.93 µm. These values are a walkthrough checkpoint, not a scientific reference;
+table. With the version and settings shown here, the example produces 128 items
+in the main distribution, a mean diameter of 15.66 µm, and a median of
+11.90 µm. These values are a walkthrough checkpoint, not a scientific reference;
 detector changes may alter them.
 
 ![Detected particles, summary statistics, and data points](images/user-guide/04-inspect-results.png)

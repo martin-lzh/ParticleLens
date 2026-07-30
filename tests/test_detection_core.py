@@ -11,6 +11,7 @@ from particle_detection_core import (
     adjust_luminance,
     analyze_image_bytes,
     circle_rect_visible_fraction,
+    detect_contour_circles,
     detect_scale_bar,
     fit_circle_from_edges,
     render_image_bytes,
@@ -90,6 +91,31 @@ def test_duplicate_suppression_prefers_high_score() -> None:
     ]
     kept = suppress_duplicates(circles)
     assert kept == [circles[0], circles[2]]
+
+
+def test_contour_circle_detection_recovers_clear_edge_rings() -> None:
+    edges = np.zeros((240, 320), dtype=np.uint8)
+    expected = [(72, 68, 24), (184, 122, 38), (303, 190, 28)]
+    for x, y, radius in expected:
+        cv2.circle(edges, (x, y), radius, 255, 1, lineType=cv2.LINE_AA)
+
+    circles = detect_contour_circles(
+        edges,
+        min_radius=8,
+        max_radius=50,
+        minimum_edge_score=0.10,
+        circle_fit_tolerance=0.08,
+        minimum_contour_coverage=0.30,
+    )
+
+    for expected_x, expected_y, expected_radius in expected:
+        match = min(
+            circles,
+            key=lambda circle: np.hypot(circle.x - expected_x, circle.y - expected_y),
+        )
+        assert match.x == pytest.approx(expected_x, abs=1.5)
+        assert match.y == pytest.approx(expected_y, abs=1.5)
+        assert match.r == pytest.approx(expected_radius, abs=1.5)
 
 
 def test_luminance_adjustments_are_neutral_and_directional() -> None:
@@ -248,3 +274,22 @@ def test_generated_mixed_droplet_fixture_decodes_and_analyzes() -> None:
     assert result["width"] == 1024
     assert result["height"] == 1024
     assert isinstance(result["particles"], list)
+    for expected_x, expected_y in [
+        (674, 58),
+        (741, 240),
+        (764, 318),
+        (579, 575),
+        (770, 724),
+        (118, 815),
+    ]:
+        nearest = min(
+            result["particles"],
+            key=lambda particle: np.hypot(
+                float(particle["x"]) - expected_x,
+                float(particle["y"]) - expected_y,
+            ),
+        )
+        assert np.hypot(
+            float(nearest["x"]) - expected_x,
+            float(nearest["y"]) - expected_y,
+        ) < 4

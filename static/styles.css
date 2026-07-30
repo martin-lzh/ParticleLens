@@ -832,6 +832,85 @@ body.panel-resizing * {
   margin-bottom: 10px;
 }
 
+.advanced-settings {
+  margin: 14px 0;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.advanced-settings summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 40px;
+  padding: 9px 10px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  list-style: none;
+}
+
+.advanced-settings summary::-webkit-details-marker {
+  display: none;
+}
+
+.advanced-settings summary span {
+  margin: 0;
+  color: inherit;
+  font-size: inherit;
+}
+
+.advanced-settings summary::after {
+  content: "›";
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1;
+  transition: transform 140ms ease;
+}
+
+.advanced-settings[open] summary::after {
+  transform: rotate(90deg);
+}
+
+.advanced-settings-body {
+  padding: 0 10px 12px;
+  border-top: 1px solid var(--line);
+}
+
+.advanced-description {
+  margin: 10px 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.advanced-grid {
+  margin-bottom: 0;
+}
+
+.advanced-parameter-group {
+  padding: 11px 0;
+  border-top: 1px solid var(--line);
+}
+
+.advanced-parameter-group:first-of-type {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.advanced-parameter-group h3 {
+  margin: 0 0 9px;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
 .image-adjustments {
   display: grid;
   gap: 10px;

@@ -93,6 +93,11 @@ def analyze_one(
     max_diameter_um: float,
     sensitivity: float,
     contrast: str,
+    edge_threshold_low: int,
+    edge_threshold_high: int,
+    minimum_edge_support: float,
+    circle_fit_tolerance: float,
+    minimum_contour_coverage: float,
     label_limit: int,
 ) -> pd.DataFrame:
     image = read_image(path)
@@ -112,6 +117,11 @@ def analyze_one(
         max_diameter_um,
         sensitivity,
         contrast,
+        edge_threshold_low=edge_threshold_low,
+        edge_threshold_high=edge_threshold_high,
+        minimum_edge_score=minimum_edge_support,
+        circle_fit_tolerance=circle_fit_tolerance,
+        minimum_contour_coverage=minimum_contour_coverage,
     )
     if not circles:
         raise RuntimeError(f"No particles detected in {path}")
@@ -195,6 +205,36 @@ def build_parser() -> argparse.ArgumentParser:
         help="Contrast preprocessing before circle detection.",
     )
     parser.add_argument(
+        "--edge-threshold-low",
+        type=int,
+        default=50,
+        help="Lower Canny edge threshold from 0 to 254.",
+    )
+    parser.add_argument(
+        "--edge-threshold-high",
+        type=int,
+        default=140,
+        help="Upper Canny edge threshold from 1 to 255; must exceed the lower threshold.",
+    )
+    parser.add_argument(
+        "--minimum-edge-support",
+        type=float,
+        default=0.10,
+        help="Minimum fraction of a fitted circumference supported by edge pixels.",
+    )
+    parser.add_argument(
+        "--circle-fit-tolerance",
+        type=float,
+        default=0.08,
+        help="Maximum normalized radial error accepted for contour-fitted circles.",
+    )
+    parser.add_argument(
+        "--minimum-contour-coverage",
+        type=float,
+        default=0.30,
+        help="Minimum fraction of a circumference represented by a fitted contour.",
+    )
+    parser.add_argument(
         "--label-limit",
         type=int,
         default=80,
@@ -220,6 +260,11 @@ def main() -> None:
             args.max_diameter_um,
             args.sensitivity,
             args.contrast,
+            args.edge_threshold_low,
+            args.edge_threshold_high,
+            args.minimum_edge_support,
+            args.circle_fit_tolerance,
+            args.minimum_contour_coverage,
             args.label_limit,
         )
         all_frames.append(df)

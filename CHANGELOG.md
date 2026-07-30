@@ -8,6 +8,10 @@ All notable changes are documented here. Versions follow Semantic Versioning.
 
 - Added a screenshot-based user guide that walks through the included generated
   example from calibration and detection to review, correction, and export.
+- Added contour-based circle candidates to recover clear rings missed by the
+  Hough detector.
+- Added user-adjustable edge, support, circle-fit, and contour-coverage controls
+  under a collapsed Advanced settings section.
 - Added live image-adjustment previews for brightness, manual contrast, gamma,
   CLAHE, and background correction.
 - Added shared color or grayscale rendering for the workspace and annotated PNG
@@ -15,6 +19,8 @@ All notable changes are documented here. Versions follow Semantic Versioning.
 
 ### Changed
 
+- Detection parameters and image adjustments are now grouped under Advanced
+  settings so the default calibration workflow stays focused.
 - Particle detection and annotated-image export now use the same adjustment
   parameters shown in the preview.
 - Image adjustments begin rendering immediately and display completed
