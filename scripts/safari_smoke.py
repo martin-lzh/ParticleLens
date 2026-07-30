@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import base64
 import tempfile
 from pathlib import Path
@@ -12,6 +13,14 @@ from selenium.webdriver.support import expected_conditions as conditions
 from selenium.webdriver.support.ui import Select, WebDriverWait
 
 
+def create_driver(browser: str) -> webdriver.Remote:
+    if browser == "safari":
+        return webdriver.Safari()
+    if browser == "chrome":
+        return webdriver.Chrome()
+    raise ValueError(f"Unsupported smoke-test browser: {browser}")
+
+
 def make_image(path: Path) -> None:
     image = np.full((600, 800, 3), 232, dtype=np.uint8)
     for center, radius in [((150, 150), 30), ((350, 220), 48), ((590, 310), 40)]:
@@ -21,12 +30,12 @@ def make_image(path: Path) -> None:
         raise RuntimeError("Could not write Safari smoke-test image.")
 
 
-def main() -> None:
+def main(browser: str = "safari") -> None:
     with tempfile.TemporaryDirectory(prefix="particlelens-safari-") as directory:
         image_path = Path(directory) / "synthetic.png"
         make_image(image_path)
 
-        driver = webdriver.Safari()
+        driver = create_driver(browser)
         wait = WebDriverWait(driver, 180)
         try:
             driver.get("http://127.0.0.1:4174/")
@@ -65,7 +74,20 @@ def main() -> None:
             wait.until(
                 lambda browser: browser.find_element(By.ID, "imageName").text == image_path.name
             )
-            Select(driver.find_element(By.ID, "contrastMode")).select_by_value("none")
+            wait.until(
+                conditions.element_to_be_clickable(
+                    (By.CSS_SELECTOR, "#advancedSettings > summary")
+                )
+            ).click()
+            wait.until(
+                lambda browser: browser.find_element(By.ID, "advancedSettings").get_attribute(
+                    "open"
+                )
+                is not None
+            )
+            Select(
+                wait.until(conditions.element_to_be_clickable((By.ID, "contrastMode")))
+            ).select_by_value("none")
             driver.execute_script(
                 """
                 for (const [id, value] of [
@@ -106,10 +128,17 @@ def main() -> None:
             wait.until(
                 lambda browser: browser.execute_script("return window.__particleLensDownloads") == 2
             )
-            print("Safari initialization, detection, and export smoke test passed.")
+            print(f"{browser.capitalize()} initialization, detection, and export smoke test passed.")
         finally:
             driver.quit()
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Run the ParticleLens browser smoke test.")
+    parser.add_argument(
+        "--browser",
+        choices=["safari", "chrome"],
+        default="safari",
+        help="WebDriver browser to use. CI defaults to Safari; Chrome supports local verification.",
+    )
+    main(parser.parse_args().browser)
