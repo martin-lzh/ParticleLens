@@ -8,10 +8,13 @@ import pytest
 
 from particle_detection_core import (
     Circle,
+    adjust_luminance,
     analyze_image_bytes,
     circle_rect_visible_fraction,
+    detect_contour_circles,
     detect_scale_bar,
     fit_circle_from_edges,
+    render_image_bytes,
     suppress_duplicates,
 )
 
@@ -88,6 +91,90 @@ def test_duplicate_suppression_prefers_high_score() -> None:
     ]
     kept = suppress_duplicates(circles)
     assert kept == [circles[0], circles[2]]
+
+
+def test_contour_circle_detection_recovers_clear_edge_rings() -> None:
+    edges = np.zeros((240, 320), dtype=np.uint8)
+    expected = [(72, 68, 24), (184, 122, 38), (303, 190, 28)]
+    for x, y, radius in expected:
+        cv2.circle(edges, (x, y), radius, 255, 1, lineType=cv2.LINE_AA)
+
+    circles = detect_contour_circles(
+        edges,
+        min_radius=8,
+        max_radius=50,
+        minimum_edge_score=0.10,
+        circle_fit_tolerance=0.08,
+        minimum_contour_coverage=0.30,
+    )
+
+    for expected_x, expected_y, expected_radius in expected:
+        match = min(
+            circles,
+            key=lambda circle: np.hypot(circle.x - expected_x, circle.y - expected_y),
+        )
+        assert match.x == pytest.approx(expected_x, abs=1.5)
+        assert match.y == pytest.approx(expected_y, abs=1.5)
+        assert match.r == pytest.approx(expected_radius, abs=1.5)
+
+
+def test_luminance_adjustments_are_neutral_and_directional() -> None:
+    gray = np.arange(32, 224, dtype=np.uint8).reshape(12, 16)
+    assert np.array_equal(adjust_luminance(gray), gray)
+    assert adjust_luminance(gray, brightness=30).mean() > gray.mean()
+    assert adjust_luminance(gray, brightness=-30).mean() < gray.mean()
+    assert adjust_luminance(gray, contrast_adjustment=50).std() > gray.std()
+    assert adjust_luminance(gray, gamma=2).mean() > gray.mean()
+
+
+@pytest.mark.parametrize(
+    ("options", "message"),
+    [
+        ({"brightness": 101}, "Brightness"),
+        ({"contrast_adjustment": -101}, "Contrast"),
+        ({"gamma": 0.1}, "Gamma"),
+    ],
+)
+def test_luminance_adjustments_validate_ranges(options: dict[str, float], message: str) -> None:
+    with pytest.raises(ValueError, match=message):
+        adjust_luminance(np.full((4, 4), 128, dtype=np.uint8), **options)
+
+
+def test_render_image_bytes_supports_color_and_grayscale() -> None:
+    image = np.zeros((20, 30, 3), dtype=np.uint8)
+    image[:, :15] = (30, 90, 210)
+    image[:, 15:] = (180, 70, 40)
+    encoded = encode_png(image)
+    common = {
+        "contrast": "none",
+        "brightness": 10,
+        "contrastAdjustment": 15,
+        "gamma": 1.2,
+    }
+
+    color = cv2.imdecode(
+        np.frombuffer(render_image_bytes(encoded, {**common, "colorMode": "color"}), np.uint8),
+        cv2.IMREAD_UNCHANGED,
+    )
+    grayscale = cv2.imdecode(
+        np.frombuffer(
+            render_image_bytes(encoded, {**common, "colorMode": "grayscale"}), np.uint8
+        ),
+        cv2.IMREAD_UNCHANGED,
+    )
+
+    assert color.shape == image.shape
+    assert grayscale.shape == image.shape[:2]
+    assert not np.array_equal(color[:, :, 0], color[:, :, 2])
+
+
+@pytest.mark.parametrize("contrast", ["clahe", "background", "none"])
+def test_render_image_bytes_supports_all_contrast_modes(contrast: str) -> None:
+    rendered = render_image_bytes(
+        encode_png(synthetic_micrograph()),
+        {"contrast": contrast, "colorMode": "color"},
+    )
+    assert rendered.startswith(b"\x89PNG\r\n\x1a\n")
 
 
 def test_analyze_image_bytes_returns_serializable_payload() -> None:
@@ -187,3 +274,22 @@ def test_generated_mixed_droplet_fixture_decodes_and_analyzes() -> None:
     assert result["width"] == 1024
     assert result["height"] == 1024
     assert isinstance(result["particles"], list)
+    for expected_x, expected_y in [
+        (674, 58),
+        (741, 240),
+        (764, 318),
+        (579, 575),
+        (770, 724),
+        (118, 815),
+    ]:
+        nearest = min(
+            result["particles"],
+            key=lambda particle: np.hypot(
+                float(particle["x"]) - expected_x,
+                float(particle["y"]) - expected_y,
+            ),
+        )
+        assert np.hypot(
+            float(nearest["x"]) - expected_x,
+            float(nearest["y"]) - expected_y,
+        ) < 4

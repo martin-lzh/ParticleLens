@@ -106,6 +106,14 @@ async function openReadyApp(page, url = "./") {
   await expect(page.locator("#imageMenuTrigger")).toBeEnabled();
 }
 
+async function openAdvancedSettings(page) {
+  const settings = page.locator("#advancedSettings");
+  if (!(await settings.evaluate((element) => element.open))) {
+    await settings.locator("summary").click();
+  }
+  await expect(settings).toHaveAttribute("open", "");
+}
+
 async function uploadAndDetect(page) {
   await page.locator("#imageInput").setInputFiles({
     name: "synthetic.bmp",
@@ -117,6 +125,7 @@ async function uploadAndDetect(page) {
   await expect(page.locator("#micronsPerPixelInfo")).toBeHidden();
   await expect(page.locator("#runDetect")).toBeEnabled();
 
+  await openAdvancedSettings(page);
   await page.locator("#contrastMode").selectOption("none");
   await page.locator("#sensitivity").fill("0.7");
   await page.locator("#minDiameter").fill("15");
@@ -126,6 +135,36 @@ async function uploadAndDetect(page) {
     timeout: 60_000,
   });
 }
+
+test("keeps detector tuning controls in collapsed advanced settings", async ({ page }) => {
+  await openReadyApp(page);
+
+  const settings = page.locator("#advancedSettings");
+  await expect(settings).not.toHaveAttribute("open", "");
+  await expect(page.locator("#sensitivity")).not.toBeVisible();
+  await settings.locator("summary").click();
+  await expect(page.locator("#sensitivity")).toBeVisible();
+  await expect(page.locator("#edgeThresholdLow")).toHaveValue("50");
+  await expect(page.locator("#edgeThresholdHigh")).toHaveValue("140");
+  await expect(page.locator("#minimumEdgeSupport")).toHaveValue("0.10");
+  await expect(page.locator("#circleFitTolerance")).toHaveValue("0.08");
+  await expect(page.locator("#minimumContourCoverage")).toHaveValue("0.30");
+  await expect(page.locator("#edgeSettingsTitle")).toHaveText(/边缘提取|Edge extraction/);
+  await expect(page.locator("#contourSettingsTitle")).toHaveText(/轮廓判定|Contour acceptance/);
+  for (const tooltipId of [
+    "edgeThresholdLowInfo",
+    "edgeThresholdHighInfo",
+    "minimumEdgeSupportInfo",
+    "circleFitToleranceInfo",
+    "minimumContourCoverageInfo",
+  ]) {
+    await expect(page.locator(`[aria-describedby="${tooltipId}"]`)).toBeVisible();
+  }
+  const disclosureIndicator = await settings.locator("summary").evaluate(
+    (element) => getComputedStyle(element, "::after").content,
+  );
+  expect(disclosureIndicator).toMatch(/[>›]/);
+});
 
 async function summarizeExportedPng(page) {
   const downloadPromise = page.waitForEvent("download");
@@ -200,6 +239,7 @@ test("keeps information tooltips inside narrow viewports", async ({ page }) => {
     await page.setViewportSize(viewport);
     await openReadyApp(page);
     await page.locator("#leftToggle").click();
+    await openAdvancedSettings(page);
 
     for (const trigger of await page.locator(".info-point:not([hidden]) .info-point-trigger").all()) {
       await trigger.click();
@@ -309,6 +349,79 @@ test("runs detection locally and exports corrected results", async ({ page }) =>
   expect(requestsAfterUpload.filter((request) => request.method() !== "GET")).toEqual([]);
 });
 
+test("previews image adjustments and keeps detection results until rerun", async ({ page }) => {
+  await openReadyApp(page);
+  await expect(page.locator("#brightness")).toBeDisabled();
+  await expect(page.locator("#colorMode")).toBeDisabled();
+
+  await uploadAndDetect(page);
+  await expect(page.locator("#brightness")).toBeEnabled();
+  await expect(page.locator("#brightness")).toHaveValue("0");
+  await expect(page.locator("#contrastAdjustment")).toHaveValue("0");
+  await expect(page.locator("#gamma")).toHaveValue("1");
+  await expect(page.locator("#colorMode")).toHaveValue("color");
+
+  await expect.poll(
+    async () => Number(
+      await page.locator("#previewStatus").getAttribute("data-rendered-generation") || 0,
+    ),
+  ).toBeGreaterThan(0);
+  const initialPreviewGeneration = Number(
+    await page.locator("#previewStatus").getAttribute("data-rendered-generation"),
+  );
+  const canvas = page.locator("#imageCanvas");
+  const before = await canvas.evaluate((element) => element.toDataURL("image/png"));
+  const resultRows = await page.locator("#particleTable tr").count();
+  await page.locator("#brightness").evaluate((input) => {
+    input.value = "35";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+
+  await expect(page.locator("#brightnessValue")).toHaveText("35");
+  await expect(page.locator("#statusBadge")).toHaveText(/设置已更改|Settings changed/);
+  await expect(page.locator("#particleTable tr")).toHaveCount(resultRows);
+  await expect.poll(
+    async () => Number(
+      await page.locator("#previewStatus").getAttribute("data-rendered-generation") || 0,
+    ),
+    { timeout: 30_000 },
+  ).toBeGreaterThan(initialPreviewGeneration);
+  const adjusted = await canvas.evaluate((element) => element.toDataURL("image/png"));
+  expect(adjusted).not.toBe(before);
+
+  const originalPreview = page.locator("#quickOriginalPreview");
+  await originalPreview.dispatchEvent("pointerdown", { button: 0, pointerId: 41 });
+  await expect(originalPreview).toHaveAttribute("aria-pressed", "true");
+  const original = await canvas.evaluate((element) => element.toDataURL("image/png"));
+  expect(original).not.toBe(adjusted);
+  await originalPreview.dispatchEvent("pointerup", { button: 0, pointerId: 41 });
+  await expect(originalPreview).toHaveAttribute("aria-pressed", "false");
+  await expect.poll(
+    async () => canvas.evaluate((element) => element.toDataURL("image/png")),
+  ).toBe(adjusted);
+
+  await page.locator("#resetAdjustments").click();
+  await expect(page.locator("#brightness")).toHaveValue("0");
+  await expect(page.locator("#contrastAdjustment")).toHaveValue("0");
+  await expect(page.locator("#gamma")).toHaveValue("1");
+
+  await page.locator("#runDetect").click();
+  await expect(page.locator("#statusBadge")).toHaveText(/已识别|Detected/, {
+    timeout: 60_000,
+  });
+  const colorPreviewGeneration = Number(
+    await page.locator("#previewStatus").getAttribute("data-rendered-generation"),
+  );
+  await page.locator("#colorMode").selectOption("grayscale");
+  await expect(page.locator("#statusBadge")).toHaveText(/已识别|Detected/);
+  await expect.poll(
+    async () => Number(
+      await page.locator("#previewStatus").getAttribute("data-rendered-generation") || 0,
+    ),
+    { timeout: 30_000 },
+  ).toBeGreaterThan(colorPreviewGeneration);
+});
+
 test("exports optional annotations and outer margins only when requested", async ({ page }) => {
   await openReadyApp(page);
   await uploadAndDetect(page);
@@ -376,6 +489,7 @@ test("exports optional annotations and outer margins only when requested", async
 
 test("opens images from the canvas and warns before replacing current work", async ({ page }) => {
   await openReadyApp(page);
+  await openAdvancedSettings(page);
 
   const firstChooser = page.waitForEvent("filechooser");
   await page.locator("#emptyState").click();
@@ -386,6 +500,11 @@ test("opens images from the canvas and warns before replacing current work", asy
   });
   await expect(page.locator("#imageName")).toHaveText("first.bmp");
   await expect(page.locator("#imageAction")).toHaveText("Upload a new image");
+  await page.locator("#brightness").evaluate((input) => {
+    input.value = "40";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await page.locator("#colorMode").selectOption("grayscale");
 
   await page.locator("#imageMenuTrigger").click();
   await expect(page.locator("#replaceImageDialog")).toBeVisible();
@@ -402,6 +521,12 @@ test("opens images from the canvas and warns before replacing current work", asy
     buffer: syntheticBitmap(),
   });
   await expect(page.locator("#imageName")).toHaveText("replacement.bmp");
+  await expect(page.locator("#brightness")).toHaveValue("0");
+  await expect(page.locator("#contrastAdjustment")).toHaveValue("0");
+  await expect(page.locator("#gamma")).toHaveValue("1");
+  await expect(page.locator("#contrastMode")).toHaveValue("clahe");
+  await expect(page.locator("#colorMode")).toHaveValue("color");
+  await expect(page.locator("#quickOriginalPreview")).toHaveAttribute("aria-pressed", "false");
 });
 
 test("renders a configurable Pareto diagram and live overlay", async ({ page }) => {
@@ -635,6 +760,8 @@ test("keeps the analysis entry visible across transitional navbar widths", async
   await expect(page.locator(".quick-toolbar #zoomOut")).toHaveCount(1);
   await expect(page.locator(".quick-toolbar #zoomIn")).toHaveCount(1);
   await expect(page.locator(".quick-toolbar #quickFitView")).toHaveCount(1);
+  await expect(page.locator(".quick-toolbar #quickOriginalPreview")).toHaveCount(1);
+  await expect(page.locator("#leftPanel #quickOriginalPreview")).toHaveCount(0);
 
   for (const width of [1280, 1180, 1024, 900, 821]) {
     await page.setViewportSize({ width, height: 768 });
@@ -657,7 +784,7 @@ test("resizes desktop sidebars from their inner edges and restores their widths"
 
   const leftPanel = page.locator("#leftPanel");
   const leftHandle = page.locator("#leftPanelResizeHandle");
-  const detectionGrid = page.locator("#leftPanel .grid-two");
+  const detectionGrid = page.locator("#leftPanel .control-group.first > .grid-two");
   const gridColumnCount = () => detectionGrid.evaluate(
     (element) => getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/).length,
   );
@@ -769,9 +896,11 @@ test("adapts the workspace for mobile and supports touch canvas gestures", async
   expect(portraitPanelBox.y).toBeCloseTo(topbarBox.height, 0);
   expect(portraitPanelBox.width).toBeCloseTo(390, 0);
   expect(portraitPanelBox.height).toBeCloseTo(844 - topbarBox.height, 0);
-  const portraitGridColumnCount = await page.locator("#leftPanel .grid-two").evaluate(
-    (element) => getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/).length,
-  );
+  const portraitGridColumnCount = await page
+    .locator("#leftPanel .control-group.first > .grid-two")
+    .evaluate(
+      (element) => getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/).length,
+    );
   expect(portraitGridColumnCount).toBe(2);
   await expect(page.locator(".workspace")).toHaveAttribute("aria-hidden", "true");
   await expect(page.locator("#rightToggle")).toHaveAttribute("aria-expanded", "false");
@@ -795,6 +924,7 @@ test("adapts the workspace for mobile and supports touch canvas gestures", async
   await expect(page.locator("#leftToggle")).toHaveAttribute("aria-expanded", "false");
 
   await page.locator("#leftToggle").click();
+  await openAdvancedSettings(page);
   await page.locator("#contrastMode").selectOption("none");
   await page.locator("#sensitivity").fill("0.7");
   await page.locator("#minDiameter").fill("15");
@@ -866,8 +996,8 @@ test("switches language and restores the app shell offline", async ({ page }) =>
       timeout: 30_000,
     });
     const cacheState = await page.evaluate(async () => {
-      const shell = await caches.open("particlelens-shell-v0.2.5");
-      const runtime = await caches.open("particlelens-runtime-v0.2.1");
+      const shell = await caches.open("particlelens-shell-v0.2.7");
+      const runtime = await caches.open("particlelens-runtime-v0.2.3");
       const moduleUrl = document.querySelector("script[type='module']").src;
       return {
         shellModule: Boolean(await shell.match(moduleUrl)),
@@ -901,9 +1031,16 @@ test("repairs a failed runtime download on retry", async ({ page }, testInfo) =>
   test.skip(testInfo.project.name !== "chromium", "The recovery path is engine-independent.");
   await openReadyApp(page);
   await page.evaluate(async () => {
-    const cache = await caches.open("particlelens-runtime-v0.2.1");
+    const cache = await caches.open("particlelens-runtime-v0.2.3");
+    const manifest = await (await fetch(
+      new URL("./runtime/runtime-manifest.json?revision=v0.2.3", document.baseURI),
+    )).json();
+    const core = manifest.assets.find((asset) => asset.file === "particle_detection_core.py");
     await cache.put(
-      new URL("./runtime/particle_detection_core.py", document.baseURI),
+      new URL(
+        `./runtime/particle_detection_core.py?sha256=${core.sha256}`,
+        document.baseURI,
+      ),
       new Response("corrupt", { headers: { "Content-Type": "text/x-python" } }),
     );
   });

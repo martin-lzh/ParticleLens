@@ -832,6 +832,139 @@ body.panel-resizing * {
   margin-bottom: 10px;
 }
 
+.advanced-settings {
+  margin: 14px 0;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.advanced-settings summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 40px;
+  padding: 9px 10px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  list-style: none;
+}
+
+.advanced-settings summary::-webkit-details-marker {
+  display: none;
+}
+
+.advanced-settings summary span {
+  margin: 0;
+  color: inherit;
+  font-size: inherit;
+}
+
+.advanced-settings summary::after {
+  content: "›";
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1;
+  transition: transform 140ms ease;
+}
+
+.advanced-settings[open] summary::after {
+  transform: rotate(90deg);
+}
+
+.advanced-settings-body {
+  padding: 0 10px 12px;
+  border-top: 1px solid var(--line);
+}
+
+.advanced-description {
+  margin: 10px 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.advanced-grid {
+  margin-bottom: 0;
+}
+
+.advanced-parameter-group {
+  padding: 11px 0;
+  border-top: 1px solid var(--line);
+}
+
+.advanced-parameter-group:first-of-type {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.advanced-parameter-group h3 {
+  margin: 0 0 9px;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+.image-adjustments {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.image-adjustments .section-heading h2 {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.preview-status {
+  min-height: 16px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.adjustment-control label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.adjustment-control label span {
+  margin: 0;
+}
+
+.adjustment-control output {
+  min-width: 42px;
+  color: var(--text);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.adjustment-control input[type="range"] {
+  min-height: 28px;
+  padding: 0;
+  accent-color: var(--accent);
+}
+
+.adjustment-actions {
+  display: block;
+}
+
+.adjustment-actions button {
+  width: 100%;
+}
+
 html[lang="en"] .calibration-field-label {
   min-height: 34px;
 }
@@ -1666,6 +1799,8 @@ button:disabled {
 
 .right-panel {
   width: var(--right-drawer-width);
+  container-name: analysis-sidebar;
+  container-type: inline-size;
 }
 
 @media (min-width: 601px) {
@@ -1707,6 +1842,10 @@ button:disabled {
   align-self: start;
 }
 
+.right-panel-heading {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .detect-action {
   margin-top: 14px;
   min-height: 42px;
@@ -1740,11 +1879,52 @@ button:disabled {
 
 .distribution-rule {
   color: #78828a;
-  font-size: 10px;
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: right;
 }
 
 .right-panel .tabs.icon-tabs {
-  margin: 16px 0 14px;
+  margin: 18px 0 14px;
+}
+
+.stats dl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  margin-top: 9px;
+}
+
+.stats dl div {
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  min-width: 0;
+  min-height: 62px;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #0f1114;
+}
+
+.stats dt {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stats dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
 }
 
 .navigation-tabs {
@@ -2622,6 +2802,29 @@ button:disabled {
   .left-panel .panel-heading .status {
     grid-column: 1;
     justify-self: start;
+  }
+}
+
+@container analysis-sidebar (min-width: 390px) {
+  .right-panel .stats dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container analysis-sidebar (max-width: 319px) {
+  .right-panel .section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .right-panel .distribution-rule {
+    text-align: left;
+  }
+
+  .right-panel .navigation-tab {
+    gap: 5px;
+    padding-inline: 6px;
   }
 }
 

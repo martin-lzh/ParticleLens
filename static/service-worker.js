@@ -1,5 +1,5 @@
-const SHELL_CACHE = "particlelens-shell-v0.2.5";
-const RUNTIME_CACHE = "particlelens-runtime-v0.2.1";
+const SHELL_CACHE = "particlelens-shell-v0.2.7";
+const RUNTIME_CACHE = "particlelens-runtime-v0.2.3";
 
 self.addEventListener("install", () => {
   self.skipWaiting();
@@ -65,6 +65,21 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname.includes("/runtime/")) {
     event.respondWith(
       caches.open(RUNTIME_CACHE).then(async (cache) => {
+        if (url.pathname.endsWith("/runtime-manifest.json")) {
+          try {
+            const response = await fetch(event.request, { cache: "no-store" });
+            if (response.ok) {
+              await cache.put(event.request, response.clone());
+              return response;
+            }
+            const cached = await cache.match(event.request);
+            return cached || response;
+          } catch {
+            const cached = await cache.match(event.request);
+            if (cached) return cached;
+            throw new Error("Runtime manifest is unavailable.");
+          }
+        }
         const cached = await cache.match(event.request);
         if (cached) return cached;
         const response = await fetch(event.request);

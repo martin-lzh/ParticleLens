@@ -12,6 +12,7 @@ import cv2
 import numpy as np
 import pytest
 
+import particle_web_app
 from particle_web_app import ParticleHandler
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -67,10 +68,36 @@ def test_analyze_accepts_raw_image_bytes(server_url: str) -> None:
     assert len(payload["particles"]) == 1
 
 
-def test_analyze_rejects_empty_body(server_url: str) -> None:
+def test_render_returns_processed_png(server_url: str) -> None:
+    query = "contrast=none&brightness=20&contrastAdjustment=10&gamma=1.2&colorMode=grayscale"
     request = urllib.request.Request(
-        f"{server_url}/api/analyze",
-        data=b"",
+        f"{server_url}/api/render?{query}",
+        data=image_bytes(),
+        headers={"Content-Type": "image/png"},
+        method="POST",
+    )
+    with urllib.request.urlopen(request) as response:
+        assert response.headers["Content-Type"] == "image/png"
+        rendered = response.read()
+    decoded = cv2.imdecode(np.frombuffer(rendered, np.uint8), cv2.IMREAD_UNCHANGED)
+    assert decoded.shape == (240, 320)
+
+
+@pytest.mark.parametrize("path", ["/api/analyze", "/api/render"])
+def test_image_endpoints_reject_empty_body(server_url: str, path: str) -> None:
+    request = urllib.request.Request(f"{server_url}{path}", data=b"", method="POST")
+    with pytest.raises(urllib.error.HTTPError) as error:
+        urllib.request.urlopen(request)
+    assert error.value.code == 400
+
+
+def test_render_rejects_oversized_body(
+    server_url: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(particle_web_app, "MAX_IMAGE_BYTES", 4)
+    request = urllib.request.Request(
+        f"{server_url}/api/render",
+        data=b"12345",
         method="POST",
     )
     with pytest.raises(urllib.error.HTTPError) as error:
@@ -124,5 +151,20 @@ def test_service_worker_fetches_navigation_before_offline_fallback() -> None:
     navigation_branch = service_worker.index('event.request.mode === "navigate"')
     cache_first_branch = service_worker.rindex("const cached = await cache.match(event.request)")
     assert navigation_branch < cache_first_branch
-    assert 'const SHELL_CACHE = "particlelens-shell-v0.2.5"' in service_worker
+    assert 'const SHELL_CACHE = "particlelens-shell-v0.2.7"' in service_worker
+    assert 'const RUNTIME_CACHE = "particlelens-runtime-v0.2.3"' in service_worker
     assert 'url.pathname.endsWith("/runtime-config.json")' in service_worker
+    assert 'url.pathname.endsWith("/runtime-manifest.json")' in service_worker
+
+
+def test_browser_runtime_uses_versioned_manifest_and_content_addressed_assets() -> None:
+    worker = (PROJECT_ROOT / "static" / "detector.worker.js").read_text(encoding="utf-8")
+    runtime_builder = (PROJECT_ROOT / "scripts" / "prepare_web_runtime.mjs").read_text(
+        encoding="utf-8",
+    )
+
+    assert 'const RUNTIME_REVISION = "v0.2.3"' in worker
+    assert 'manifestUrl.searchParams.set("revision", RUNTIME_REVISION)' in worker
+    assert 'url.searchParams.set("sha256", asset.sha256)' in worker
+    assert "manifest.runtimeApiVersion !== RUNTIME_API_VERSION" in worker
+    assert "runtimeApiVersion: 2" in runtime_builder

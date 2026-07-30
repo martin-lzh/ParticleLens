@@ -5,6 +5,7 @@ import {
   CirclePlus,
   createIcons,
   Download,
+  Eye,
   FileOutput,
   FileSpreadsheet,
   Hand,
@@ -71,6 +72,8 @@ const state = {
   imageName: "",
   imageBytes: null,
   imageObjectUrl: "",
+  previewImage: null,
+  previewObjectUrl: "",
   detector: null,
   particles: [],
   selectedIds: new Set(),
@@ -98,6 +101,7 @@ const state = {
     showCumulative: true,
     showParetoOverlay: true,
     showScaleLegend: true,
+    showOriginal: false,
     panelWidths: {
       left: initialPanelWidths.left,
       right: initialPanelWidths.right,
@@ -112,6 +116,12 @@ let pendingImageFile = null;
 let replacementAuthorized = false;
 let plotlyApi = null;
 let plotlyPromise = null;
+let previewSourceBytes = null;
+let previewTimer = null;
+let previewInFlight = false;
+let previewPending = false;
+let previewGeneration = 0;
+let exportInFlight = false;
 
 async function loadPlotly() {
   if (plotlyApi) return plotlyApi;
@@ -133,6 +143,7 @@ const els = {
   quickToolbar: document.querySelector(".quick-toolbar"),
   quickToolButtons: Array.from(document.querySelectorAll("[data-canvas-tool]")),
   quickFitView: document.getElementById("quickFitView"),
+  quickOriginalPreview: document.getElementById("quickOriginalPreview"),
   quickDeleteSelected: document.getElementById("quickDeleteSelected"),
   quickToolbarPosition: document.getElementById("quickToolbarPosition"),
   quickToolbarPositionMenu: document.getElementById("quickToolbarPositionMenu"),
@@ -166,7 +177,21 @@ const els = {
   sensitivity: document.getElementById("sensitivity"),
   minDiameter: document.getElementById("minDiameter"),
   maxDiameter: document.getElementById("maxDiameter"),
+  edgeThresholdLow: document.getElementById("edgeThresholdLow"),
+  edgeThresholdHigh: document.getElementById("edgeThresholdHigh"),
+  minimumEdgeSupport: document.getElementById("minimumEdgeSupport"),
+  circleFitTolerance: document.getElementById("circleFitTolerance"),
+  minimumContourCoverage: document.getElementById("minimumContourCoverage"),
   contrastMode: document.getElementById("contrastMode"),
+  brightness: document.getElementById("brightness"),
+  brightnessValue: document.getElementById("brightnessValue"),
+  contrastAdjustment: document.getElementById("contrastAdjustment"),
+  contrastAdjustmentValue: document.getElementById("contrastAdjustmentValue"),
+  gamma: document.getElementById("gamma"),
+  gammaValue: document.getElementById("gammaValue"),
+  colorMode: document.getElementById("colorMode"),
+  resetAdjustments: document.getElementById("resetAdjustments"),
+  previewStatus: document.getElementById("previewStatus"),
   labelLimit: document.getElementById("labelLimit"),
   exportCsv: document.getElementById("exportCsv"),
   exportPng: document.getElementById("exportPng"),
@@ -229,6 +254,8 @@ const messages = {
     "toolbar.scaleTitle": "重画比例尺 (R)",
     "toolbar.fit": "适配视图",
     "toolbar.fitTitle": "适配视图 (F)",
+    "toolbar.originalPreview": "按住查看原图",
+    "toolbar.originalPreviewTitle": "按住查看原图，松开恢复处理后预览",
     "toolbar.delete": "删除选中",
     "toolbar.deleteTitle": "删除选中 (Delete)",
     "toolbar.position": "工具栏位置",
@@ -310,6 +337,7 @@ const messages = {
     "status.success": "已识别",
     "status.fail": "失败",
     "status.loaded": "已加载",
+    "status.dirty": "设置已更改",
     "status.loading": "载入中",
     "status.loadFail": "载入失败",
     "runtime.loading": "正在准备本地识别引擎",
@@ -354,7 +382,37 @@ const messages = {
     "labels.sensitivityInfo": "这是圆形检测的形状置信阈值（0.01–0.98），不是颗粒的物理量。数值越低，判定越宽松：可检出边缘较弱、残缺或不够圆的颗粒，但误检会增加；数值越高，判定越严格：更偏向边缘清晰、完整且接近圆形的颗粒，但可能漏检。",
     "labels.minDiameter": "最小直径 (微米)",
     "labels.maxDiameter": "最大直径 (微米)",
+    "labels.edgeThresholdLow": "边缘阈值（低）",
+    "labels.edgeThresholdLowInfoAria": "查看低边缘阈值说明",
+    "labels.edgeThresholdLowInfo": "低梯度阈值用于保留较弱的候选边缘。较低值可保留更弱的边界，但可能增加噪声。该值必须低于高阈值。",
+    "labels.edgeThresholdHigh": "边缘阈值（高）",
+    "labels.edgeThresholdHighInfoAria": "查看高边缘阈值说明",
+    "labels.edgeThresholdHighInfo": "高梯度阈值用于识别强边缘。较高值更偏向清晰边界。该值必须高于低阈值。",
+    "labels.minimumEdgeSupport": "最小边缘支持度",
+    "labels.minimumEdgeSupportInfoAria": "查看最小边缘支持度说明",
+    "labels.minimumEdgeSupportInfo": "拟合圆周中必须与边缘像素重合的最小比例。较低值会接受更多边缘不完整的圆。",
+    "labels.circleFitTolerance": "圆形拟合容差",
+    "labels.circleFitToleranceInfoAria": "查看圆形拟合容差说明",
+    "labels.circleFitToleranceInfo": "轮廓拟合时允许的最大归一化半径误差。较高值会接受不够规则的圆形。",
+    "labels.minimumContourCoverage": "最小轮廓覆盖率",
+    "labels.minimumContourCoverageInfoAria": "查看最小轮廓覆盖率说明",
+    "labels.minimumContourCoverageInfo": "单条轮廓必须覆盖圆周的最小比例。较低值会接受更残缺的圆。",
     "labels.contrast": "对比度预处理",
+    "advanced.title": "高级设置",
+    "advanced.description": "调整尺寸范围、圆形判定、边缘提取和图像预处理。",
+    "advanced.houghGroup": "尺寸与霍夫检测",
+    "advanced.edgeGroup": "边缘提取",
+    "advanced.contourGroup": "轮廓判定",
+    "adjustments.title": "图像调整",
+    "adjustments.brightness": "亮度",
+    "adjustments.manualContrast": "手动对比度",
+    "adjustments.gamma": "伽马",
+    "adjustments.colorMode": "预览与导出颜色",
+    "adjustments.color": "保留颜色",
+    "adjustments.grayscale": "灰度",
+    "adjustments.reset": "重置调整",
+    "adjustments.updating": "正在更新",
+    "adjustments.failed": "预览失败",
     "labels.labelLimit": "图片标注数量",
     "contrast.background": "背景校正",
     "contrast.none": "不处理",
@@ -373,6 +431,7 @@ const messages = {
     "stats.median": "中位数",
     "stats.range": "范围",
     "stats.rule": "可见面积 ≥ 50%",
+    "analysis.subtitle": "\u67e5\u770b\u6d4b\u91cf\u6570\u636e\u3001\u7c92\u5f84\u5206\u5e03\u4e0e\u5bfc\u51fa\u9009\u9879\u3002",
     "table.source": "来源",
     "table.radius": "半径(微米)",
     "table.diameter": "直径(微米)",
@@ -430,6 +489,8 @@ const messages = {
     "toolbar.scaleTitle": "Redraw scale bar (R)",
     "toolbar.fit": "Fit view",
     "toolbar.fitTitle": "Fit view (F)",
+    "toolbar.originalPreview": "Hold to view original",
+    "toolbar.originalPreviewTitle": "Press and hold to view the original image; release to restore the processed preview",
     "toolbar.delete": "Delete selected",
     "toolbar.deleteTitle": "Delete selected (Delete)",
     "toolbar.position": "Toolbar position",
@@ -511,6 +572,7 @@ const messages = {
     "status.success": "Detected",
     "status.fail": "Failed",
     "status.loaded": "Loaded",
+    "status.dirty": "Settings changed",
     "status.loading": "Loading",
     "status.loadFail": "Load failed",
     "runtime.loading": "Preparing the local detection engine",
@@ -555,7 +617,37 @@ const messages = {
     "labels.sensitivityInfo": "This is the circle detector's shape-confidence threshold (0.01–0.98), not a physical particle quantity. Lower values relax acceptance, finding weaker, incomplete, or less circular edges but increasing false positives. Higher values are stricter, favoring clear, complete, circular edges but potentially missing particles.",
     "labels.minDiameter": "Minimum diameter (µm)",
     "labels.maxDiameter": "Maximum diameter (µm)",
+    "labels.edgeThresholdLow": "Edge threshold, low",
+    "labels.edgeThresholdLowInfoAria": "Show low edge threshold explanation",
+    "labels.edgeThresholdLowInfo": "The lower gradient threshold keeps faint candidate edges. Lower values preserve weaker boundaries but can add noise. It must be below the high threshold.",
+    "labels.edgeThresholdHigh": "Edge threshold, high",
+    "labels.edgeThresholdHighInfoAria": "Show high edge threshold explanation",
+    "labels.edgeThresholdHighInfo": "The upper gradient threshold identifies strong edges. Higher values favor sharper boundaries. It must be above the low threshold.",
+    "labels.minimumEdgeSupport": "Minimum edge support",
+    "labels.minimumEdgeSupportInfoAria": "Show minimum edge support explanation",
+    "labels.minimumEdgeSupportInfo": "The minimum fraction of the fitted circumference that must coincide with edge pixels. Lower values accept more broken rings.",
+    "labels.circleFitTolerance": "Circle fit tolerance",
+    "labels.circleFitToleranceInfoAria": "Show circle fit tolerance explanation",
+    "labels.circleFitToleranceInfo": "The maximum normalized radial error allowed when fitting a contour. Higher values accept less perfectly circular shapes.",
+    "labels.minimumContourCoverage": "Minimum contour coverage",
+    "labels.minimumContourCoverageInfoAria": "Show minimum contour coverage explanation",
+    "labels.minimumContourCoverageInfo": "The minimum fraction of a circumference represented by one contour. Lower values accept more partial circles.",
     "labels.contrast": "Contrast preprocessing",
+    "advanced.title": "Advanced settings",
+    "advanced.description": "Adjust size limits, circle acceptance, edge extraction, and image preprocessing.",
+    "advanced.houghGroup": "Size and Hough detection",
+    "advanced.edgeGroup": "Edge extraction",
+    "advanced.contourGroup": "Contour acceptance",
+    "adjustments.title": "Image adjustments",
+    "adjustments.brightness": "Brightness",
+    "adjustments.manualContrast": "Manual contrast",
+    "adjustments.gamma": "Gamma",
+    "adjustments.colorMode": "Preview and export color",
+    "adjustments.color": "Keep color",
+    "adjustments.grayscale": "Grayscale",
+    "adjustments.reset": "Reset adjustments",
+    "adjustments.updating": "Updating",
+    "adjustments.failed": "Preview failed",
     "labels.labelLimit": "Image label count",
     "contrast.background": "Background correction",
     "contrast.none": "None",
@@ -574,6 +666,7 @@ const messages = {
     "stats.median": "Median",
     "stats.range": "Range",
     "stats.rule": "Visible area ≥ 50%",
+    "analysis.subtitle": "Review measurements, distributions, and export options.",
     "table.source": "Source",
     "table.radius": "Radius (µm)",
     "table.diameter": "Diameter (µm)",
@@ -627,6 +720,164 @@ function setStatus(key) {
   els.statusBadge.textContent = t(key);
 }
 
+function setPreviewStatus(stateName = "idle") {
+  els.previewStatus.dataset.state = stateName;
+  const key = {
+    updating: "adjustments.updating",
+    failed: "adjustments.failed",
+  }[stateName];
+  els.previewStatus.textContent = key ? t(key) : "";
+}
+
+function imageAdjustmentOptions() {
+  return {
+    contrast: els.contrastMode.value,
+    brightness: Number(els.brightness.value),
+    contrastAdjustment: Number(els.contrastAdjustment.value),
+    gamma: Number(els.gamma.value),
+    colorMode: els.colorMode.value,
+  };
+}
+
+function updateAdjustmentReadouts() {
+  els.brightnessValue.textContent = String(Number(els.brightness.value));
+  els.contrastAdjustmentValue.textContent = String(Number(els.contrastAdjustment.value));
+  els.gammaValue.textContent = Number(els.gamma.value).toFixed(2);
+}
+
+function setAdjustmentControlsEnabled(enabled) {
+  for (const control of [
+    els.brightness,
+    els.contrastAdjustment,
+    els.gamma,
+    els.contrastMode,
+    els.colorMode,
+    els.resetAdjustments,
+  ]) {
+    control.disabled = !enabled;
+  }
+}
+
+function syncOriginalPreviewButton() {
+  els.quickOriginalPreview.setAttribute("aria-pressed", String(state.ui.showOriginal));
+}
+
+function setOriginalPreview(active) {
+  const next = Boolean(active && state.image);
+  if (state.ui.showOriginal === next) return;
+  state.ui.showOriginal = next;
+  syncOriginalPreviewButton();
+  draw();
+}
+
+function markDetectionSettingsChanged() {
+  if (state.statusKey === "status.success" || state.statusKey === "status.dirty") {
+    setStatus("status.dirty");
+  }
+}
+
+function resetAdjustmentValues({ resetDisplay = false, schedule = true } = {}) {
+  els.brightness.value = "0";
+  els.contrastAdjustment.value = "0";
+  els.gamma.value = "1";
+  if (resetDisplay) {
+    els.contrastMode.value = "clahe";
+    els.colorMode.value = "color";
+    state.ui.showOriginal = false;
+    syncOriginalPreviewButton();
+  }
+  updateAdjustmentReadouts();
+  if (schedule && state.image) schedulePreview();
+}
+
+function clearPreviewImage() {
+  if (state.previewObjectUrl) URL.revokeObjectURL(state.previewObjectUrl);
+  state.previewObjectUrl = "";
+  state.previewImage = null;
+}
+
+function imageFromPngBytes(imageBytes) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(new Blob([imageBytes], { type: "image/png" }));
+    const image = new Image();
+    image.onload = () => resolve({ image, url });
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Could not decode the processed image."));
+    };
+    image.src = url;
+  });
+}
+
+function canvasBlob(canvas, type = "image/png") {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("Could not create the image preview."));
+    }, type);
+  });
+}
+
+async function createPreviewSource(image) {
+  const scale = Math.min(1, 2048 / Math.max(image.naturalWidth, image.naturalHeight));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+  canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+  canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
+  return (await canvasBlob(canvas)).arrayBuffer();
+}
+
+function queuePendingPreview(delay = 16) {
+  if (previewInFlight || previewTimer !== null) return;
+  previewTimer = window.setTimeout(() => {
+    previewTimer = null;
+    renderPendingPreview();
+  }, delay);
+}
+
+function schedulePreview(delay = 16) {
+  previewGeneration += 1;
+  els.previewStatus.dataset.requestedGeneration = String(previewGeneration);
+  previewPending = true;
+  queuePendingPreview(delay);
+}
+
+async function renderPendingPreview() {
+  if (previewInFlight || !previewPending) return;
+  if (!state.image || !state.detector || !previewSourceBytes) return;
+
+  previewPending = false;
+  previewInFlight = true;
+  const generation = previewGeneration;
+  const sourceImage = state.image;
+  setPreviewStatus("updating");
+  try {
+    const renderedBytes = await state.detector.render(
+      previewSourceBytes,
+      imageAdjustmentOptions(),
+    );
+    const rendered = await imageFromPngBytes(renderedBytes);
+    if (state.image !== sourceImage) {
+      URL.revokeObjectURL(rendered.url);
+      return;
+    }
+    clearPreviewImage();
+    state.previewImage = rendered.image;
+    state.previewObjectUrl = rendered.url;
+    els.previewStatus.dataset.renderedGeneration = String(generation);
+    setPreviewStatus();
+    draw();
+  } catch (error) {
+    if (generation === previewGeneration) {
+      setPreviewStatus("failed");
+      console.error(error);
+    }
+  } finally {
+    previewInFlight = false;
+    if (previewPending) queuePendingPreview(0);
+  }
+}
+
 function applyTranslations() {
   document.documentElement.lang = state.lang === "zh" ? "zh-CN" : "en";
   document.title = t("app.title");
@@ -647,6 +898,8 @@ function applyTranslations() {
   els.imageAction.textContent = t(state.image ? "upload.replaceAction" : "upload.openAction");
   els.imageMenuTrigger.setAttribute("title", t("upload.openTitle"));
   setStatus(state.statusKey);
+  syncOriginalPreviewButton();
+  setPreviewStatus(els.previewStatus.dataset.state || "idle");
   setHint();
   updateStats();
   draw();
@@ -919,9 +1172,11 @@ function draw(targetCtx = ctx, options = {}) {
   const t = options.export
     ? { scale: 1, ox: exportPadding, oy: exportPadding }
     : fitTransform();
+  const baseImage = options.image
+    || (state.ui.showOriginal ? state.image : state.previewImage || state.image);
 
   targetCtx.drawImage(
-    state.image,
+    baseImage,
     t.ox,
     t.oy,
     state.image.naturalWidth * t.scale,
@@ -1526,12 +1781,13 @@ function updateQuickToolbar() {
     button.disabled = !state.image && button.dataset.canvasTool !== "select";
   }
   els.quickFitView.disabled = !hasImage;
+  els.quickOriginalPreview.disabled = !hasImage;
   els.zoomOut.disabled = !hasImage;
   els.zoomIn.disabled = !hasImage;
   els.quickDeleteSelected.disabled = state.selectedIds.size === 0;
   els.exportCsv.disabled = !hasImage;
-  els.exportPng.disabled = !hasImage;
-  els.exportAll.disabled = !hasImage;
+  els.exportPng.disabled = !hasImage || exportInFlight;
+  els.exportAll.disabled = !hasImage || exportInFlight;
   els.exportSelection.disabled = !hasImage;
   els.exportScale.disabled = !hasImage || !state.scaleLine;
   els.exportLegend.disabled = !hasImage || !state.micronsPerPx;
@@ -1643,7 +1899,12 @@ async function runDetection() {
     minDiameterUm: Number(els.minDiameter.value || 2),
     maxDiameterUm: Number(els.maxDiameter.value || 95),
     sensitivity: Number(els.sensitivity.value || 0.88),
-    contrast: els.contrastMode.value,
+    edgeThresholdLow: Number(els.edgeThresholdLow.value || 50),
+    edgeThresholdHigh: Number(els.edgeThresholdHigh.value || 140),
+    minimumEdgeSupport: Number(els.minimumEdgeSupport.value || 0.10),
+    circleFitTolerance: Number(els.circleFitTolerance.value || 0.08),
+    minimumContourCoverage: Number(els.minimumContourCoverage.value || 0.30),
+    ...imageAdjustmentOptions(),
   };
 
   try {
@@ -1750,11 +2011,23 @@ function handleDrop(event) {
 
 function loadImageData(imageUrl, imageName, imageBytes, revokeUrl = false) {
   if (state.imageObjectUrl) URL.revokeObjectURL(state.imageObjectUrl);
+  clearPreviewImage();
+  previewGeneration += 1;
+  previewPending = false;
+  window.clearTimeout(previewTimer);
+  previewTimer = null;
+  previewSourceBytes = null;
+  delete els.previewStatus.dataset.requestedGeneration;
+  delete els.previewStatus.dataset.renderedGeneration;
+  setPreviewStatus();
   state.imageBytes = imageBytes;
   state.imageObjectUrl = revokeUrl ? imageUrl : "";
   state.imageName = imageName;
-  state.image = new Image();
-  state.image.onload = () => {
+  const loadingImage = new Image();
+  const loadGeneration = previewGeneration;
+  state.image = loadingImage;
+  loadingImage.onload = () => {
+    if (state.image !== loadingImage) return;
     state.particles = [];
     state.scaleLine = null;
     state.micronsPerPx = defaultMicronsPerPixel;
@@ -1762,19 +2035,31 @@ function loadImageData(imageUrl, imageName, imageBytes, revokeUrl = false) {
     els.micronsPerPixel.value = String(defaultMicronsPerPixel);
     state.selectedIds.clear();
     state.nextId = 1;
+    resetAdjustmentValues({ resetDisplay: true, schedule: false });
+    setAdjustmentControlsEnabled(true);
     resetView();
     els.emptyState.classList.add("hidden");
     els.gestureHint.classList.remove("hidden");
     els.imageName.textContent = imageName;
     els.imageAction.textContent = t("upload.replaceAction");
-    if (state.image.naturalWidth * state.image.naturalHeight > 20_000_000) {
+    if (loadingImage.naturalWidth * loadingImage.naturalHeight > 20_000_000) {
       alert(t("warnings.largeImage"));
     }
     setStatus("status.loaded");
     closeCompactPanels();
     refresh();
+    createPreviewSource(loadingImage)
+      .then((bytes) => {
+        if (state.image !== loadingImage || previewGeneration !== loadGeneration) return;
+        previewSourceBytes = bytes;
+        schedulePreview(0);
+      })
+      .catch((error) => {
+        setPreviewStatus("failed");
+        console.error(error);
+      });
   };
-  state.image.src = imageUrl;
+  loadingImage.src = imageUrl;
 }
 
 function removeLegacyImageQuery() {
@@ -1824,31 +2109,47 @@ function exportCsv() {
   downloadBlob(`${state.imageName || "particles"}_corrected.csv`, new Blob([lines.join("\n")], { type: "text/csv" }));
 }
 
-function exportPng() {
-  if (!state.image) return;
-  const exportPadding = Math.max(
-    0,
-    Math.min(500, Math.round(Number(els.exportPaddingWidth.value) || 0)),
-  );
-  const out = document.createElement("canvas");
-  out.width = state.image.naturalWidth + exportPadding * 2;
-  out.height = state.image.naturalHeight + exportPadding * 2;
-  draw(out.getContext("2d"), {
-    export: true,
-    exportPadding,
-    includeSelection: els.exportSelection.checked,
-    includeScale: els.exportScale.checked,
-    includeLegend: els.exportLegend.checked,
-    exportPaddingColor: els.exportPaddingColor.value,
-  });
-  out.toBlob((blob) => {
-    if (blob) downloadBlob(`${state.imageName || "image"}_annotated.png`, blob);
-  }, "image/png");
+async function exportPng() {
+  if (!state.image || !state.imageBytes || !state.detector || exportInFlight) return;
+  exportInFlight = true;
+  updateQuickToolbar();
+  let rendered = null;
+  try {
+    const renderedBytes = await state.detector.render(
+      state.imageBytes,
+      imageAdjustmentOptions(),
+    );
+    rendered = await imageFromPngBytes(renderedBytes);
+    const exportPadding = Math.max(
+      0,
+      Math.min(500, Math.round(Number(els.exportPaddingWidth.value) || 0)),
+    );
+    const out = document.createElement("canvas");
+    out.width = state.image.naturalWidth + exportPadding * 2;
+    out.height = state.image.naturalHeight + exportPadding * 2;
+    draw(out.getContext("2d"), {
+      export: true,
+      image: rendered.image,
+      exportPadding,
+      includeSelection: els.exportSelection.checked,
+      includeScale: els.exportScale.checked,
+      includeLegend: els.exportLegend.checked,
+      exportPaddingColor: els.exportPaddingColor.value,
+    });
+    const blob = await canvasBlob(out);
+    downloadBlob(`${state.imageName || "image"}_annotated.png`, blob);
+  } catch (error) {
+    alert(error.message);
+  } finally {
+    if (rendered) URL.revokeObjectURL(rendered.url);
+    exportInFlight = false;
+    updateQuickToolbar();
+  }
 }
 
-function exportAll() {
+async function exportAll() {
   exportCsv();
-  window.setTimeout(exportPng, 120);
+  await exportPng();
 }
 
 function panelWidthLimits() {
@@ -2033,6 +2334,50 @@ els.runDetect.addEventListener("click", runDetection);
 els.exportCsv.addEventListener("click", exportCsv);
 els.exportPng.addEventListener("click", exportPng);
 els.exportAll.addEventListener("click", exportAll);
+for (const input of [els.brightness, els.contrastAdjustment, els.gamma]) {
+  input.addEventListener("input", () => {
+    updateAdjustmentReadouts();
+    markDetectionSettingsChanged();
+    schedulePreview();
+  });
+}
+els.contrastMode.addEventListener("change", () => {
+  markDetectionSettingsChanged();
+  schedulePreview();
+});
+els.colorMode.addEventListener("change", () => schedulePreview());
+els.quickOriginalPreview.addEventListener("pointerdown", (event) => {
+  if (els.quickOriginalPreview.disabled || event.button !== 0) return;
+  event.preventDefault();
+  try {
+    els.quickOriginalPreview.setPointerCapture(event.pointerId);
+  } catch {
+    // Synthetic pointer events may not have an active platform pointer to capture.
+  }
+  setOriginalPreview(true);
+});
+for (const eventName of ["pointerup", "pointercancel", "lostpointercapture"]) {
+  els.quickOriginalPreview.addEventListener(eventName, () => setOriginalPreview(false));
+}
+els.quickOriginalPreview.addEventListener("keydown", (event) => {
+  if (![" ", "Enter"].includes(event.key) || event.repeat) return;
+  event.preventDefault();
+  setOriginalPreview(true);
+});
+els.quickOriginalPreview.addEventListener("keyup", (event) => {
+  if (![" ", "Enter"].includes(event.key)) return;
+  event.preventDefault();
+  setOriginalPreview(false);
+});
+els.quickOriginalPreview.addEventListener("blur", () => setOriginalPreview(false));
+els.quickOriginalPreview.addEventListener("click", (event) => event.preventDefault());
+els.resetAdjustments.addEventListener("click", () => {
+  const changed = Number(els.brightness.value) !== 0
+    || Number(els.contrastAdjustment.value) !== 0
+    || Number(els.gamma.value) !== 1;
+  resetAdjustmentValues();
+  if (changed) markDetectionSettingsChanged();
+});
 els.zoomOut.addEventListener("click", () => zoomAt(1 / 1.25));
 els.zoomIn.addEventListener("click", () => zoomAt(1.25));
 for (const button of els.quickToolButtons) {
@@ -2540,6 +2885,18 @@ els.scaleUm.addEventListener("change", () => {
   if (state.scaleLine) setScaleFromLine(state.scaleLine);
   refresh();
 });
+for (const input of [
+  els.sensitivity,
+  els.minDiameter,
+  els.maxDiameter,
+  els.edgeThresholdLow,
+  els.edgeThresholdHigh,
+  els.minimumEdgeSupport,
+  els.circleFitTolerance,
+  els.minimumContourCoverage,
+]) {
+  input.addEventListener("input", markDetectionSettingsChanged);
+}
 for (const input of [els.minDiameter, els.maxDiameter]) {
   input.addEventListener("input", renderScaleLegend);
 }
@@ -2617,6 +2974,7 @@ async function bootstrap() {
       CircleHelp,
       CirclePlus,
       Download,
+      Eye,
       FileOutput,
       FileSpreadsheet,
       Hand,
@@ -2644,6 +3002,8 @@ async function bootstrap() {
   makePanelResizable(els.leftPanelResizeHandle);
   makePanelResizable(els.rightPanelResizeHandle);
   setupInformationTooltips();
+  updateAdjustmentReadouts();
+  setAdjustmentControlsEnabled(false);
   setToolbarPosition(state.ui.toolbarPosition, false);
   syncPanels();
   setInteractionMode("select");
