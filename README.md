@@ -13,6 +13,10 @@ The Web App runs entirely in the browser. Images are decoded and analyzed on
 your device and are not uploaded to ParticleLens or an analysis server. No
 Python installation is required.
 
+**New to ParticleLens?** Follow the
+[`step-by-step user guide`](docs/user-guide.md) to analyze the included example,
+review detections, inspect the distribution, and export corrected results.
+
 ## What it does
 
 - Detects circular droplets or particles and estimates their diameters.

@@ -6,6 +6,8 @@ All notable changes are documented here. Versions follow Semantic Versioning.
 
 ### Added
 
+- Added a screenshot-based user guide that walks through the included generated
+  example from calibration and detection to review, correction, and export.
 - Added live image-adjustment previews for brightness, manual contrast, gamma,
   CLAHE, and background correction.
 - Added shared color or grayscale rendering for the workspace and annotated PNG
