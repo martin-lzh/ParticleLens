@@ -98,6 +98,10 @@ editing actions:
 - **Fit view**, **Zoom in**, and **Zoom out**: change the view without changing
   the measurements.
 
+The **Scale and diameter** and **Live distribution** overlays are movable. Drag
+either overlay by its title bar to keep an important image region visible, or
+select its close button to hide it.
+
 Use the question-mark button in the top bar for mouse and touch gestures. If you
 change detection or image-adjustment settings, the current circles remain
 visible for comparison; select **Run Detection** again to calculate a new
