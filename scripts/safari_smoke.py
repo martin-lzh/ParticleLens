@@ -10,7 +10,7 @@ import numpy as np
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as conditions
-from selenium.webdriver.support.ui import Select, WebDriverWait
+from selenium.webdriver.support.ui import WebDriverWait
 
 
 def create_driver(browser: str) -> webdriver.Remote:
@@ -85,11 +85,14 @@ def main(browser: str = "safari") -> None:
                 )
                 is not None
             )
-            Select(
-                wait.until(conditions.element_to_be_clickable((By.ID, "contrastMode")))
-            ).select_by_value("none")
+            wait.until(conditions.visibility_of_element_located((By.ID, "contrastMode")))
             driver.execute_script(
                 """
+                const contrastMode = document.getElementById("contrastMode");
+                contrastMode.value = "none";
+                contrastMode.dispatchEvent(new Event("input", { bubbles: true }));
+                contrastMode.dispatchEvent(new Event("change", { bubbles: true }));
+
                 for (const [id, value] of [
                   ["micronsPerPixel", "0.625"],
                   ["sensitivity", "0.7"],
@@ -102,6 +105,12 @@ def main(browser: str = "safari") -> None:
                   input.dispatchEvent(new Event("change", { bubbles: true }));
                 }
                 """
+            )
+            wait.until(
+                lambda browser: browser.find_element(By.ID, "contrastMode").get_attribute(
+                    "value"
+                )
+                == "none"
             )
             wait.until(conditions.element_to_be_clickable((By.ID, "runDetect")))
             driver.find_element(By.ID, "runDetect").click()
