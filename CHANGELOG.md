@@ -4,6 +4,35 @@ All notable changes are documented here. Versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-08-08
+
+### Added
+
+- Added a screenshot-based user guide that walks through the included generated
+  example from calibration and detection to review, correction, and export.
+- Added contour-based circle candidates to recover clear rings missed by the
+  Hough detector.
+- Added user-adjustable edge, support, circle-fit, and contour-coverage controls
+  under a collapsed Advanced settings section.
+- Added live image-adjustment previews for brightness, manual contrast, gamma,
+  CLAHE, and background correction.
+- Added shared color or grayscale rendering for the workspace and annotated PNG
+  exports without modifying the source image.
+
+### Changed
+
+- Detection parameters and image adjustments are now grouped under Advanced
+  settings so the default calibration workflow stays focused.
+- Particle detection and annotated-image export now use the same adjustment
+  parameters shown in the preview.
+- Image adjustments begin rendering immediately and display completed
+  intermediate frames while the user continues dragging a control.
+- Original-image comparison is now a press-and-hold action in the canvas tool
+  rail; releasing it always restores the processed preview.
+- Browser runtime upgrades now use a versioned manifest and content-addressed
+  assets so an older service worker cannot mix a stale Python core with the
+  current preview worker.
+
 ## [0.2.1] - 2026-07-29
 
 ### Fixed
@@ -38,6 +67,7 @@ Validation uses deterministic synthetic images and clearly licensed public
 samples. It does not yet include private research images or claim coverage of
 every scientific imaging workflow.
 
-[Unreleased]: https://github.com/martin-lzh/ParticleLens/compare/v0.2.1...development
+[Unreleased]: https://github.com/martin-lzh/ParticleLens/compare/v0.2.2...development
+[0.2.2]: https://github.com/martin-lzh/ParticleLens/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/martin-lzh/ParticleLens/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/martin-lzh/ParticleLens/compare/v0.1.1...v0.2.0

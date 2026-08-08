@@ -13,10 +13,17 @@ The Web App runs entirely in the browser. Images are decoded and analyzed on
 your device and are not uploaded to ParticleLens or an analysis server. No
 Python installation is required.
 
+**New to ParticleLens?** Follow the
+[`step-by-step user guide`](docs/user-guide.md) to analyze the included example,
+review detections, inspect the distribution, and export corrected results.
+
 ## What it does
 
 - Detects circular droplets or particles and estimates their diameters.
 - Detects a lower-right scale bar or accepts a manual calibration.
+- Previews brightness, contrast, gamma, CLAHE, and background correction while
+  preserving the original image.
+- Exports processed annotations in color or grayscale.
 - Supports manual add, move, delete, and scale correction.
 - Provides count, distribution statistics, and a histogram.
 - Exports corrected CSV data and an annotated PNG.
@@ -43,8 +50,9 @@ Python CLI locally.
 
 ParticleLens uses classical computer vision, not a trained scientific model.
 The pipeline combines scale-bar detection, contrast preprocessing, OpenCV Hough
-circles, edge-supported least-squares fitting, duplicate suppression, and
-visible-area calculation.
+circles, contour-based circle fitting, edge-support scoring, duplicate
+suppression, and visible-area calculation. The complementary contour pass
+recovers clear rings that a single Hough pass can miss.
 
 Release validation covers:
 
@@ -120,6 +128,10 @@ uv run python analyze_particles.py "image.jpeg" --out output
 uv run python analyze_particles.py "E:\MicroscopeImages\*.jpeg" --out output
 ```
 
+Run `uv run python analyze_particles.py --help` to adjust the same circle-fit,
+edge-support, contour-coverage, and edge-threshold controls available under
+**Advanced settings** in the app.
+
 Start the local browser UI backed by native Python:
 
 ```powershell
@@ -142,9 +154,9 @@ The Windows build also requires
 This creates:
 
 ```text
-release/ParticleLens-Windows-Setup-v0.2.1.exe
-release/ParticleLens-Windows-v0.2.1.zip
-release/ParticleLens-Windows-OneFile-v0.2.1.exe
+release/ParticleLens-Windows-Setup-v0.2.2.exe
+release/ParticleLens-Windows-v0.2.2.zip
+release/ParticleLens-Windows-OneFile-v0.2.2.exe
 release/SHA256SUMS.txt
 ```
 

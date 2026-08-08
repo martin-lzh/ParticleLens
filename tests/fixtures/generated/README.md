@@ -11,5 +11,9 @@ of scientific accuracy until independently reviewed and annotated.
 The image intentionally has no scale bar. Tests supply a manual scale so scale-bar
 detection is not part of this fixture's contract.
 
-Before promoting this fixture to quantitative validation, add independently reviewed
-circle annotations and define tolerances for count, center position, and diameter.
+The automated suite includes a small regression check for six visually
+unambiguous rings that the earlier Hough-only detector missed. This is not a
+complete annotation set and does not establish quantitative accuracy. Before
+promoting this fixture to quantitative validation, add independently reviewed
+circle annotations and define tolerances for count, center position, and
+diameter.

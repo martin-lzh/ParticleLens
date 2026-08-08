@@ -114,7 +114,12 @@ def detect_scale_bar_by_runs(
 
 
 def prepare_detection_image(
-    gray: np.ndarray, mask_rect: tuple[int, int, int, int] | None, contrast: str
+    gray: np.ndarray,
+    mask_rect: tuple[int, int, int, int] | None,
+    contrast: str,
+    brightness: float = 0.0,
+    contrast_adjustment: float = 0.0,
+    gamma: float = 1.0,
 ) -> np.ndarray:
     work = gray.copy()
     if mask_rect is not None:
@@ -124,6 +129,38 @@ def prepare_detection_image(
             np.median(gray)
         )
 
+    work = adjust_luminance(work, brightness, contrast_adjustment, gamma)
+    work = apply_contrast_mode(work, contrast)
+    return cv2.medianBlur(work, 5)
+
+
+def adjust_luminance(
+    gray: np.ndarray,
+    brightness: float = 0.0,
+    contrast_adjustment: float = 0.0,
+    gamma: float = 1.0,
+) -> np.ndarray:
+    if not -100 <= brightness <= 100:
+        raise ValueError("Brightness must be between -100 and 100.")
+    if not -100 <= contrast_adjustment <= 100:
+        raise ValueError("Contrast adjustment must be between -100 and 100.")
+    if not 0.2 <= gamma <= 3.0:
+        raise ValueError("Gamma must be between 0.2 and 3.0.")
+
+    work = gray.astype(np.float32)
+    work += float(brightness) * 2.55
+    factor = (259.0 * (float(contrast_adjustment) + 255.0)) / (
+        255.0 * (259.0 - float(contrast_adjustment))
+    )
+    work = factor * (work - 128.0) + 128.0
+    work = np.clip(work, 0, 255)
+    if not math.isclose(gamma, 1.0):
+        work = np.power(work / 255.0, 1.0 / float(gamma)) * 255.0
+    return np.clip(np.rint(work), 0, 255).astype(np.uint8)
+
+
+def apply_contrast_mode(gray: np.ndarray, contrast: str) -> np.ndarray:
+    work = gray
     if contrast == "clahe":
         clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
         work = clahe.apply(work)
@@ -133,7 +170,36 @@ def prepare_detection_image(
     elif contrast != "none":
         raise ValueError(f"Unknown contrast mode: {contrast}")
 
-    return cv2.medianBlur(work, 5)
+    return work
+
+
+def render_image_bytes(
+    image_bytes: bytes | bytearray | memoryview, options: dict[str, Any]
+) -> bytes:
+    image = decode_image_bytes(image_bytes)
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    adjusted = adjust_luminance(
+        gray,
+        brightness=float(options.get("brightness", 0.0)),
+        contrast_adjustment=float(options.get("contrastAdjustment", 0.0)),
+        gamma=float(options.get("gamma", 1.0)),
+    )
+    processed = apply_contrast_mode(adjusted, str(options.get("contrast", "clahe")))
+    color_mode = str(options.get("colorMode", "color"))
+
+    if color_mode == "color":
+        ycrcb = cv2.cvtColor(image, cv2.COLOR_BGR2YCrCb)
+        ycrcb[:, :, 0] = processed
+        rendered = cv2.cvtColor(ycrcb, cv2.COLOR_YCrCb2BGR)
+    elif color_mode == "grayscale":
+        rendered = processed
+    else:
+        raise ValueError(f"Unknown color mode: {color_mode}")
+
+    ok, encoded = cv2.imencode(".png", rendered)
+    if not ok:
+        raise RuntimeError("Could not encode the processed image.")
+    return encoded.tobytes()
 
 
 def fit_circle_from_edges(
@@ -193,6 +259,67 @@ def circle_edge_score(edges: np.ndarray, x: float, y: float, r: float) -> float:
     return float(np.mean(edges[ys[valid], xs[valid]] > 0))
 
 
+def detect_contour_circles(
+    edges: np.ndarray,
+    min_radius: int,
+    max_radius: int,
+    minimum_edge_score: float,
+    circle_fit_tolerance: float,
+    minimum_contour_coverage: float,
+) -> list[Circle]:
+    """Fit circles to coherent edge contours as a complement to Hough detection."""
+
+    contours, _hierarchy = cv2.findContours(
+        edges.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE
+    )
+    candidates: list[Circle] = []
+    minimum_arc_length = 2.0 * math.pi * min_radius * minimum_contour_coverage
+
+    for contour in contours:
+        if len(contour) < 12:
+            continue
+
+        arc_length = cv2.arcLength(contour, False)
+        if arc_length < minimum_arc_length:
+            continue
+
+        points = contour[:, 0, :].astype(np.float64)
+        xs = points[:, 0]
+        ys = points[:, 1]
+        matrix = np.column_stack([xs, ys, np.ones_like(xs)])
+        rhs = -(xs * xs + ys * ys)
+        try:
+            a, b, c = np.linalg.lstsq(matrix, rhs, rcond=None)[0]
+        except np.linalg.LinAlgError:
+            continue
+
+        x = -a / 2.0
+        y = -b / 2.0
+        radius_sq = (a * a + b * b) / 4.0 - c
+        if radius_sq <= 0:
+            continue
+        radius = math.sqrt(radius_sq)
+        if not np.isfinite([x, y, radius]).all() or not min_radius <= radius <= max_radius:
+            continue
+
+        distances = np.hypot(xs - x, ys - y)
+        radial_error = float(np.quantile(np.abs(distances - radius), 0.75))
+        normalized_error = radial_error / max(radius, 6.0)
+        contour_coverage = arc_length / (2.0 * math.pi * radius)
+        if (
+            normalized_error > circle_fit_tolerance
+            or contour_coverage < minimum_contour_coverage
+            or contour_coverage > 1.6
+        ):
+            continue
+
+        score = circle_edge_score(edges, x, y, radius)
+        if score >= minimum_edge_score:
+            candidates.append(Circle(float(x), float(y), float(radius), score))
+
+    return suppress_duplicates(candidates)
+
+
 def suppress_duplicates(circles: list[Circle]) -> list[Circle]:
     circles = sorted(circles, key=lambda c: (c.score, c.r), reverse=True)
     kept: list[Circle] = []
@@ -228,6 +355,14 @@ def detect_particles(
     max_diameter_um: float,
     sensitivity: float,
     contrast: str,
+    brightness: float = 0.0,
+    contrast_adjustment: float = 0.0,
+    gamma: float = 1.0,
+    edge_threshold_low: int = 50,
+    edge_threshold_high: int = 140,
+    minimum_edge_score: float = 0.10,
+    circle_fit_tolerance: float = 0.08,
+    minimum_contour_coverage: float = 0.30,
 ) -> list[Circle]:
     if microns_per_px <= 0:
         raise ValueError("Microns per pixel must be positive.")
@@ -235,15 +370,37 @@ def detect_particles(
         raise ValueError("Diameter limits are invalid.")
     if not 0.01 <= sensitivity <= 0.98:
         raise ValueError("Sensitivity must be between 0.01 and 0.98.")
+    if not 0 <= edge_threshold_low < edge_threshold_high <= 255:
+        raise ValueError("Edge thresholds must satisfy 0 <= low < high <= 255.")
+    if not 0.0 <= minimum_edge_score <= 1.0:
+        raise ValueError("Minimum edge support must be between 0 and 1.")
+    if not 0.01 <= circle_fit_tolerance <= 0.5:
+        raise ValueError("Circle fit tolerance must be between 0.01 and 0.5.")
+    if not 0.05 <= minimum_contour_coverage <= 1.0:
+        raise ValueError("Minimum contour coverage must be between 0.05 and 1.")
 
-    work = prepare_detection_image(gray, scale_bar_bbox, contrast)
+    work = prepare_detection_image(
+        gray,
+        scale_bar_bbox,
+        contrast,
+        brightness=brightness,
+        contrast_adjustment=contrast_adjustment,
+        gamma=gamma,
+    )
     work = cv2.GaussianBlur(work, (5, 5), 1.2)
     min_radius = max(2, int(round(min_diameter_um / microns_per_px / 2)))
     max_radius = max(min_radius + 1, int(round(max_diameter_um / microns_per_px / 2)))
     min_dist = max(7, int(round(min_radius * 1.8)))
 
-    edges = cv2.Canny(work, 50, 140)
-    candidates: list[Circle] = []
+    edges = cv2.Canny(work, edge_threshold_low, edge_threshold_high)
+    candidates = detect_contour_circles(
+        edges,
+        min_radius,
+        max_radius,
+        minimum_edge_score,
+        circle_fit_tolerance,
+        minimum_contour_coverage,
+    )
     raw = cv2.HoughCircles(
         work,
         cv2.HOUGH_GRADIENT_ALT,
@@ -254,19 +411,23 @@ def detect_particles(
         minRadius=min_radius,
         maxRadius=max_radius,
     )
-    if raw is None:
-        return []
+    if raw is not None:
+        for x, y, r in raw[0]:
+            if is_in_annotation_area(x, y, scale_bar_bbox):
+                continue
+            rough = Circle(float(x), float(y), float(r), 0.0)
+            refined = fit_circle_from_edges(edges, rough)
+            score = circle_edge_score(edges, refined.x, refined.y, refined.r)
+            if score >= minimum_edge_score:
+                candidates.append(Circle(refined.x, refined.y, refined.r, score))
 
-    for x, y, r in raw[0]:
-        if is_in_annotation_area(x, y, scale_bar_bbox):
-            continue
-        rough = Circle(float(x), float(y), float(r), 0.0)
-        refined = fit_circle_from_edges(edges, rough)
-        score = circle_edge_score(edges, refined.x, refined.y, refined.r)
-        if score >= 0.10:
-            candidates.append(Circle(refined.x, refined.y, refined.r, score))
-
-    return suppress_duplicates(candidates)
+    return suppress_duplicates(
+        [
+            circle
+            for circle in candidates
+            if not is_in_annotation_area(circle.x, circle.y, scale_bar_bbox)
+        ]
+    )
 
 
 def circle_to_payload(
@@ -311,6 +472,14 @@ def analyze_image_bytes(image_bytes: bytes | bytearray | memoryview, options: di
         max_diameter_um=float(options.get("maxDiameterUm", 95.0)),
         sensitivity=float(options.get("sensitivity", 0.88)),
         contrast=str(options.get("contrast", "clahe")),
+        brightness=float(options.get("brightness", 0.0)),
+        contrast_adjustment=float(options.get("contrastAdjustment", 0.0)),
+        gamma=float(options.get("gamma", 1.0)),
+        edge_threshold_low=int(options.get("edgeThresholdLow", 50)),
+        edge_threshold_high=int(options.get("edgeThresholdHigh", 140)),
+        minimum_edge_score=float(options.get("minimumEdgeSupport", 0.10)),
+        circle_fit_tolerance=float(options.get("circleFitTolerance", 0.08)),
+        minimum_contour_coverage=float(options.get("minimumContourCoverage", 0.30)),
     )
     circles = sorted(circles, key=lambda circle: (circle.y, circle.x))
     return {
