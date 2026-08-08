@@ -67,7 +67,7 @@ assets.push({
 });
 
 const manifest = {
-  version: "0.2.1",
+  version: "0.2.2",
   runtimeApiVersion: 2,
   pyodideVersion: config.version,
   totalBytes: assets.reduce((sum, asset) => sum + asset.size, 0),
