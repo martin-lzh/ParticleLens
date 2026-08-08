@@ -259,6 +259,33 @@ def circle_edge_score(edges: np.ndarray, x: float, y: float, r: float) -> float:
     return float(np.mean(edges[ys[valid], xs[valid]] > 0))
 
 
+def detect_edges(
+    gray: np.ndarray, edge_threshold_low: int, edge_threshold_high: int
+) -> np.ndarray:
+    """Detect edges, lowering thresholds only when fixed thresholds find almost none."""
+
+    edges = cv2.Canny(gray, edge_threshold_low, edge_threshold_high)
+    minimum_useful_edges = max(16, int(gray.size * 0.0002))
+    if np.count_nonzero(edges) >= minimum_useful_edges:
+        return edges
+
+    gradient_x = cv2.Sobel(gray, cv2.CV_32F, 1, 0, ksize=3)
+    gradient_y = cv2.Sobel(gray, cv2.CV_32F, 0, 1, ksize=3)
+    gradient = cv2.magnitude(gradient_x, gradient_y)
+    nonzero_gradient = gradient[gradient > 0]
+    if nonzero_gradient.size < minimum_useful_edges:
+        return edges
+
+    adaptive_high = min(
+        float(edge_threshold_high),
+        0.75 * float(np.quantile(nonzero_gradient, 0.75)),
+    )
+    if adaptive_high < 10.0:
+        return edges
+    adaptive_low = min(float(edge_threshold_low), 0.4 * adaptive_high)
+    return cv2.Canny(gray, adaptive_low, adaptive_high)
+
+
 def detect_contour_circles(
     edges: np.ndarray,
     min_radius: int,
@@ -392,7 +419,7 @@ def detect_particles(
     max_radius = max(min_radius + 1, int(round(max_diameter_um / microns_per_px / 2)))
     min_dist = max(7, int(round(min_radius * 1.8)))
 
-    edges = cv2.Canny(work, edge_threshold_low, edge_threshold_high)
+    edges = detect_edges(work, edge_threshold_low, edge_threshold_high)
     candidates = detect_contour_circles(
         edges,
         min_radius,

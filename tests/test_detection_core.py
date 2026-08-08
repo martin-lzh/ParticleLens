@@ -12,6 +12,7 @@ from particle_detection_core import (
     analyze_image_bytes,
     circle_rect_visible_fraction,
     detect_contour_circles,
+    detect_edges,
     detect_scale_bar,
     fit_circle_from_edges,
     render_image_bytes,
@@ -116,6 +117,15 @@ def test_contour_circle_detection_recovers_clear_edge_rings() -> None:
         assert match.x == pytest.approx(expected_x, abs=1.5)
         assert match.y == pytest.approx(expected_y, abs=1.5)
         assert match.r == pytest.approx(expected_radius, abs=1.5)
+
+
+def test_edge_detection_adapts_when_fixed_thresholds_miss_low_contrast_rings() -> None:
+    gray = np.full((160, 200), 228, dtype=np.uint8)
+    cv2.circle(gray, (100, 80), 32, 204, -1, lineType=cv2.LINE_AA)
+    gray = cv2.GaussianBlur(gray, (5, 5), 1.2)
+
+    assert np.count_nonzero(cv2.Canny(gray, 50, 140)) == 0
+    assert np.count_nonzero(detect_edges(gray, 50, 140)) > 100
 
 
 def test_luminance_adjustments_are_neutral_and_directional() -> None:
