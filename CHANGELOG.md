@@ -12,6 +12,9 @@ All notable changes are documented here. Versions follow Semantic Versioning.
 - Added a reproducible robustness benchmark against raw OpenCV Hough Gradient
   ALT and scikit-image circular Hough, plus CI regression floors for detection
   F1 and diameter error.
+- Added the complete detector configuration, matching rules, timing protocol,
+  dependency versions, and execution environment to both benchmark report
+  formats; aligned comparable baseline search geometry to a 1 px radius grid.
 
 ### Fixed
 

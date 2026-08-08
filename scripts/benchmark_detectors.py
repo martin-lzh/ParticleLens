@@ -3,7 +3,9 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import platform
+import statistics
 import sys
 import time
 from collections.abc import Callable
@@ -56,6 +58,79 @@ class Metrics:
 
 Detector = Callable[[np.ndarray], list[Circle]]
 
+IMAGE_WIDTH = 512
+IMAGE_HEIGHT = 480
+MICRONS_PER_PIXEL = 1.0
+MIN_DIAMETER = 24.0
+MAX_DIAMETER = 82.0
+MIN_RADIUS = 12
+MAX_RADIUS = 41
+CONTRAST_MODE = "clahe"
+GAUSSIAN_SIGMA = 1.2
+HOUGH_DP = 1.5
+HOUGH_MIN_DISTANCE = 22
+HOUGH_PARAM1 = 300.0
+HOUGH_PARAM2 = 0.68
+EDGE_THRESHOLD_LOW = 50
+EDGE_THRESHOLD_HIGH = 140
+SKIMAGE_RADIUS_STEP = 1
+SKIMAGE_PEAK_THRESHOLD = 0.30
+SKIMAGE_MAX_PEAKS = 64
+
+SHARED_PARAMETERS = {
+    "source width": f"{IMAGE_WIDTH} px",
+    "source height": f"{IMAGE_HEIGHT} px",
+    "color conversion": "cv2.COLOR_BGR2GRAY for BGR sources; grayscale sources unchanged",
+    "diameter search range": f"{MIN_DIAMETER:g}-{MAX_DIAMETER:g} px",
+    "radius search range": f"{MIN_RADIUS}-{MAX_RADIUS} px",
+    "calibration": f"{MICRONS_PER_PIXEL:g} micrometer per pixel",
+    "contrast mode": "CLAHE, clip limit 2.0, 8 x 8 tiles",
+    "median blur": "5 x 5",
+}
+PARTICLELENS_PARAMETERS = {
+    "Gaussian blur after median": f"5 x 5, sigma {GAUSSIAN_SIGMA:g}",
+    "sensitivity / Hough param2": HOUGH_PARAM2,
+    "Hough method": "cv2.HOUGH_GRADIENT_ALT",
+    "Hough dp": HOUGH_DP,
+    "Hough minimum center distance": f"{HOUGH_MIN_DISTANCE} px",
+    "Hough param1": HOUGH_PARAM1,
+    "edge thresholds": f"Canny low {EDGE_THRESHOLD_LOW}, high {EDGE_THRESHOLD_HIGH}",
+    "minimum edge support": 0.10,
+    "circle-fit tolerance": 0.08,
+    "minimum contour coverage": 0.30,
+    "annular radial support": "ceil(22% of radius), clamped to 2-6 px",
+    "brightness / contrast adjustment / gamma": "0 / 0 / 1.0",
+}
+OPENCV_PARAMETERS = {
+    "Gaussian blur after median": f"5 x 5, sigma {GAUSSIAN_SIGMA:g}",
+    "method": "cv2.HOUGH_GRADIENT_ALT",
+    "dp": HOUGH_DP,
+    "minimum center distance": f"{HOUGH_MIN_DISTANCE} px",
+    "param1": HOUGH_PARAM1,
+    "param2": HOUGH_PARAM2,
+    "minimum radius": f"{MIN_RADIUS} px",
+    "maximum radius": f"{MAX_RADIUS} px",
+    "post-processing": "none",
+}
+SKIMAGE_PARAMETERS = {
+    "Canny sigma": GAUSSIAN_SIGMA,
+    "Canny low threshold": f"{EDGE_THRESHOLD_LOW} / 255",
+    "Canny high threshold": f"{EDGE_THRESHOLD_HIGH} / 255",
+    "radius grid": (
+        f"{MIN_RADIUS}-{MAX_RADIUS} px inclusive, {SKIMAGE_RADIUS_STEP} px step"
+    ),
+    "minimum x/y peak distance": f"{HOUGH_MIN_DISTANCE} / {HOUGH_MIN_DISTANCE} px",
+    "normalized peak threshold": SKIMAGE_PEAK_THRESHOLD,
+    "maximum returned peaks": SKIMAGE_MAX_PEAKS,
+    "normalize accumulators": True,
+}
+MATCHING_PARAMETERS = {
+    "assignment": "greedy ascending normalized error, one detection per truth circle",
+    "center-error limit": "max(5 px, 35% of truth radius)",
+    "radius-error limit": "30% of truth radius",
+    "diameter error": "mean absolute percentage error over matched circles",
+}
+
 BASE_CIRCLES = (
     Circle(78, 82, 18, 1.0),
     Circle(205, 78, 30, 1.0),
@@ -66,7 +141,9 @@ BASE_CIRCLES = (
 )
 
 
-def _background(kind: str, height: int = 480, width: int = 512) -> np.ndarray:
+def _background(
+    kind: str, height: int = IMAGE_HEIGHT, width: int = IMAGE_WIDTH
+) -> np.ndarray:
     if kind == "illumination_gradient":
         yy, xx = np.mgrid[:height, :width]
         values = 198.0 + 48.0 * (xx / width) + 16.0 * (yy / height)
@@ -110,7 +187,7 @@ def _draw_case(
 
 
 def _draw_edge_only_case(kind: str, circles: tuple[Circle, ...] = BASE_CIRCLES) -> np.ndarray:
-    image = np.full((480, 512, 3), 232, dtype=np.uint8)
+    image = np.full((IMAGE_HEIGHT, IMAGE_WIDTH, 3), 232, dtype=np.uint8)
     if kind == "edge_only_dark_rings":
         colors = [(96, 96, 96)]
         thickness = 3
@@ -208,32 +285,36 @@ def make_benchmark_cases() -> list[BenchmarkCase]:
 def particlelens_detector(gray: np.ndarray) -> list[Circle]:
     return detect_particles(
         gray=gray,
-        microns_per_px=1.0,
+        microns_per_px=MICRONS_PER_PIXEL,
         scale_bar_bbox=None,
-        min_diameter_um=24.0,
-        max_diameter_um=82.0,
-        sensitivity=0.68,
-        contrast="clahe",
-        minimum_edge_score=0.10,
-        circle_fit_tolerance=0.08,
-        minimum_contour_coverage=0.30,
+        min_diameter_um=MIN_DIAMETER,
+        max_diameter_um=MAX_DIAMETER,
+        sensitivity=float(PARTICLELENS_PARAMETERS["sensitivity / Hough param2"]),
+        contrast=CONTRAST_MODE,
+        edge_threshold_low=EDGE_THRESHOLD_LOW,
+        edge_threshold_high=EDGE_THRESHOLD_HIGH,
+        minimum_edge_score=float(PARTICLELENS_PARAMETERS["minimum edge support"]),
+        circle_fit_tolerance=float(PARTICLELENS_PARAMETERS["circle-fit tolerance"]),
+        minimum_contour_coverage=float(
+            PARTICLELENS_PARAMETERS["minimum contour coverage"]
+        ),
     )
 
 
 def opencv_hough_detector(gray: np.ndarray) -> list[Circle]:
     """Raw OpenCV Hough Gradient ALT baseline using ParticleLens search bounds."""
 
-    work = prepare_detection_image(gray, None, "clahe")
-    work = cv2.GaussianBlur(work, (5, 5), 1.2)
+    work = prepare_detection_image(gray, None, CONTRAST_MODE)
+    work = cv2.GaussianBlur(work, (5, 5), GAUSSIAN_SIGMA)
     raw = cv2.HoughCircles(
         work,
         cv2.HOUGH_GRADIENT_ALT,
-        dp=1.5,
-        minDist=22,
-        param1=300,
-        param2=0.68,
-        minRadius=12,
-        maxRadius=41,
+        dp=HOUGH_DP,
+        minDist=HOUGH_MIN_DISTANCE,
+        param1=HOUGH_PARAM1,
+        param2=HOUGH_PARAM2,
+        minRadius=MIN_RADIUS,
+        maxRadius=MAX_RADIUS,
     )
     if raw is None:
         return []
@@ -243,23 +324,23 @@ def opencv_hough_detector(gray: np.ndarray) -> list[Circle]:
 def skimage_hough_detector(gray: np.ndarray) -> list[Circle]:
     """scikit-image circular Hough baseline with fixed, truth-independent settings."""
 
-    work = prepare_detection_image(gray, None, "clahe")
+    work = prepare_detection_image(gray, None, CONTRAST_MODE)
     edges = canny(
         work.astype(np.float32) / 255.0,
-        sigma=1.2,
-        low_threshold=50 / 255,
-        high_threshold=140 / 255,
+        sigma=GAUSSIAN_SIGMA,
+        low_threshold=EDGE_THRESHOLD_LOW / 255,
+        high_threshold=EDGE_THRESHOLD_HIGH / 255,
     )
-    radii = np.arange(12, 42, 2)
+    radii = np.arange(MIN_RADIUS, MAX_RADIUS + 1, SKIMAGE_RADIUS_STEP)
     hough_spaces = hough_circle(edges, radii)
     accumulators, centers_x, centers_y, peak_radii = hough_circle_peaks(
         hough_spaces,
         radii,
-        min_xdistance=18,
-        min_ydistance=18,
-        threshold=0.30,
-        total_num_peaks=64,
-        normalize=True,
+        min_xdistance=HOUGH_MIN_DISTANCE,
+        min_ydistance=HOUGH_MIN_DISTANCE,
+        threshold=SKIMAGE_PEAK_THRESHOLD,
+        total_num_peaks=SKIMAGE_MAX_PEAKS,
+        normalize=bool(SKIMAGE_PARAMETERS["normalize accumulators"]),
     )
     return [
         Circle(float(x), float(y), float(radius), float(score))
@@ -361,12 +442,27 @@ def aggregate(metrics: list[Metrics]) -> Metrics:
     )
 
 
-def benchmark_detector(detector: Detector, cases: list[BenchmarkCase]) -> dict[str, Metrics]:
+def benchmark_detector(
+    detector: Detector,
+    cases: list[BenchmarkCase],
+    repetitions: int = 1,
+    warmup_runs: int = 0,
+) -> dict[str, Metrics]:
+    if repetitions < 1 or warmup_runs < 0:
+        raise ValueError("Repetitions must be positive and warm-up runs cannot be negative.")
+
     results: dict[str, Metrics] = {}
     for case in cases:
-        started = time.perf_counter()
-        detections = detector(case.gray)
-        elapsed_ms = (time.perf_counter() - started) * 1000.0
+        for _ in range(warmup_runs):
+            detector(case.gray)
+
+        elapsed_samples: list[float] = []
+        detections: list[Circle] = []
+        for _ in range(repetitions):
+            started = time.perf_counter()
+            detections = detector(case.gray)
+            elapsed_samples.append((time.perf_counter() - started) * 1000.0)
+        elapsed_ms = statistics.median(elapsed_samples)
         results[case.name] = evaluate(case.truth, detections, elapsed_ms)
     results["aggregate"] = aggregate(list(results.values()))
     return results
@@ -374,6 +470,14 @@ def benchmark_detector(detector: Detector, cases: list[BenchmarkCase]) -> dict[s
 
 def _format_percent(value: float | None) -> str:
     return "n/a" if value is None else f"{100 * value:.1f}%"
+
+
+def _parameter_table(parameters: dict[str, object]) -> list[str]:
+    lines = ["| Parameter | Value |", "| --- | --- |"]
+    for name, value in parameters.items():
+        rendered = "true" if value is True else "false" if value is False else str(value)
+        lines.append(f"| {name} | {rendered} |")
+    return lines
 
 
 def _annotated_panel(
@@ -433,15 +537,32 @@ def write_report(
     cases: list[BenchmarkCase],
     results: dict[str, dict[str, Metrics]],
     detectors: dict[str, Detector],
+    timing_protocol: dict[str, object],
 ) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     _write_case_images(cases, output_dir, detectors)
+    environment = {
+        "operating system": platform.platform(),
+        "machine": platform.machine(),
+        "processor": platform.processor() or "not reported by platform",
+        "logical CPU count": os.cpu_count(),
+        "Python": platform.python_version(),
+        "NumPy": np.__version__,
+        "OpenCV": cv2.__version__,
+        "OpenCV threads": cv2.getNumThreads(),
+        "scikit-image": skimage.__version__,
+    }
     payload = {
-        "environment": {
-            "python": platform.python_version(),
-            "opencv": cv2.__version__,
-            "scikit_image": skimage.__version__,
-            "platform": platform.platform(),
+        "environment": environment,
+        "benchmark_protocol": {
+            "shared_parameters": SHARED_PARAMETERS,
+            "matching_parameters": MATCHING_PARAMETERS,
+            "timing": timing_protocol,
+        },
+        "detector_parameters": {
+            "ParticleLens": PARTICLELENS_PARAMETERS,
+            "OpenCV Hough Gradient ALT": OPENCV_PARAMETERS,
+            "scikit-image circular Hough": SKIMAGE_PARAMETERS,
         },
         "cases": [
             {"name": case.name, "description": case.description, "truth_count": len(case.truth)}
@@ -462,6 +583,39 @@ def write_report(
         "All detectors receive the same eleven deterministic synthetic images and fixed",
         "truth-independent parameters. A match requires center error within max(5 px, 35%",
         "of radius) and radius error at or below 30%. Timing is indicative only.",
+        "",
+        "## Benchmark parameters",
+        "",
+        "No detector receives the expected particle count, and no parameter changes by",
+        "case. Values below come from the constants and configuration manifest beside the",
+        "benchmark calls; fixed ParticleLens kernel internals are recorded explicitly. The",
+        "JSON report contains the same manifest.",
+        "",
+        "### Shared input and preprocessing",
+        "",
+        *_parameter_table(SHARED_PARAMETERS),
+        "",
+        "### ParticleLens",
+        "",
+        *_parameter_table(PARTICLELENS_PARAMETERS),
+        "",
+        "### OpenCV Hough Gradient ALT",
+        "",
+        *_parameter_table(OPENCV_PARAMETERS),
+        "",
+        "### scikit-image circular Hough",
+        "",
+        *_parameter_table(SKIMAGE_PARAMETERS),
+        "",
+        "### Matching and timing",
+        "",
+        *_parameter_table({**MATCHING_PARAMETERS, **timing_protocol}),
+        "",
+        "### Execution environment",
+        "",
+        *_parameter_table(environment),
+        "",
+        "## Aggregate results",
         "",
         "| Detector | Precision | Recall | F1 | Diameter MAPE | Center MAE | Total time |",
         "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
@@ -509,6 +663,13 @@ def write_report(
             "  parameters are fixed across all cases and do not depend on ground truth.",
             "- The three edge-only source images retain BGR color in the comparison panels;",
             "  detector inputs use the same OpenCV BGR-to-grayscale conversion as the app.",
+            "- Threshold values are not numerically equivalent across libraries: OpenCV",
+            "  `param2` is a Hough center-confidence threshold, while scikit-image's 0.30",
+            "  value is a normalized accumulator peak threshold. They are fixed and",
+            "  disclosed, but the table does not claim each baseline is optimally tuned.",
+            "- OpenCV can return subpixel radii. scikit-image evaluates the disclosed 1 px",
+            "  radius grid. ParticleLens intentionally includes its contour recovery and",
+            "  refinement because the benchmark evaluates the complete detector kernel.",
             "",
             "This suite measures controlled perturbations, not scientific validity on real",
             "microscopy. Synthetic geometry is easier than irregular particles, textured",
@@ -540,6 +701,12 @@ def parse_args() -> argparse.Namespace:
         default=ROOT / "output" / "detector-benchmark",
         help="Directory for the Markdown report, JSON metrics, and example images.",
     )
+    parser.add_argument(
+        "--repetitions",
+        type=int,
+        default=5,
+        help="Timed repetitions per detector and case after one unmeasured warm-up.",
+    )
     return parser.parse_args()
 
 
@@ -551,8 +718,23 @@ def main() -> None:
         "OpenCV Hough Gradient ALT": opencv_hough_detector,
         "scikit-image circular Hough": skimage_hough_detector,
     }
-    results = {name: benchmark_detector(detector, cases) for name, detector in detectors.items()}
-    write_report(args.output_dir, cases, results, detectors)
+    timing_protocol = {
+        "warm-up runs per detector and case": 1,
+        "timed repetitions per detector and case": args.repetitions,
+        "reported case time": "median",
+        "reported total time": "sum of per-case medians",
+        "detector execution": "sequential in displayed order",
+    }
+    results = {
+        name: benchmark_detector(
+            detector,
+            cases,
+            repetitions=args.repetitions,
+            warmup_runs=1,
+        )
+        for name, detector in detectors.items()
+    }
+    write_report(args.output_dir, cases, results, detectors, timing_protocol)
     for name, detector_results in results.items():
         summary = detector_results["aggregate"]
         print(
