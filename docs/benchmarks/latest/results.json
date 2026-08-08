@@ -1,0 +1,409 @@
+{
+  "cases": [
+    {
+      "description": "High-contrast, separated circles",
+      "name": "clean",
+      "truth_count": 6
+    },
+    {
+      "description": "24-level foreground/background contrast",
+      "name": "low_contrast",
+      "truth_count": 6
+    },
+    {
+      "description": "64-level diagonal illumination gradient",
+      "name": "illumination_gradient",
+      "truth_count": 6
+    },
+    {
+      "description": "Gaussian sensor noise, sigma 14",
+      "name": "gaussian_noise",
+      "truth_count": 6
+    },
+    {
+      "description": "Gaussian defocus blur, sigma 3.2 px",
+      "name": "defocus_blur",
+      "truth_count": 6
+    },
+    {
+      "description": "JPEG compression at quality 38",
+      "name": "jpeg_compression",
+      "truth_count": 6
+    },
+    {
+      "description": "Two partially occluding particles",
+      "name": "overlap",
+      "truth_count": 6
+    },
+    {
+      "description": "Three particles clipped by image boundaries",
+      "name": "boundary_clipping",
+      "truth_count": 6
+    }
+  ],
+  "environment": {
+    "opencv": "4.11.0",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.13.3",
+    "scikit_image": "0.26.0"
+  },
+  "results": {
+    "OpenCV Hough Gradient ALT": {
+      "aggregate": {
+        "center_mae_px": 0.587337585333947,
+        "detection_count": 46,
+        "diameter_mape": 0.029276280042407118,
+        "elapsed_ms": 39.34839996509254,
+        "f1": 0.9787234042553191,
+        "false_negatives": 2,
+        "false_positives": 0,
+        "precision": 1.0,
+        "recall": 0.9583333333333334,
+        "true_positives": 46,
+        "truth_count": 48
+      },
+      "boundary_clipping": {
+        "center_mae_px": 0.45118446353109126,
+        "detection_count": 6,
+        "diameter_mape": 0.026248088815733924,
+        "elapsed_ms": 4.849700024351478,
+        "f1": 1.0,
+        "false_negatives": 0,
+        "false_positives": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "true_positives": 6,
+        "truth_count": 6
+      },
+      "clean": {
+        "center_mae_px": 0.5690355937288492,
+        "detection_count": 6,
+        "diameter_mape": 0.030737102168083327,
+        "elapsed_ms": 5.184999899938703,
+        "f1": 1.0,
+        "false_negatives": 0,
+        "false_positives": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "true_positives": 6,
+        "truth_count": 6
+      },
+      "defocus_blur": {
+        "center_mae_px": 0.5690355937288492,
+        "detection_count": 6,
+        "diameter_mape": 0.02212315818847646,
+        "elapsed_ms": 4.285299917683005,
+        "f1": 1.0,
+        "false_negatives": 0,
+        "false_positives": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "true_positives": 6,
+        "truth_count": 6
+      },
+      "gaussian_noise": {
+        "center_mae_px": 0.8875234616560738,
+        "detection_count": 6,
+        "diameter_mape": 0.04061998807470596,
+        "elapsed_ms": 5.3211001213639975,
+        "f1": 1.0,
+        "false_negatives": 0,
+        "false_positives": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "true_positives": 6,
+        "truth_count": 6
+      },
+      "illumination_gradient": {
+        "center_mae_px": 0.5690355937288492,
+        "detection_count": 6,
+        "diameter_mape": 0.03295444756853206,
+        "elapsed_ms": 5.251599941402674,
+        "f1": 1.0,
+        "false_negatives": 0,
+        "false_positives": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "true_positives": 6,
+        "truth_count": 6
+      },
+      "jpeg_compression": {
+        "center_mae_px": 0.5690355937288492,
+        "detection_count": 6,
+        "diameter_mape": 0.029142781457633053,
+        "elapsed_ms": 4.296000115573406,
+        "f1": 1.0,
+        "false_negatives": 0,
+        "false_positives": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "true_positives": 6,
+        "truth_count": 6
+      },
+      "low_contrast": {
+        "center_mae_px": 0.5517766952966369,
+        "detection_count": 4,
+        "diameter_mape": 0.02524190570463512,
+        "elapsed_ms": 5.21260011009872,
+        "f1": 0.8,
+        "false_negatives": 2,
+        "false_positives": 0,
+        "precision": 1.0,
+        "recall": 0.6666666666666666,
+        "true_positives": 4,
+        "truth_count": 6
+      },
+      "overlap": {
+        "center_mae_px": 0.5202200572599404,
+        "detection_count": 6,
+        "diameter_mape": 0.02579797691553302,
+        "elapsed_ms": 4.947099834680557,
+        "f1": 1.0,
+        "false_negatives": 0,
+        "false_positives": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "true_positives": 6,
+        "truth_count": 6
+      }
+    },
+    "ParticleLens": {
+      "aggregate": {
+        "center_mae_px": 0.09816032506303064,
+        "detection_count": 48,
+        "diameter_mape": 0.027980565689444015,
+        "elapsed_ms": 60.810600174590945,
+        "f1": 1.0,
+        "false_negatives": 0,
+        "false_positives": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "true_positives": 48,
+        "truth_count": 48
+      },
+      "boundary_clipping": {
+        "center_mae_px": 0.08984200879339786,
+        "detection_count": 6,
+        "diameter_mape": 0.024190915398895462,
+        "elapsed_ms": 6.951700197532773,
+        "f1": 1.0,
+        "false_negatives": 0,
+        "false_positives": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "true_positives": 6,
+        "truth_count": 6
+      },
+      "clean": {
+        "center_mae_px": 0.031691265430264036,
+        "detection_count": 6,
+        "diameter_mape": 0.026542277210909414,
+        "elapsed_ms": 8.007799973711371,
+        "f1": 1.0,
+        "false_negatives": 0,
+        "false_positives": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "true_positives": 6,
+        "truth_count": 6
+      },
+      "defocus_blur": {
+        "center_mae_px": 0.17007781935659885,
+        "detection_count": 6,
+        "diameter_mape": 0.019754443435410496,
+        "elapsed_ms": 6.905100075528026,
+        "f1": 1.0,
+        "false_negatives": 0,
+        "false_positives": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "true_positives": 6,
+        "truth_count": 6
+      },
+      "gaussian_noise": {
+        "center_mae_px": 0.07548248792376899,
+        "detection_count": 6,
+        "diameter_mape": 0.03707997933000444,
+        "elapsed_ms": 7.365699857473373,
+        "f1": 1.0,
+        "false_negatives": 0,
+        "false_positives": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "true_positives": 6,
+        "truth_count": 6
+      },
+      "illumination_gradient": {
+        "center_mae_px": 0.011230179024049452,
+        "detection_count": 6,
+        "diameter_mape": 0.03160735543514317,
+        "elapsed_ms": 7.995899999514222,
+        "f1": 1.0,
+        "false_negatives": 0,
+        "false_positives": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "true_positives": 6,
+        "truth_count": 6
+      },
+      "jpeg_compression": {
+        "center_mae_px": 0.06451032829062153,
+        "detection_count": 6,
+        "diameter_mape": 0.027804037112534208,
+        "elapsed_ms": 6.844900082796812,
+        "f1": 1.0,
+        "false_negatives": 0,
+        "false_positives": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "true_positives": 6,
+        "truth_count": 6
+      },
+      "low_contrast": {
+        "center_mae_px": 0.049721865129998565,
+        "detection_count": 6,
+        "diameter_mape": 0.02865619861320966,
+        "elapsed_ms": 9.397600078955293,
+        "f1": 1.0,
+        "false_negatives": 0,
+        "false_positives": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "true_positives": 6,
+        "truth_count": 6
+      },
+      "overlap": {
+        "center_mae_px": 0.292726646555546,
+        "detection_count": 6,
+        "diameter_mape": 0.028209318979445272,
+        "elapsed_ms": 7.341899909079075,
+        "f1": 1.0,
+        "false_negatives": 0,
+        "false_positives": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "true_positives": 6,
+        "truth_count": 6
+      }
+    },
+    "scikit-image circular Hough": {
+      "aggregate": {
+        "center_mae_px": 0.3611111111111111,
+        "detection_count": 36,
+        "diameter_mape": 0.014040489381517227,
+        "elapsed_ms": 745.8060998469591,
+        "f1": 0.8571428571428571,
+        "false_negatives": 12,
+        "false_positives": 0,
+        "precision": 1.0,
+        "recall": 0.75,
+        "true_positives": 36,
+        "truth_count": 48
+      },
+      "boundary_clipping": {
+        "center_mae_px": 0.5,
+        "detection_count": 6,
+        "diameter_mape": 0.010251630941286114,
+        "elapsed_ms": 94.52740009874105,
+        "f1": 1.0,
+        "false_negatives": 0,
+        "false_positives": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "true_positives": 6,
+        "truth_count": 6
+      },
+      "clean": {
+        "center_mae_px": 0.3333333333333333,
+        "detection_count": 6,
+        "diameter_mape": 0.011750881316098707,
+        "elapsed_ms": 112.77020000852644,
+        "f1": 1.0,
+        "false_negatives": 0,
+        "false_positives": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "true_positives": 6,
+        "truth_count": 6
+      },
+      "defocus_blur": {
+        "center_mae_px": null,
+        "detection_count": 0,
+        "diameter_mape": null,
+        "elapsed_ms": 80.08249988779426,
+        "f1": 0.0,
+        "false_negatives": 6,
+        "false_positives": 0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "true_positives": 0,
+        "truth_count": 6
+      },
+      "gaussian_noise": {
+        "center_mae_px": 0.6666666666666666,
+        "detection_count": 6,
+        "diameter_mape": 0.011750881316098707,
+        "elapsed_ms": 94.03889998793602,
+        "f1": 1.0,
+        "false_negatives": 0,
+        "false_positives": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "true_positives": 6,
+        "truth_count": 6
+      },
+      "illumination_gradient": {
+        "center_mae_px": 0.3333333333333333,
+        "detection_count": 6,
+        "diameter_mape": 0.011750881316098707,
+        "elapsed_ms": 93.12830003909767,
+        "f1": 1.0,
+        "false_negatives": 0,
+        "false_positives": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "true_positives": 6,
+        "truth_count": 6
+      },
+      "jpeg_compression": {
+        "center_mae_px": 0.16666666666666666,
+        "detection_count": 6,
+        "diameter_mape": 0.011750881316098707,
+        "elapsed_ms": 97.15109993703663,
+        "f1": 1.0,
+        "false_negatives": 0,
+        "false_positives": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "true_positives": 6,
+        "truth_count": 6
+      },
+      "low_contrast": {
+        "center_mae_px": null,
+        "detection_count": 0,
+        "diameter_mape": null,
+        "elapsed_ms": 78.27459997497499,
+        "f1": 0.0,
+        "false_negatives": 6,
+        "false_positives": 0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "true_positives": 0,
+        "truth_count": 6
+      },
+      "overlap": {
+        "center_mae_px": 0.16666666666666666,
+        "detection_count": 6,
+        "diameter_mape": 0.026987780083422414,
+        "elapsed_ms": 95.83309991285205,
+        "f1": 1.0,
+        "false_negatives": 0,
+        "false_positives": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "true_positives": 6,
+        "truth_count": 6
+      }
+    }
+  }
+}
