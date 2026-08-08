@@ -30,6 +30,14 @@ class BenchmarkCase:
     image: np.ndarray
     truth: tuple[Circle, ...]
 
+    @property
+    def gray(self) -> np.ndarray:
+        if self.image.ndim == 2:
+            return self.image
+        if self.image.ndim == 3 and self.image.shape[2] == 3:
+            return cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
+        raise ValueError(f"Unsupported benchmark image shape: {self.image.shape}")
+
 
 @dataclass(frozen=True)
 class Metrics:
@@ -101,6 +109,46 @@ def _draw_case(
     return gray
 
 
+def _draw_edge_only_case(kind: str, circles: tuple[Circle, ...] = BASE_CIRCLES) -> np.ndarray:
+    image = np.full((480, 512, 3), 232, dtype=np.uint8)
+    if kind == "edge_only_dark_rings":
+        colors = [(96, 96, 96)]
+        thickness = 3
+    elif kind == "edge_only_colored_rings":
+        colors = [
+            (190, 70, 45),
+            (45, 115, 200),
+            (65, 145, 65),
+            (150, 80, 150),
+            (40, 165, 170),
+            (70, 100, 150),
+        ]
+        thickness = 3
+    elif kind == "edge_only_weak_colored_rings":
+        colors = [
+            (215, 205, 188),
+            (190, 208, 218),
+            (205, 216, 194),
+            (217, 198, 214),
+            (190, 215, 218),
+            (202, 208, 220),
+        ]
+        thickness = 4
+    else:
+        raise ValueError(f"Unknown edge-only benchmark kind: {kind}")
+
+    for index, circle in enumerate(circles):
+        cv2.circle(
+            image,
+            (round(circle.x), round(circle.y)),
+            round(circle.r),
+            colors[index % len(colors)],
+            thickness,
+            lineType=cv2.LINE_AA,
+        )
+    return image
+
+
 def make_benchmark_cases() -> list[BenchmarkCase]:
     overlap = (
         Circle(85, 88, 25, 1.0),
@@ -128,10 +176,33 @@ def make_benchmark_cases() -> list[BenchmarkCase]:
         ("overlap", "Two partially occluding particles", overlap),
         ("boundary_clipping", "Three particles clipped by image boundaries", clipped),
     ]
-    return [
+    cases = [
         BenchmarkCase(name, description, _draw_case(name, circles), circles)
         for name, description, circles in definitions
     ]
+    cases.extend(
+        [
+            BenchmarkCase(
+                "edge_only_dark_rings",
+                "Dark three-pixel rings with unchanged interiors",
+                _draw_edge_only_case("edge_only_dark_rings"),
+                BASE_CIRCLES,
+            ),
+            BenchmarkCase(
+                "edge_only_colored_rings",
+                "Mixed-color three-pixel rings with unchanged interiors",
+                _draw_edge_only_case("edge_only_colored_rings"),
+                BASE_CIRCLES,
+            ),
+            BenchmarkCase(
+                "edge_only_weak_colored_rings",
+                "Weak-contrast colored rings with unchanged interiors",
+                _draw_edge_only_case("edge_only_weak_colored_rings"),
+                BASE_CIRCLES,
+            ),
+        ]
+    )
+    return cases
 
 
 def particlelens_detector(gray: np.ndarray) -> list[Circle]:
@@ -294,7 +365,7 @@ def benchmark_detector(detector: Detector, cases: list[BenchmarkCase]) -> dict[s
     results: dict[str, Metrics] = {}
     for case in cases:
         started = time.perf_counter()
-        detections = detector(case.image)
+        detections = detector(case.gray)
         elapsed_ms = (time.perf_counter() - started) * 1000.0
         results[case.name] = evaluate(case.truth, detections, elapsed_ms)
     results["aggregate"] = aggregate(list(results.values()))
@@ -311,7 +382,7 @@ def _annotated_panel(
     truth: tuple[Circle, ...],
     detections: list[Circle] | None,
 ) -> np.ndarray:
-    canvas = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+    canvas = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR) if image.ndim == 2 else image.copy()
     for circle in truth:
         cv2.circle(
             canvas,
@@ -348,7 +419,7 @@ def _write_case_images(
     for case in cases:
         panels = [_annotated_panel(case.image, "Ground truth", case.truth, None)]
         panels.extend(
-            _annotated_panel(case.image, detector_name, case.truth, detector(case.image))
+            _annotated_panel(case.image, detector_name, case.truth, detector(case.gray))
             for detector_name, detector in detectors.items()
         )
         cv2.imwrite(
@@ -388,7 +459,7 @@ def write_report(
     lines = [
         "# Circle detector robustness benchmark",
         "",
-        "All detectors receive the same eight deterministic synthetic images and fixed",
+        "All detectors receive the same eleven deterministic synthetic images and fixed",
         "truth-independent parameters. A match requires center error within max(5 px, 35%",
         "of radius) and radius error at or below 30%. Timing is indicative only.",
         "",
@@ -436,6 +507,8 @@ def write_report(
             "  with fixed radius bounds and a 0.30 normalized peak threshold.",
             "- The benchmark never gives a detector the expected particle count. Detector",
             "  parameters are fixed across all cases and do not depend on ground truth.",
+            "- The three edge-only source images retain BGR color in the comparison panels;",
+            "  detector inputs use the same OpenCV BGR-to-grayscale conversion as the app.",
             "",
             "This suite measures controlled perturbations, not scientific validity on real",
             "microscopy. Synthetic geometry is easier than irregular particles, textured",

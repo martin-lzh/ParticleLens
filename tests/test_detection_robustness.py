@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import numpy as np
 import pytest
 
 from scripts.benchmark_detectors import (
@@ -9,6 +10,20 @@ from scripts.benchmark_detectors import (
 )
 
 CASES = make_benchmark_cases()
+
+
+def test_colored_ring_cases_leave_particle_interiors_unfilled() -> None:
+    colored_cases = [case for case in CASES if "colored_rings" in case.name]
+    assert len(colored_cases) == 2
+    for case in colored_cases:
+        background = case.image[0, 0]
+        assert case.image.ndim == 3
+        for circle in case.truth:
+            center = case.image[round(circle.y), round(circle.x)]
+            edge = case.image[round(circle.y), round(circle.x + circle.r)]
+            assert np.array_equal(center, background)
+            assert not np.array_equal(edge, background)
+            assert np.ptp(edge) > 0
 
 
 @pytest.mark.parametrize("case", CASES, ids=lambda case: case.name)

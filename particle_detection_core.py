@@ -14,6 +14,7 @@ class Circle:
     y: float
     r: float
     score: float
+    method: str = "unknown"
 
     @property
     def diameter_px(self) -> float:
@@ -245,18 +246,25 @@ def fit_circle_from_edges(
     if not (0.68 * r0 <= r <= 1.32 * r0):
         return circle
 
-    return Circle(float(x), float(y), float(r), circle.score)
+    return Circle(float(x), float(y), float(r), circle.score, circle.method)
 
 
-def circle_edge_score(edges: np.ndarray, x: float, y: float, r: float) -> float:
+def circle_edge_score(
+    edges: np.ndarray, x: float, y: float, r: float, radial_tolerance: int = 0
+) -> float:
     samples = max(48, int(2 * math.pi * r / 2.5))
     angles = np.linspace(0, 2 * math.pi, samples, endpoint=False)
-    xs = np.rint(x + r * np.cos(angles)).astype(int)
-    ys = np.rint(y + r * np.sin(angles)).astype(int)
+    offsets = np.arange(-radial_tolerance, radial_tolerance + 1, dtype=float)[:, np.newaxis]
+    radii = r + offsets
+    xs = np.rint(x + radii * np.cos(angles)).astype(int)
+    ys = np.rint(y + radii * np.sin(angles)).astype(int)
     valid = (xs >= 0) & (xs < edges.shape[1]) & (ys >= 0) & (ys < edges.shape[0])
-    if not np.any(valid):
+    valid_angles = np.any(valid, axis=0)
+    if not np.any(valid_angles):
         return 0.0
-    return float(np.mean(edges[ys[valid], xs[valid]] > 0))
+    supported = np.zeros_like(valid)
+    supported[valid] = edges[ys[valid], xs[valid]] > 0
+    return float(np.mean(np.any(supported, axis=0)[valid_angles]))
 
 
 def detect_edges(
@@ -265,7 +273,7 @@ def detect_edges(
     """Detect edges, lowering thresholds only when fixed thresholds find almost none."""
 
     edges = cv2.Canny(gray, edge_threshold_low, edge_threshold_high)
-    minimum_useful_edges = max(16, int(gray.size * 0.0002))
+    minimum_useful_edges = max(16, int(gray.size * 0.002))
     if np.count_nonzero(edges) >= minimum_useful_edges:
         return edges
 
@@ -342,13 +350,17 @@ def detect_contour_circles(
 
         score = circle_edge_score(edges, x, y, radius)
         if score >= minimum_edge_score:
-            candidates.append(Circle(float(x), float(y), float(radius), score))
+            candidates.append(Circle(float(x), float(y), float(radius), score, "contour"))
 
     return suppress_duplicates(candidates)
 
 
 def suppress_duplicates(circles: list[Circle]) -> list[Circle]:
-    circles = sorted(circles, key=lambda c: (c.score, c.r), reverse=True)
+    circles = sorted(
+        circles,
+        key=lambda c: (c.score, c.method == "hough", c.r),
+        reverse=True,
+    )
     kept: list[Circle] = []
     for circle in circles:
         duplicate = False
@@ -442,11 +454,29 @@ def detect_particles(
         for x, y, r in raw[0]:
             if is_in_annotation_area(x, y, scale_bar_bbox):
                 continue
-            rough = Circle(float(x), float(y), float(r), 0.0)
+            rough = Circle(float(x), float(y), float(r), 0.0, "hough")
             refined = fit_circle_from_edges(edges, rough)
             score = circle_edge_score(edges, refined.x, refined.y, refined.r)
+            radial_tolerance = max(2, min(6, int(math.ceil(rough.r * 0.22))))
+            band_score = circle_edge_score(
+                edges,
+                rough.x,
+                rough.y,
+                rough.r,
+                radial_tolerance=radial_tolerance,
+            )
+            prefer_band = (
+                band_score >= 0.60 and band_score > score + 0.15
+            ) or (
+                score < minimum_edge_score and band_score >= minimum_edge_score
+            )
+            if prefer_band:
+                refined = rough
+                score = band_score
             if score >= minimum_edge_score:
-                candidates.append(Circle(refined.x, refined.y, refined.r, score))
+                candidates.append(
+                    Circle(refined.x, refined.y, refined.r, score, refined.method)
+                )
 
     return suppress_duplicates(
         [

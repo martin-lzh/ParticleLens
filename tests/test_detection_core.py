@@ -10,6 +10,7 @@ from particle_detection_core import (
     Circle,
     adjust_luminance,
     analyze_image_bytes,
+    circle_edge_score,
     circle_rect_visible_fraction,
     detect_contour_circles,
     detect_edges,
@@ -84,6 +85,15 @@ def test_circle_fit_recovers_known_edge() -> None:
     assert fitted.r == pytest.approx(25, abs=1)
 
 
+def test_radial_edge_support_accepts_an_annular_midline() -> None:
+    edges = np.zeros((120, 120), dtype=np.uint8)
+    cv2.circle(edges, (60, 60), 22, 255, 1)
+    cv2.circle(edges, (60, 60), 28, 255, 1)
+
+    assert circle_edge_score(edges, 60, 60, 25) == 0
+    assert circle_edge_score(edges, 60, 60, 25, radial_tolerance=3) > 0.80
+
+
 def test_duplicate_suppression_prefers_high_score() -> None:
     circles = [
         Circle(20, 20, 10, 0.9),
@@ -92,6 +102,13 @@ def test_duplicate_suppression_prefers_high_score() -> None:
     ]
     kept = suppress_duplicates(circles)
     assert kept == [circles[0], circles[2]]
+
+
+def test_duplicate_suppression_prefers_hough_midline_when_support_is_equal() -> None:
+    contour = Circle(40, 40, 17, 1.0, "contour")
+    hough = Circle(40, 40, 20, 1.0, "hough")
+
+    assert suppress_duplicates([contour, hough]) == [hough]
 
 
 def test_contour_circle_detection_recovers_clear_edge_rings() -> None:

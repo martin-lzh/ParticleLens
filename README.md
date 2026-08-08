@@ -57,8 +57,9 @@ recovers clear rings that a single Hough pass can miss.
 Release validation covers:
 
 - deterministic synthetic images with clear and weak edges, overlaps, partial
-  objects, background gradients, noise, defocus, JPEG compression, three
-  contrast modes, no scale bar, and no particles;
+  objects, dark and colored edge-only rings, background gradients, noise,
+  defocus, JPEG compression, three contrast modes, no scale bar, and no
+  particles;
 - a ground-truth robustness benchmark against raw OpenCV Hough Gradient ALT and
   scikit-image circular Hough, with precision, recall, F1, diameter error, and
   runtime reported in [`docs/benchmarks/latest`](docs/benchmarks/latest/README.md);

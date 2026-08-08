@@ -6,9 +6,9 @@ All notable changes are documented here. Versions follow Semantic Versioning.
 
 ### Added
 
-- Added eight deterministic, fully annotated detector examples covering low
-  contrast, uneven illumination, noise, defocus, JPEG artifacts, overlaps, and
-  clipped particles.
+- Added eleven deterministic, fully annotated detector examples covering low
+  contrast, uneven illumination, noise, defocus, JPEG artifacts, overlaps,
+  clipped particles, and dark, colored, or weak-contrast edge-only rings.
 - Added a reproducible robustness benchmark against raw OpenCV Hough Gradient
   ALT and scikit-image circular Hough, plus CI regression floors for detection
   F1 and diameter error.
@@ -18,6 +18,8 @@ All notable changes are documented here. Versions follow Semantic Versioning.
 - Added a conservative adaptive edge-threshold fallback so low-contrast circles
   are not discarded when the user-configured Canny thresholds produce almost no
   edge pixels.
+- Added radial edge support and Hough-candidate priority for annular particles
+  so the inner contour of an edge-only ring does not bias its measured diameter.
 
 ## [0.2.2] - 2026-08-08
 

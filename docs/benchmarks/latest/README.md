@@ -1,14 +1,14 @@
 # Circle detector robustness benchmark
 
-All detectors receive the same eight deterministic synthetic images and fixed
+All detectors receive the same eleven deterministic synthetic images and fixed
 truth-independent parameters. A match requires center error within max(5 px, 35%
 of radius) and radius error at or below 30%. Timing is indicative only.
 
 | Detector | Precision | Recall | F1 | Diameter MAPE | Center MAE | Total time |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| ParticleLens | 100.0% | 100.0% | 100.0% | 2.8% | 0.10 px | 60.8 ms |
-| OpenCV Hough Gradient ALT | 100.0% | 95.8% | 97.9% | 2.9% | 0.59 px | 39.3 ms |
-| scikit-image circular Hough | 100.0% | 75.0% | 85.7% | 1.4% | 0.36 px | 745.8 ms |
+| ParticleLens | 100.0% | 100.0% | 100.0% | 2.7% | 0.23 px | 85.2 ms |
+| OpenCV Hough Gradient ALT | 100.0% | 95.5% | 97.7% | 2.6% | 0.58 px | 44.8 ms |
+| scikit-image circular Hough | 100.0% | 72.7% | 84.2% | 3.9% | 0.61 px | 1005.1 ms |
 
 ## Results by case
 
@@ -16,12 +16,15 @@ of radius) and radius error at or below 30%. Timing is indicative only.
 | --- | ---: | ---: | ---: | ---: | ---: |
 | clean | 6 | 100.0% | 100.0% | 100.0% | 2.7% |
 | low_contrast | 6 | 100.0% | 80.0% | 0.0% | 2.9% |
-| illumination_gradient | 6 | 100.0% | 100.0% | 100.0% | 3.2% |
-| gaussian_noise | 6 | 100.0% | 100.0% | 100.0% | 3.7% |
-| defocus_blur | 6 | 100.0% | 100.0% | 0.0% | 2.0% |
-| jpeg_compression | 6 | 100.0% | 100.0% | 100.0% | 2.8% |
-| overlap | 6 | 100.0% | 100.0% | 100.0% | 2.8% |
+| illumination_gradient | 6 | 100.0% | 100.0% | 100.0% | 3.0% |
+| gaussian_noise | 6 | 100.0% | 100.0% | 100.0% | 3.6% |
+| defocus_blur | 6 | 100.0% | 100.0% | 0.0% | 2.1% |
+| jpeg_compression | 6 | 100.0% | 100.0% | 100.0% | 2.7% |
+| overlap | 6 | 100.0% | 100.0% | 100.0% | 2.5% |
 | boundary_clipping | 6 | 100.0% | 100.0% | 100.0% | 2.4% |
+| edge_only_dark_rings | 6 | 100.0% | 100.0% | 100.0% | 1.7% |
+| edge_only_colored_rings | 6 | 100.0% | 100.0% | 100.0% | 1.7% |
+| edge_only_weak_colored_rings | 6 | 100.0% | 90.9% | 0.0% | 4.1% |
 
 ## Baselines and interpretation
 
@@ -34,6 +37,8 @@ of radius) and radius error at or below 30%. Timing is indicative only.
   with fixed radius bounds and a 0.30 normalized peak threshold.
 - The benchmark never gives a detector the expected particle count. Detector
   parameters are fixed across all cases and do not depend on ground truth.
+- The three edge-only source images retain BGR color in the comparison panels;
+  detector inputs use the same OpenCV BGR-to-grayscale conversion as the app.
 
 This suite measures controlled perturbations, not scientific validity on real
 microscopy. Synthetic geometry is easier than irregular particles, textured
