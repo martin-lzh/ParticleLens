@@ -255,10 +255,12 @@ test("keeps information tooltips inside narrow viewports", async ({ page }) => {
   ]) {
     await page.setViewportSize(viewport);
     await openReadyApp(page);
+    await dragMobileDrawer(page, "expand");
     await page.locator("#mobileAllSettings").click();
     await openAdvancedSettings(page);
 
     for (const trigger of await page.locator(".info-point:not([hidden]) .info-point-trigger").all()) {
+      if (!(await trigger.isVisible())) continue;
       await trigger.click();
       const tooltipId = await trigger.getAttribute("aria-describedby");
       const bounds = await page.locator(`#${tooltipId}`).evaluate((element) => {
@@ -917,6 +919,17 @@ test("uses the canvas-first mobile workspace, collapsible tuning drawer, and hol
   expect(topbarBox?.height).toBeCloseTo(64, 0);
   await expect(page.locator(".quick-toolbar")).toBeHidden();
   await expect(page.locator("#mobileTuningDrawer")).toBeVisible();
+  await expect(page.locator("#mobileTuningDrawer")).toHaveClass(/collapsed/);
+  await expect(page.locator("#mobileDrawerToggle")).toHaveAttribute("aria-expanded", "false");
+  await expect(page.locator("#mobileDrawerCollapsedLabel")).toBeVisible();
+  const emptyStateBox = await page.locator("#emptyState > span:last-child").boundingBox();
+  const closedDrawerBox = await page.locator("#mobileTuningDrawer").boundingBox();
+  expect(emptyStateBox.y + emptyStateBox.height).toBeLessThanOrEqual(closedDrawerBox.y);
+  await page.locator("#mobileDrawerToggle").click();
+  await expect(page.locator("#mobileDrawerToggle")).toHaveAttribute("aria-expanded", "false");
+  await dragMobileDrawer(page, "expand", 70);
+  await expect(page.locator("#mobileDrawerToggle")).toHaveAttribute("aria-expanded", "false");
+  await dragMobileDrawer(page, "expand");
   await expect(page.locator("#mobileDrawerToggle")).toHaveAttribute("aria-expanded", "true");
   await expect(page.locator("[data-mobile-parameter='brightness']")).toHaveAttribute(
     "aria-selected",
@@ -932,8 +945,6 @@ test("uses the canvas-first mobile workspace, collapsible tuning drawer, and hol
     );
   }
 
-  await page.locator("#mobileDrawerToggle").click();
-  await expect(page.locator("#mobileDrawerToggle")).toHaveAttribute("aria-expanded", "true");
   await dragMobileDrawer(page, "collapse", 70);
   await expect(page.locator("#mobileDrawerToggle")).toHaveAttribute("aria-expanded", "true");
   await dragMobileDrawer(page, "collapse");
@@ -1064,6 +1075,13 @@ test("keeps the complete mobile workflow usable in an iPhone SE viewport", async
     );
   };
 
+  await expect(page.locator("#mobileDrawerToggle")).toHaveAttribute("aria-expanded", "false");
+  await expectInsideViewport("#mobileDrawerCollapsedLabel");
+  const initialEmptyBox = await page.locator("#emptyState > span:last-child").boundingBox();
+  const initialDrawerBox = await page.locator("#mobileTuningDrawer").boundingBox();
+  expect(initialEmptyBox.y + initialEmptyBox.height).toBeLessThanOrEqual(initialDrawerBox.y);
+  await dragMobileDrawer(page, "expand");
+
   await page.locator("#imageInput").setInputFiles({
     name: "synthetic.bmp",
     mimeType: "image/bmp",
@@ -1097,15 +1115,22 @@ test("keeps the complete mobile workflow usable in an iPhone SE viewport", async
   await expectInsideViewport(".right-panel .stats");
   await expectInsideViewport(".right-panel .navigation-tabs");
   await expectInsideViewport(".mobile-table-summary");
+  await expect(page.locator(".mobile-results-overview")).not.toContainText(/Detection complete|识别完成/);
+  const resultIconBox = await page.locator(".mobile-results-overview > svg").boundingBox();
+  const resultCountBox = await page.locator(".mobile-results-overview strong").boundingBox();
+  expect(Math.abs(resultIconBox.height - resultCountBox.height)).toBeLessThanOrEqual(2);
+  await expect(page.locator(".right-panel .navigation-tabs")).toHaveCSS("border-top-width", "1px");
   const statsBox = await page.locator(".right-panel .stats").boundingBox();
   const tabsBox = await page.locator(".right-panel .navigation-tabs").boundingBox();
   expect(tabsBox.y - (statsBox.y + statsBox.height)).toBeGreaterThanOrEqual(6);
 
   await page.locator("#rightTabPareto").click();
   await expectInsideViewport(".pareto-controls");
+  await expect(page.locator(".pareto-controls")).toHaveCSS("border-top-width", "0px");
+  await expect(page.locator(".pareto-controls")).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
   await expectInsideViewport("#paretoPlot");
   await expectInsideViewport("#downloadPareto");
-  await expectInsideViewport("#mobileParetoExport");
+  await expect(page.locator("#mobileParetoExport")).toHaveCount(0);
 
   await page.locator("#rightTabExport").click();
   await expectInsideViewport("#labelLimit");
@@ -1113,6 +1138,22 @@ test("keeps the complete mobile workflow usable in an iPhone SE viewport", async
   await expectInsideViewport(".export-padding-options");
   await expectInsideViewport(".export-actions");
   await expectInsideViewport("#exportAll");
+  const colorInputBox = await page.locator("#exportPaddingColor").boundingBox();
+  const paddingInputBox = await page.locator("#exportPaddingWidth").boundingBox();
+  expect(colorInputBox.height).toBeCloseTo(paddingInputBox.height, 0);
+  const exportActionBox = await page.locator("#exportCsv").boundingBox();
+  const exportAllBox = await page.locator("#exportAll").boundingBox();
+  expect(exportActionBox.height).toBeCloseTo(exportAllBox.height, 0);
+
+  for (const [trigger, tooltip] of [
+    ["[aria-describedby='exportContentsInfo']", "#exportContentsInfo"],
+    ["[aria-describedby='exportMarginInfo']", "#exportMarginInfo"],
+  ]) {
+    await page.locator(trigger).click();
+    await expect(page.locator(tooltip)).toBeVisible();
+    await expectInsideViewport(tooltip);
+    await expect(page.locator(`${tooltip} img`)).toHaveJSProperty("complete", true);
+  }
 });
 
 test("switches language and restores the app shell offline", async ({ page }) => {

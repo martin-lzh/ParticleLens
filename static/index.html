@@ -289,7 +289,6 @@
               <strong data-i18n="mobile.imageSettings">Image settings</strong>
               <small data-i18n="mobile.processingParameters">Processing parameters</small>
             </span>
-            <i data-lucide="chevron-up" aria-hidden="true"></i>
           </span>
         </button>
 
@@ -617,7 +616,6 @@
             <i data-lucide="bubbles" aria-hidden="true"></i>
             <div>
               <strong><span id="mobileCountStat">0</span> <span data-i18n="mobile.particles">particles</span></strong>
-              <span data-i18n="mobile.detectionComplete">Detection complete</span>
             </div>
           </section>
 
@@ -691,13 +689,6 @@
               <i data-lucide="download" aria-hidden="true"></i>
               <span data-i18n="pareto.download">Download current chart</span>
             </button>
-            <button id="mobileParetoExport" class="mobile-pareto-export primary" type="button">
-              <i data-lucide="file-output" aria-hidden="true"></i>
-              <span>
-                <strong data-i18n="mobile.exportResults">Export results</strong>
-                <small data-i18n="mobile.goToExport">Go to Export tab</small>
-              </span>
-            </button>
           </section>
 
           <section id="rightPanelExport" class="right-tab-panel" data-right-panel="export" role="tabpanel" aria-labelledby="rightTabExport" hidden>
@@ -709,7 +700,17 @@
                 <input id="labelLimit" type="number" min="0" step="1" value="80" />
               </label>
               <fieldset class="export-options">
-                <legend data-i18n="export.imageContents">Image contents</legend>
+                <legend>
+                  <span data-i18n="export.imageContents">Image contents</span>
+                  <span class="info-point export-info-point">
+                    <button class="info-point-trigger" type="button" aria-describedby="exportContentsInfo" aria-label="Explain exported image contents" data-i18n-aria="export.contentsInfoAria">i</button>
+                    <span id="exportContentsInfo" class="info-tooltip export-visual-tooltip" role="tooltip">
+                      <img src="./export-content-guide.png" alt="" />
+                      <strong data-i18n="export.contentsInfoTitle">Optional image annotations</strong>
+                      <span data-i18n="export.contentsInfoBody">Include the selected-particle ring, scale bar, and size legend in the exported image.</span>
+                    </span>
+                  </span>
+                </legend>
                 <label>
                   <input id="exportSelection" type="checkbox" />
                   <span data-i18n="export.selection">Selected particle highlight</span>
@@ -724,10 +725,20 @@
                 </label>
               </fieldset>
               <div class="export-padding-options">
-                <label>
-                  <span data-i18n="export.paddingColor">Margin color</span>
+                <div class="export-padding-field">
+                  <span class="export-field-label">
+                    <label for="exportPaddingColor" data-i18n="export.paddingColor">Margin color</label>
+                    <span class="info-point export-info-point">
+                      <button class="info-point-trigger" type="button" aria-describedby="exportMarginInfo" aria-label="Explain export margins" data-i18n-aria="export.marginInfoAria">i</button>
+                      <span id="exportMarginInfo" class="info-tooltip export-visual-tooltip" role="tooltip">
+                        <img src="./export-margin-guide.png" alt="" />
+                        <strong data-i18n="export.marginInfoTitle">Space around the image</strong>
+                        <span data-i18n="export.marginInfoBody">Margin adds the chosen number of pixels around every side of the exported image using this color.</span>
+                      </span>
+                    </span>
+                  </span>
                   <input id="exportPaddingColor" type="color" value="#ffffff" />
-                </label>
+                </div>
                 <label>
                   <span data-i18n="export.paddingWidth">Margin size (px)</span>
                   <input

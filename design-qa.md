@@ -44,6 +44,13 @@
 - Export: `docs/design/mobile/qa/implementation-iphone-se-export.png`
 - Collapsed image-settings entry: `docs/design/mobile/qa/implementation-iphone-se-drawer-collapsed.png`
 - Analysis tab spacing: `docs/design/mobile/qa/implementation-iphone-se-analysis-tab-gap.png`
+- Default collapsed drawer: `docs/design/mobile/qa/implementation-iphone-se-default-collapsed.png`
+- Export layout and information points: `docs/design/mobile/qa/implementation-iphone-se-export-info.png`
+- Export contents tip: `docs/design/mobile/qa/implementation-iphone-se-export-content-tip.png`
+- Outer margin tip: `docs/design/mobile/qa/implementation-iphone-se-export-margin-tip.png`
+- Distribution without redundant CTA: `docs/design/mobile/qa/implementation-iphone-se-distribution-refined.png`
+- Distribution with controls laid directly into the page: `docs/design/mobile/qa/implementation-iphone-se-distribution-flat-controls.png`
+- Combined before/after evidence: `docs/design/mobile/qa/comparison-feedback-drawer.png`, `docs/design/mobile/qa/comparison-feedback-export.png`, `docs/design/mobile/qa/comparison-feedback-distribution.png`
 
 At 375 × 667, the five tuning tabs, selected-parameter content, All settings, Fit view, and Run Detection remain in the initial viewport. The analysis header, result summary, four statistics, tabs, distribution plot/actions, and complete export form/actions remain horizontally unclipped; all primary task actions are reachable without opening a second page.
 
@@ -90,6 +97,14 @@ The short-screen density rules were verified at the iPhone SE baseline of 375 ×
 
 Browser annotations identified three P2 usability issues: the collapsed drawer had no descriptive entry label, the analysis tabs visually touched the statistics row, and the drawer changed state by click instead of a physical pull gesture. The collapsed state now exposes a dedicated “Image settings / Processing parameters” title row while hiding the expanded controls; the analysis tabs have an 8–10 px responsive top gap; and the handle tracks vertical pointer movement before snapping through two hysteresis thresholds (expand at ≤ 38%, collapse at ≥ 62%, otherwise return to the starting state). Clicking the handle no longer changes state. Keyboard users retain Arrow/Page/Home/End controls. Post-fix evidence is in the two iPhone SE screenshots above.
 
+### Iteration 6 — passed
+
+Eight additional browser annotations and two follow-up annotations identified P2 clarity and density issues. The misleading chevron was removed from the collapsed drawer; the mobile drawer now starts collapsed so the upload prompt stays unobstructed; the analysis tabs gained a visible top border; “Detection complete” was removed and the result icon now matches the count line height; export action buttons and margin inputs now share exact heights; and two generated, localized information tips explain optional annotations and outer margins while staying within an 8 px viewport inset. The redundant Distribution-to-Export CTA was removed because the Export tab is already persistent. Statistics now have additional space above and below. Post-fix full views, open-tip states, and before/after comparisons are listed above.
+
+### Iteration 7 — passed
+
+The Distribution controls no longer sit inside a separate bordered surface. Bin count, range, and trace toggles now lay directly in the page flow, while individual toggles retain their own boundaries as interactive controls. The plot remains the next distinct content surface. The revised 375 × 667 capture and updated before/after comparison are listed above.
+
 ## Primary interactions tested
 
 - Open a microscope image and render the live canvas.
@@ -98,11 +113,15 @@ Browser annotations identified three P2 usability issues: the collapsed drawer h
 - Press and hold the supplied compact control to show the original; release to restore the edited preview.
 - Open full settings and return to the image.
 - Run local detection and open Data, Distribution, and Export.
-- Switch analysis tabs, restore the top position, and use the distribution-to-export action.
+- Switch analysis tabs, restore the top position, and verify direct tab navigation without a redundant Distribution-to-Export action.
 - Verify 390 × 844 pinch zoom and Fit view through the mobile regression test.
 - Verify every tuning state and the Data, Distribution, and Export primary actions at 375 × 667 through a dedicated iPhone SE regression test.
 - Verify shallow and committed upward/downward drawer pulls against both snap thresholds, and verify that a click alone does not change state.
 - Verify at least 6 px of stable separation between the statistics row and analysis tabs at 375 × 667.
+- Verify the drawer starts collapsed, the upload prompt remains above it, and no directional icon suggests a click interaction.
+- Verify both export information tips load their raster guides and remain inside 375 × 667.
+- Verify color/number inputs and secondary/primary export actions have matching heights.
+- Verify the Distribution view contains no redundant Export-results CTA.
 
 ## Verification
 

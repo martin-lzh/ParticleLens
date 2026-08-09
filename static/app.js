@@ -116,7 +116,7 @@ const state = {
     showParetoOverlay: !compactLayout.matches,
     showScaleLegend: true,
     showOriginal: false,
-    mobileDrawerCollapsed: false,
+    mobileDrawerCollapsed: compactLayout.matches,
     mobileParameter: "brightness",
     panelWidths: {
       left: initialPanelWidths.left,
@@ -188,7 +188,6 @@ const els = {
   mobileAnalysisBack: document.getElementById("mobileAnalysisBack"),
   mobileSettingsBack: document.getElementById("mobileSettingsBack"),
   mobileAnalysisLanguage: document.getElementById("mobileAnalysisLanguage"),
-  mobileParetoExport: document.getElementById("mobileParetoExport"),
   rightTabExport: document.getElementById("rightTabExport"),
   quickToolbar: document.querySelector(".quick-toolbar"),
   quickToolButtons: Array.from(document.querySelectorAll("[data-canvas-tool]")),
@@ -532,11 +531,17 @@ const messages = {
     "pareto.yCumulative": "累计百分比",
     "export.description": "保存校正后的数据、标注图或同时保存两者。",
     "export.imageContents": "标注图内容",
+    "export.contentsInfoAria": "说明导出图片中的可选元件",
+    "export.contentsInfoTitle": "可选图片标注",
+    "export.contentsInfoBody": "可在导出图片中加入选中颗粒圆环、比例尺和粒径图例。",
     "export.selection": "选中颗粒高亮",
     "export.scale": "比例尺",
     "export.legend": "比例与粒径图例",
     "export.paddingColor": "外扩留白颜色",
     "export.paddingWidth": "外扩留白宽度 (px)",
+    "export.marginInfoAria": "说明导出图片的外扩留白",
+    "export.marginInfoTitle": "图片四周的留白",
+    "export.marginInfoBody": "导出时会在图片四周增加指定像素的空间，并使用这里选择的颜色填充。",
     "replace.title": "替换当前图片？",
     "replace.warning": "打开另一张图片会清空全部识别结果、人工校正、比例尺和当前选择。请先导出需要保留的数据。",
     "replace.cancel": "取消",
@@ -796,11 +801,17 @@ const messages = {
     "pareto.yCumulative": "Cumulative percentage",
     "export.description": "Save corrected measurements, the annotated image, or both.",
     "export.imageContents": "Image contents",
+    "export.contentsInfoAria": "Explain optional exported image elements",
+    "export.contentsInfoTitle": "Optional image annotations",
+    "export.contentsInfoBody": "Include the selected-particle ring, scale bar, and size legend in the exported image.",
     "export.selection": "Selected particle highlight",
     "export.scale": "Scale bar",
     "export.legend": "Scale and diameter legend",
     "export.paddingColor": "Outer margin color",
     "export.paddingWidth": "Outer margin size (px)",
+    "export.marginInfoAria": "Explain outer margins in exported images",
+    "export.marginInfoTitle": "Space around the image",
+    "export.marginInfoBody": "Export adds this many pixels around every side of the image and fills the space with the selected color.",
     "replace.title": "Replace the current image?",
     "replace.warning": "Opening another image will clear all detected particles, manual corrections, scale settings, and selections. Export anything you need first.",
     "replace.cancel": "Cancel",
@@ -1765,7 +1776,8 @@ function positionInformationTooltip(infoPoint) {
   const viewportPadding = 8;
   const tooltipGap = 7;
   const maxWidth = Math.max(0, window.innerWidth - viewportPadding * 2);
-  tooltip.style.width = `${Math.min(230, maxWidth)}px`;
+  const preferredWidth = tooltip.classList.contains("export-visual-tooltip") ? 286 : 230;
+  tooltip.style.width = `${Math.min(preferredWidth, maxWidth)}px`;
 
   const triggerRect = trigger.getBoundingClientRect();
   const tooltipRect = tooltip.getBoundingClientRect();
@@ -2639,6 +2651,7 @@ function handleLayoutChange(event) {
   if (event.matches) {
     state.ui.leftCollapsed = true;
     state.ui.rightOpen = false;
+    state.ui.mobileDrawerCollapsed = true;
   } else {
     state.ui.leftCollapsed = false;
     state.ui.rightOpen = false;
@@ -2989,7 +3002,6 @@ rightTabs.forEach((button, index) => {
     setRightTab(rightTabs[nextIndex], { focus: true });
   });
 });
-els.mobileParetoExport.addEventListener("click", () => setRightTab(els.rightTabExport, { focus: true }));
 
 els.paretoBinCount.value = String(state.ui.paretoBinCount);
 els.paretoBinCountValue.textContent = String(state.ui.paretoBinCount);

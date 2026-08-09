@@ -29,8 +29,7 @@
 .mobile-results-overview,
 .mobile-visible-stat,
 .mobile-table-summary,
-.mobile-data-label,
-.mobile-pareto-export {
+.mobile-data-label {
   display: none;
 }
 
@@ -998,36 +997,6 @@
     border-radius: 12px;
   }
 
-  #rightPanelPareto .mobile-pareto-export {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    min-height: 78px;
-    margin-top: 12px;
-    border-radius: 12px;
-  }
-
-  #rightPanelPareto .mobile-pareto-export svg {
-    width: 27px;
-    height: 27px;
-  }
-
-  #rightPanelPareto .mobile-pareto-export span {
-    display: grid;
-    gap: 2px;
-  }
-
-  #rightPanelPareto .mobile-pareto-export strong {
-    color: #101214;
-    font-size: 17px;
-  }
-
-  #rightPanelPareto .mobile-pareto-export small {
-    color: #2e301e;
-    font-size: 12px;
-  }
-
   #rightPanelExport .control-group {
     padding: 0;
     border: 0;
@@ -1202,10 +1171,6 @@
 
   #rightPanelPareto .download-chart {
     min-height: 40px;
-  }
-
-  #rightPanelPareto .mobile-pareto-export {
-    min-height: 56px;
   }
 
   #rightPanelExport .section-description {
@@ -4343,10 +4308,6 @@ button:disabled {
     min-height: 44px;
   }
 
-  #rightPanelPareto .mobile-pareto-export {
-    min-height: 68px;
-  }
-
   #rightPanelExport input[type="number"] {
     min-height: 46px;
   }
@@ -4504,10 +4465,6 @@ button:disabled {
     min-height: 40px;
   }
 
-  #rightPanelPareto .mobile-pareto-export {
-    min-height: 56px;
-  }
-
   #rightPanelExport .section-description {
     margin-bottom: 8px;
     font-size: 12px;
@@ -4529,5 +4486,170 @@ button:disabled {
   #rightPanelExport .export-actions button,
   #rightPanelExport .export-all {
     min-height: 42px;
+  }
+}
+
+/* Browser-annotation refinements for the mobile analysis and export flow. */
+.export-options legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.export-field-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 18px;
+  margin-bottom: 5px;
+}
+
+.export-field-label > span {
+  margin: 0;
+}
+
+.export-padding-field {
+  min-width: 0;
+}
+
+.export-field-label label {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.export-info-point .info-point-trigger {
+  width: 18px;
+  min-width: 18px;
+  height: 18px;
+  min-height: 18px;
+  font-size: 11px;
+  text-transform: none;
+}
+
+.export-visual-tooltip {
+  display: grid;
+  gap: 7px;
+  width: min(286px, calc(100vw - 16px));
+  padding: 9px;
+  text-align: left;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.export-visual-tooltip img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid #343b42;
+  border-radius: 7px;
+}
+
+.export-visual-tooltip strong {
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.export-visual-tooltip > span {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+@media (max-width: 820px) {
+  .mobile-drawer-collapsed-label {
+    grid-template-columns: 34px minmax(0, 1fr);
+  }
+
+  .mobile-results-overview {
+    gap: 9px;
+    padding: 7px 18px 10px;
+  }
+
+  .mobile-results-overview > svg {
+    width: 28px;
+    height: 28px;
+  }
+
+  .mobile-results-overview > div {
+    display: block;
+  }
+
+  .mobile-results-overview strong {
+    display: block;
+    font-size: 22px;
+    line-height: 28px;
+  }
+
+  .right-panel .stats {
+    padding-top: 4px;
+    padding-bottom: 10px;
+  }
+
+  #rightPanelPareto .pareto-controls {
+    gap: 14px;
+    margin-bottom: 12px;
+    padding: 0 0 12px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .right-panel .tabs.icon-tabs {
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.16);
+  }
+
+  #rightPanelExport .export-padding-options input[type="color"],
+  #rightPanelExport .export-padding-options input[type="number"] {
+    height: 46px;
+    min-height: 46px;
+  }
+
+  #rightPanelExport .export-actions button,
+  #rightPanelExport .export-all {
+    height: 46px;
+    min-height: 46px;
+    max-height: 46px;
+    padding-block: 0;
+  }
+}
+
+@media (max-width: 820px) and (max-height: 700px) {
+  .mobile-results-overview {
+    padding-top: 6px;
+    padding-bottom: 8px;
+  }
+
+  .right-panel .stats {
+    padding-top: 3px;
+    padding-bottom: 7px;
+  }
+
+  #rightPanelPareto .pareto-controls {
+    gap: 12px;
+    margin-bottom: 10px;
+    padding: 0 0 10px;
+  }
+
+  .right-panel .tabs.icon-tabs {
+    margin-top: 6px;
+    margin-bottom: 5px;
+    padding-top: 6px;
+  }
+
+  #rightPanelExport .export-padding-options input[type="color"],
+  #rightPanelExport .export-padding-options input[type="number"],
+  #rightPanelExport .export-actions button,
+  #rightPanelExport .export-all {
+    height: 40px;
+    min-height: 40px;
+    max-height: 40px;
+  }
+
+  #rightPanelExport .export-actions button {
+    padding-inline: 8px;
+    line-height: 1.15;
   }
 }

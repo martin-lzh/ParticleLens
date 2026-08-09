@@ -26,6 +26,13 @@ The analysis workspace is a sibling mobile view to the canvas. Returning to the 
 
 Use a compact icon-only control matching this reference. Pressing and holding shows the unedited source image. Releasing, cancelling, losing pointer capture, or losing focus restores the edited preview. The button must expose an accessible label and pressed state.
 
+## Export explanation assets
+
+- [Optional exported annotations](export-content-guide.png)
+- [Outer image margin](export-margin-guide.png)
+
+These illustrations appear inside viewport-constrained information tips on the Export tab.
+
 ## Acceptance baseline
 
 - Mobile visual target viewport: 390 x 844 CSS pixels.
@@ -56,3 +63,12 @@ Use a compact icon-only control matching this reference. Pressing and holding sh
 - [Export at 375 × 667](qa/implementation-iphone-se-export.png)
 - [Collapsed image-settings entry at 375 × 667](qa/implementation-iphone-se-drawer-collapsed.png)
 - [Analysis tab spacing at 375 × 667](qa/implementation-iphone-se-analysis-tab-gap.png)
+- [Default collapsed drawer at 375 × 667](qa/implementation-iphone-se-default-collapsed.png)
+- [Export layout with information points](qa/implementation-iphone-se-export-info.png)
+- [Export contents information tip](qa/implementation-iphone-se-export-content-tip.png)
+- [Outer margin information tip](qa/implementation-iphone-se-export-margin-tip.png)
+- [Distribution without redundant export action](qa/implementation-iphone-se-distribution-refined.png)
+- [Distribution with flat controls](qa/implementation-iphone-se-distribution-flat-controls.png)
+- [Collapsed drawer feedback comparison](qa/comparison-feedback-drawer.png)
+- [Export feedback comparison](qa/comparison-feedback-export.png)
+- [Distribution feedback comparison](qa/comparison-feedback-distribution.png)
