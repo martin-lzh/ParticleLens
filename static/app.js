@@ -1049,6 +1049,7 @@ function stepMobileParameter(direction) {
   const max = Number(input.max);
   const next = Math.min(max, Math.max(min, Number(input.value) + step * direction));
   setInputValue(input, next);
+  syncMobileControls();
 }
 
 function resetMobileParameter() {
@@ -2830,6 +2831,7 @@ els.mobileParameterTabs.forEach((button, index) => {
 
 els.mobileParameterRange.addEventListener("input", () => {
   setInputValue(mobileParameterConfig().input, els.mobileParameterRange.value);
+  syncMobileControls();
 });
 els.mobileParameterDecrease.addEventListener("click", () => stepMobileParameter(-1));
 els.mobileParameterIncrease.addEventListener("click", () => stepMobileParameter(1));

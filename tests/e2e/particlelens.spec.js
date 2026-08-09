@@ -967,6 +967,30 @@ test("uses the canvas-first mobile workspace, collapsible tuning drawer, and hol
   await expect(page.locator("#mobileOriginalPreview")).toBeEnabled();
   await page.locator("#mobileParameterRange").fill("35");
   await expect(page.locator("#brightness")).toHaveValue("35");
+  await expect(page.locator("#mobileParameterValue")).toHaveText("35");
+  const indicatorCenter = async () => {
+    const box = await page.locator("#mobileParameterValue").boundingBox();
+    return box.x + box.width / 2;
+  };
+  const sliderBox = await page.locator("#mobileParameterRange").boundingBox();
+  const centerAt35 = await indicatorCenter();
+  expect(centerAt35).toBeCloseTo(sliderBox.x + sliderBox.width / 2, 0);
+  await page.locator("#mobileParameterRange").fill("-80");
+  await expect(page.locator("#mobileParameterValue")).toHaveText("-80");
+  const centerAtMinus80 = await indicatorCenter();
+  expect(centerAtMinus80).toBeCloseTo(centerAt35, 0);
+  await page.locator("#mobileParameterRange").fill("80");
+  await expect(page.locator("#mobileParameterValue")).toHaveText("80");
+  const centerAt80 = await indicatorCenter();
+  expect(centerAt80).toBeCloseTo(centerAt35, 0);
+  await page.locator("[data-mobile-parameter='gamma']").click();
+  await expect(page.locator("#mobileParameterValue")).toHaveText("1.00");
+  const gammaSliderBox = await page.locator("#mobileParameterRange").boundingBox();
+  expect(await indicatorCenter()).toBeCloseTo(gammaSliderBox.x + gammaSliderBox.width / 2, 0);
+  await page.locator("#mobileParameterRange").fill("2.25");
+  await expect(page.locator("#gamma")).toHaveValue("2.25");
+  await expect(page.locator("#mobileParameterValue")).toHaveText("2.25");
+  expect(await indicatorCenter()).toBeCloseTo(gammaSliderBox.x + gammaSliderBox.width / 2, 0);
   const processedPreview = await page.locator("#imageCanvas").screenshot();
   await page.locator("#mobileOriginalPreview").dispatchEvent("pointerdown", {
     bubbles: true,

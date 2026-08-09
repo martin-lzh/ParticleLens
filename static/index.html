@@ -326,12 +326,14 @@
             </div>
 
             <div id="mobileSingleParameter" class="mobile-single-parameter">
-              <output id="mobileParameterValue">0</output>
               <div class="mobile-slider-row">
                 <button id="mobileParameterDecrease" type="button" aria-label="Decrease value" data-i18n-aria="mobile.decrease">
                   <i data-lucide="minus" aria-hidden="true"></i>
                 </button>
-                <input id="mobileParameterRange" type="range" min="-100" max="100" step="1" value="0" />
+                <div class="mobile-slider-control">
+                  <output id="mobileParameterValue">0</output>
+                  <input id="mobileParameterRange" type="range" min="-100" max="100" step="1" value="0" />
+                </div>
                 <button id="mobileParameterIncrease" type="button" aria-label="Increase value" data-i18n-aria="mobile.increase">
                   <i data-lucide="plus" aria-hidden="true"></i>
                 </button>
