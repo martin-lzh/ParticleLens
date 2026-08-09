@@ -11,6 +11,7 @@
     "build:native": "node scripts/build_frontend.mjs native",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "test:e2e:update-recognition-baseline": "npm run build:web && node scripts/update_recognition_baseline.mjs",
     "lint": "eslint static scripts vite.config.js playwright.config.js tests/e2e"
   },
   "devDependencies": {

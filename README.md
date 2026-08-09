@@ -4,8 +4,10 @@
   <img src="static/particlelens-logo.png" alt="ParticleLens logo" width="160">
 </p>
 
-ParticleLens is an open-source particle-size analysis tool for approximately
-circular objects in microscope images.
+ParticleLens is an open-source image-analysis and annotation tool designed
+primarily for approximately circular particles in microscope images. It
+combines automatic circle detection and size measurement with a straightforward
+manual workflow for reviewing and correcting annotations.
 
 **Use the Web App:** [particlelens.liuzhaohan.com](https://particlelens.liuzhaohan.com)
 
@@ -15,16 +17,19 @@ Python installation is required.
 
 **New to ParticleLens?** Follow the
 [`step-by-step user guide`](docs/user-guide.md) to analyze the included example,
-review detections, inspect the distribution, and export corrected results.
+review or manually adjust particle annotations, inspect the distribution, and
+export corrected results.
 
 ## What it does
 
-- Detects circular droplets or particles and estimates their diameters.
+- Recognizes approximately circular droplets or particles and estimates their
+  diameters.
+- Provides a simple manual annotation workflow to add, move, or delete particles
+  and correct the scale after automatic detection.
 - Detects a lower-right scale bar or accepts a manual calibration.
 - Previews brightness, contrast, gamma, CLAHE, and background correction while
   preserving the original image.
 - Exports processed annotations in color or grayscale.
-- Supports manual add, move, delete, and scale correction.
 - Provides count, distribution statistics, and a histogram.
 - Exports corrected CSV data and an annotated PNG.
 - Works in Chinese and English.
@@ -48,11 +53,14 @@ Python CLI locally.
 
 ## Validation and limitations
 
-ParticleLens uses classical computer vision, not a trained scientific model.
-The pipeline combines scale-bar detection, contrast preprocessing, OpenCV Hough
-circles, contour-based circle fitting, edge-support scoring, duplicate
-suppression, and visible-area calculation. The complementary contour pass
-recovers clear rings that a single Hough pass can miss.
+ParticleLens focuses on approximately circular particles and uses classical
+computer vision, not a trained scientific model. The pipeline combines
+scale-bar detection, contrast preprocessing, OpenCV Hough circles,
+contour-based circle fitting, edge-support scoring, duplicate suppression, and
+visible-area calculation. The complementary contour pass recovers clear rings
+that a single Hough pass can miss. Images dominated by non-circular objects are
+outside the detector's primary use case, but results can still be reviewed and
+corrected with the manual annotation tools.
 
 Release validation covers:
 
