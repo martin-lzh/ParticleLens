@@ -917,7 +917,18 @@ test("uses the canvas-first mobile workspace, collapsible tuning drawer, and hol
   await expect(page.locator("#leftToggle")).toHaveAttribute("aria-expanded", "false");
   const topbarBox = await page.locator(".topbar").boundingBox();
   expect(topbarBox?.height).toBeCloseTo(64, 0);
-  await expect(page.locator(".quick-toolbar")).toBeHidden();
+  const mobileToolbar = page.locator(".quick-toolbar");
+  await expect(mobileToolbar).toBeVisible();
+  await expect(page.locator("#quickToolbarPosition")).toBeHidden();
+  await expect(page.locator(".quick-toolbar [data-canvas-tool]")).toHaveCount(4);
+  const mobileToolbarBox = await mobileToolbar.boundingBox();
+  const mobileToolbarOverflow = await mobileToolbar.evaluate((element) => ({
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+  }));
+  expect(mobileToolbarBox.x).toBeGreaterThanOrEqual(0);
+  expect(mobileToolbarBox.x + mobileToolbarBox.width).toBeLessThanOrEqual(390);
+  expect(mobileToolbarOverflow.scrollWidth).toBeGreaterThan(mobileToolbarOverflow.clientWidth);
   await expect(page.locator("#mobileTuningDrawer")).toBeVisible();
   await expect(page.locator("#mobileTuningDrawer")).toHaveClass(/collapsed/);
   await expect(page.locator("#mobileDrawerToggle")).toHaveAttribute("aria-expanded", "false");
@@ -965,6 +976,10 @@ test("uses the canvas-first mobile workspace, collapsible tuning drawer, and hol
   });
   await expect(page.locator("#imageName")).toHaveText("synthetic.bmp");
   await expect(page.locator("#mobileOriginalPreview")).toBeEnabled();
+  await page.locator("#quickPanTool").click();
+  await expect(page.locator("#quickPanTool")).toHaveAttribute("aria-pressed", "true");
+  await page.locator("#quickSelectTool").click();
+  await expect(page.locator("#quickSelectTool")).toHaveAttribute("aria-pressed", "true");
   await page.locator("#mobileParameterRange").fill("35");
   await expect(page.locator("#brightness")).toHaveValue("35");
   await expect(page.locator("#mobileParameterValue")).toHaveText("35");
@@ -1101,9 +1116,12 @@ test("keeps the complete mobile workflow usable in an iPhone SE viewport", async
 
   await expect(page.locator("#mobileDrawerToggle")).toHaveAttribute("aria-expanded", "false");
   await expectInsideViewport("#mobileDrawerCollapsedLabel");
+  await expectInsideViewport(".quick-toolbar");
   const initialEmptyBox = await page.locator("#emptyState > span:last-child").boundingBox();
   const initialDrawerBox = await page.locator("#mobileTuningDrawer").boundingBox();
+  const initialToolbarBox = await page.locator(".quick-toolbar").boundingBox();
   expect(initialEmptyBox.y + initialEmptyBox.height).toBeLessThanOrEqual(initialDrawerBox.y);
+  expect(initialToolbarBox.y + initialToolbarBox.height).toBeLessThan(initialDrawerBox.y);
   await dragMobileDrawer(page, "expand");
 
   await page.locator("#imageInput").setInputFiles({
