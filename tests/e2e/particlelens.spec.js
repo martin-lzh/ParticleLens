@@ -263,6 +263,44 @@ test("keeps information tooltips inside narrow viewports", async ({ page }) => {
   }
 });
 
+test("aligns advanced controls and keeps the local-processing note visible on desktop", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await openReadyApp(page);
+
+  const leftPanel = page.locator("#leftPanel");
+  const note = page.locator("#leftPanel .detection-note");
+  const panelBox = await leftPanel.boundingBox();
+  const noteBox = await note.boundingBox();
+  expect(panelBox).toBeTruthy();
+  expect(noteBox).toBeTruthy();
+  expect(noteBox.y + noteBox.height).toBeCloseTo(panelBox.y + panelBox.height - 16, 0);
+  await expect(note).toBeInViewport();
+
+  const settings = page.locator("#advancedSettings");
+  const settingsStyles = await settings.evaluate((element) => {
+    const styles = getComputedStyle(element);
+    return {
+      backgroundColor: styles.backgroundColor,
+      borderLeftWidth: styles.borderLeftWidth,
+      borderRadius: styles.borderRadius,
+    };
+  });
+  expect(settingsStyles).toEqual({
+    backgroundColor: "rgba(0, 0, 0, 0)",
+    borderLeftWidth: "0px",
+    borderRadius: "0px",
+  });
+
+  await openAdvancedSettings(page);
+  const baseGridBox = await page.locator("#leftPanel .control-group.first > .grid-two").boundingBox();
+  const advancedGridBox = await page.locator("#advancedSettings .advanced-grid").first().boundingBox();
+  expect(baseGridBox).toBeTruthy();
+  expect(advancedGridBox).toBeTruthy();
+  expect(advancedGridBox.x).toBeCloseTo(baseGridBox.x, 0);
+  expect(advancedGridBox.width).toBeCloseTo(baseGridBox.width, 0);
+  await expect(note).toBeInViewport();
+});
+
 test("aligns the calibration inputs when the length-per-pixel label wraps", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await openReadyApp(page);
