@@ -214,6 +214,26 @@
 
           <canvas id="imageCanvas" tabindex="0" aria-label="Image editing canvas" aria-describedby="canvasGestureHint" data-i18n-aria="canvas.aria"></canvas>
 
+          <div class="mobile-canvas-status" aria-hidden="true">
+            <span class="mobile-live-dot"></span>
+            <span data-i18n="mobile.live">Live</span>
+            <span id="mobileScaleReadout">— µm/px</span>
+          </div>
+
+          <button
+            id="mobileOriginalPreview"
+            class="mobile-original-preview"
+            type="button"
+            aria-pressed="false"
+            aria-label="Press and hold to view the original image"
+            title="Press and hold to view the original image"
+            data-i18n-aria="toolbar.originalPreviewTitle"
+            data-i18n-title="toolbar.originalPreviewTitle"
+            disabled
+          >
+            <img src="./hold-original-icon.png" alt="" aria-hidden="true" />
+          </button>
+
           <button id="emptyState" class="empty-state" type="button">
             <span class="empty-state-icon"><i data-lucide="image-plus" aria-hidden="true"></i></span>
             <strong data-i18n="emptyState.title">Open a microscope image</strong>
@@ -252,6 +272,121 @@
         </div>
       </section>
 
+      <section id="mobileTuningDrawer" class="mobile-tuning-drawer" aria-label="Image tuning controls" data-i18n-aria="mobile.tuningAria">
+        <button
+          id="mobileDrawerToggle"
+          class="mobile-drawer-toggle"
+          type="button"
+          aria-controls="mobileTuningContent"
+          aria-expanded="true"
+          aria-label="Collapse tuning controls"
+          data-i18n-aria="mobile.collapseTuning"
+        >
+          <span class="mobile-drawer-handle" aria-hidden="true"></span>
+          <span id="mobileDrawerCollapsedLabel" class="mobile-drawer-collapsed-label" aria-hidden="true">
+            <i data-lucide="sliders-horizontal" aria-hidden="true"></i>
+            <span>
+              <strong data-i18n="mobile.imageSettings">Image settings</strong>
+              <small data-i18n="mobile.processingParameters">Processing parameters</small>
+            </span>
+          </span>
+        </button>
+
+        <div id="mobileTuningContent" class="mobile-tuning-content">
+          <nav class="mobile-parameter-tabs" role="tablist" aria-label="Image parameters" data-i18n-aria="mobile.parameterAria">
+            <button class="mobile-parameter-tab active" type="button" role="tab" aria-selected="true" data-mobile-parameter="brightness">
+              <i data-lucide="sun" aria-hidden="true"></i>
+              <span data-i18n="adjustments.brightness">Brightness</span>
+            </button>
+            <button class="mobile-parameter-tab" type="button" role="tab" aria-selected="false" data-mobile-parameter="contrast">
+              <i data-lucide="contrast" aria-hidden="true"></i>
+              <span data-i18n="mobile.contrast">Contrast</span>
+            </button>
+            <button class="mobile-parameter-tab" type="button" role="tab" aria-selected="false" data-mobile-parameter="gamma">
+              <i data-lucide="line-chart" aria-hidden="true"></i>
+              <span data-i18n="adjustments.gamma">Gamma</span>
+            </button>
+            <button class="mobile-parameter-tab" type="button" role="tab" aria-selected="false" data-mobile-parameter="sensitivity">
+              <i data-lucide="crosshair" aria-hidden="true"></i>
+              <span data-i18n="labels.sensitivity">Sensitivity</span>
+            </button>
+            <button class="mobile-parameter-tab" type="button" role="tab" aria-selected="false" data-mobile-parameter="diameter">
+              <i data-lucide="circle-dot" aria-hidden="true"></i>
+              <span data-i18n="mobile.diameter">Diameter</span>
+            </button>
+          </nav>
+
+          <div class="mobile-parameter-panel" role="tabpanel">
+            <div class="mobile-parameter-heading">
+              <h2 id="mobileParameterTitle">Brightness</h2>
+              <button id="mobileParameterReset" type="button">
+                <i data-lucide="rotate-ccw" aria-hidden="true"></i>
+                <span data-i18n="mobile.reset">Reset</span>
+              </button>
+            </div>
+
+            <div id="mobileSingleParameter" class="mobile-single-parameter">
+              <div class="mobile-slider-row">
+                <button id="mobileParameterDecrease" type="button" aria-label="Decrease value" data-i18n-aria="mobile.decrease">
+                  <i data-lucide="minus" aria-hidden="true"></i>
+                </button>
+                <div class="mobile-slider-control">
+                  <output id="mobileParameterValue">0</output>
+                  <input id="mobileParameterRange" type="range" min="-100" max="100" step="1" value="0" />
+                </div>
+                <button id="mobileParameterIncrease" type="button" aria-label="Increase value" data-i18n-aria="mobile.increase">
+                  <i data-lucide="plus" aria-hidden="true"></i>
+                </button>
+              </div>
+              <div class="mobile-range-labels">
+                <span id="mobileParameterMin">-100</span>
+                <span id="mobileParameterNeutral"></span>
+                <span id="mobileParameterMax">+100</span>
+              </div>
+            </div>
+
+            <div id="mobileDiameterParameter" class="mobile-diameter-parameter" hidden>
+              <div class="mobile-diameter-values">
+                <label>
+                  <span data-i18n="mobile.minimum">Minimum</span>
+                  <strong><output id="mobileMinDiameterValue">4</output> µm</strong>
+                  <small><output id="mobileMinDiameterPx">8</output> px</small>
+                </label>
+                <label>
+                  <span data-i18n="mobile.maximum">Maximum</span>
+                  <strong><output id="mobileMaxDiameterValue">180</output> µm</strong>
+                  <small><output id="mobileMaxDiameterPx">360</output> px</small>
+                </label>
+              </div>
+              <div class="mobile-dual-range">
+                <div id="mobileDiameterTrack" class="mobile-dual-range-track"></div>
+                <input id="mobileMinDiameterRange" type="range" min="0.1" max="200" step="0.1" value="4" aria-label="Minimum diameter" data-i18n-aria="labels.minDiameter" />
+                <input id="mobileMaxDiameterRange" type="range" min="1" max="200" step="1" value="180" aria-label="Maximum diameter" data-i18n-aria="labels.maxDiameter" />
+              </div>
+            </div>
+
+            <p id="mobileParameterDescription" class="mobile-parameter-description"></p>
+          </div>
+
+          <button id="mobileAllSettings" class="mobile-all-settings" type="button">
+            <i data-lucide="sliders-horizontal" aria-hidden="true"></i>
+            <span data-i18n="mobile.allSettings">All settings</span>
+            <i data-lucide="chevron-up" aria-hidden="true"></i>
+          </button>
+
+          <div class="mobile-tuning-actions">
+            <button id="mobileFitView" type="button">
+              <i data-lucide="maximize-2" aria-hidden="true"></i>
+              <span data-i18n="toolbar.fit">Fit view</span>
+            </button>
+            <button id="mobileRunDetect" class="primary" type="button">
+              <i data-lucide="play" aria-hidden="true"></i>
+              <span data-i18n="buttons.runDetect">Run Detection</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
       <button id="panelBackdrop" class="panel-backdrop" type="button" aria-label="Close panels" data-i18n-aria="nav.closePanels"></button>
 
       <aside id="leftPanel" class="left-panel" aria-label="Detection settings" data-i18n-aria="nav.toolsPanel">
@@ -267,6 +402,10 @@
         ></div>
         <div class="panel-inner">
           <header class="panel-heading">
+            <button id="mobileSettingsBack" class="mobile-settings-back" type="button">
+              <i data-lucide="chevron-left" aria-hidden="true"></i>
+              <span data-i18n="mobile.image">Image</span>
+            </button>
             <div>
               <h1 data-i18n="detect.title">Particle detection</h1>
               <p data-i18n="detect.subtitle">Tune recognition before running the local detector.</p>
@@ -318,11 +457,11 @@
                     </div>
                     <label>
                       <span data-i18n="labels.minDiameter">Minimum diameter (µm)</span>
-                      <input id="minDiameter" type="number" min="0.1" step="0.1" value="2.0" />
+                      <input id="minDiameter" type="number" min="0.1" step="0.1" value="4.0" />
                     </label>
                     <label>
                       <span data-i18n="labels.maxDiameter">Maximum diameter (µm)</span>
-                      <input id="maxDiameter" type="number" min="1" step="1" value="95" />
+                      <input id="maxDiameter" type="number" min="1" step="1" value="180" />
                     </label>
                   </div>
                 </section>
@@ -461,11 +600,26 @@
         ></div>
         <div class="panel-inner">
           <header class="panel-heading right-panel-heading">
-            <div>
-              <h1 data-i18n="nav.dataPanel">Analysis and export</h1>
+            <button id="mobileAnalysisBack" class="mobile-analysis-back" type="button">
+              <i data-lucide="chevron-left" aria-hidden="true"></i>
+              <span data-i18n="mobile.image">Image</span>
+            </button>
+            <div class="right-panel-title">
+              <h1 class="desktop-analysis-title" data-i18n="nav.dataPanel">Analysis and export</h1>
+              <h1 class="mobile-analysis-title" data-i18n="mobile.analysis">Analysis</h1>
               <p data-i18n="analysis.subtitle">Review measurements, distributions, and export options.</p>
             </div>
+            <button id="mobileAnalysisLanguage" class="mobile-analysis-language" type="button" aria-label="Switch language" data-i18n-aria="nav.languageToggle">
+              <i data-lucide="globe" aria-hidden="true"></i>
+            </button>
           </header>
+
+          <section class="mobile-results-overview" aria-live="polite">
+            <i data-lucide="bubbles" aria-hidden="true"></i>
+            <div>
+              <strong><span id="mobileCountStat">0</span> <span data-i18n="mobile.particles">particles</span></strong>
+            </div>
+          </section>
 
           <section class="stats control-group first">
             <div class="section-heading">
@@ -477,13 +631,15 @@
               <div><dt data-i18n="stats.mean">Mean diameter</dt><dd id="meanStat">-</dd></div>
               <div><dt data-i18n="stats.median">Median</dt><dd id="medianStat">-</dd></div>
               <div><dt data-i18n="stats.range">Range</dt><dd id="rangeStat">-</dd></div>
+              <div class="mobile-visible-stat"><dt data-i18n="mobile.visibleArea">Visible area</dt><dd>&gt; 50%</dd></div>
             </dl>
           </section>
 
           <nav class="tabs icon-tabs navigation-tabs" role="tablist" aria-label="Data views" data-i18n-aria="tabs.dataAria">
             <button id="rightTabTable" class="tab navigation-tab active" data-right-tab="table" type="button" role="tab" aria-selected="true" aria-controls="rightPanelTable" tabindex="0" title="Data points" data-i18n-title="tabs.dataPoints">
               <i data-lucide="table-2" aria-hidden="true"></i>
-              <span class="tab-label" data-i18n="tabs.dataPoints">Data points</span>
+              <span class="tab-label desktop-data-label" data-i18n="tabs.dataPoints">Data points</span>
+              <span class="tab-label mobile-data-label" data-i18n="mobile.data">Data</span>
             </button>
             <button id="rightTabPareto" class="tab navigation-tab" data-right-tab="pareto" type="button" role="tab" aria-selected="false" aria-controls="rightPanelPareto" tabindex="-1" title="Pareto distribution" data-i18n-title="tabs.pareto">
               <i data-lucide="bar-chart-3" aria-hidden="true"></i>
@@ -497,6 +653,10 @@
 
           <section id="rightPanelTable" class="right-tab-panel active" data-right-panel="table" role="tabpanel" aria-labelledby="rightTabTable">
             <div class="table-wrap">
+              <div class="mobile-table-summary">
+                <span><strong id="mobileTableCount">0</strong> <span data-i18n="mobile.particles">particles</span></span>
+                <span data-i18n="stats.rule">Visible area ≥ 50%</span>
+              </div>
               <table>
                 <thead>
                   <tr>
@@ -542,7 +702,17 @@
                 <input id="labelLimit" type="number" min="0" step="1" value="80" />
               </label>
               <fieldset class="export-options">
-                <legend data-i18n="export.imageContents">Image contents</legend>
+                <legend>
+                  <span data-i18n="export.imageContents">Image contents</span>
+                  <span class="info-point export-info-point">
+                    <button class="info-point-trigger" type="button" aria-describedby="exportContentsInfo" aria-label="Explain exported image contents" data-i18n-aria="export.contentsInfoAria">i</button>
+                    <span id="exportContentsInfo" class="info-tooltip export-visual-tooltip" role="tooltip">
+                      <img src="./export-content-guide.png" alt="" />
+                      <strong data-i18n="export.contentsInfoTitle">Optional image annotations</strong>
+                      <span data-i18n="export.contentsInfoBody">Include the selected-particle ring, scale bar, and size legend in the exported image.</span>
+                    </span>
+                  </span>
+                </legend>
                 <label>
                   <input id="exportSelection" type="checkbox" />
                   <span data-i18n="export.selection">Selected particle highlight</span>
@@ -557,10 +727,20 @@
                 </label>
               </fieldset>
               <div class="export-padding-options">
-                <label>
-                  <span data-i18n="export.paddingColor">Margin color</span>
+                <div class="export-padding-field">
+                  <span class="export-field-label">
+                    <label for="exportPaddingColor" data-i18n="export.paddingColor">Margin color</label>
+                    <span class="info-point export-info-point">
+                      <button class="info-point-trigger" type="button" aria-describedby="exportMarginInfo" aria-label="Explain export margins" data-i18n-aria="export.marginInfoAria">i</button>
+                      <span id="exportMarginInfo" class="info-tooltip export-visual-tooltip" role="tooltip">
+                        <img src="./export-margin-guide.png" alt="" />
+                        <strong data-i18n="export.marginInfoTitle">Space around the image</strong>
+                        <span data-i18n="export.marginInfoBody">Margin adds the chosen number of pixels around every side of the exported image using this color.</span>
+                      </span>
+                    </span>
+                  </span>
                   <input id="exportPaddingColor" type="color" value="#ffffff" />
-                </label>
+                </div>
                 <label>
                   <span data-i18n="export.paddingWidth">Margin size (px)</span>
                   <input

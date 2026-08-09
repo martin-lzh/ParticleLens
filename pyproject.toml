@@ -1,6 +1,6 @@
 [project]
 name = "particlelens"
-version = "0.2.2"
+version = "0.3.0"
 description = "Analyze microscope images and export particle size distributions."
 license = "MIT"
 requires-python = ">=3.11"

@@ -4,6 +4,42 @@ All notable changes are documented here. Versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-10
+
+### Added
+
+- Added a canvas-first mobile workspace that keeps the live processed image
+  visible while tuning detection parameters.
+- Added a draggable two-state mobile tuning drawer with dedicated brightness,
+  contrast, gamma, sensitivity, and diameter controls.
+- Added complete mobile Data, Distribution, and Export views with responsive
+  statistics, chart controls, export actions, and illustrated option guidance.
+- Added a horizontally scrollable mobile image-editing toolbar for selection,
+  panning, circle drawing, scale calibration, zoom, fit, original preview, and
+  deletion.
+- Added mobile design references, implementation comparisons, and dedicated
+  iPhone SE visual QA coverage.
+
+### Changed
+
+- Reworked the mobile navigation and analysis layout around the image canvas
+  instead of full-screen sidebars.
+- Made the tuning drawer default to a compact labeled state and respond to
+  drag thresholds and keyboard controls.
+- Simplified mobile result summaries, spacing, distribution controls, export
+  sizing, and tab separation for narrow screens.
+- Standardized single-value parameter readouts so they remain centered and
+  update live across brightness, contrast, gamma, and sensitivity.
+- Refined the detection settings sidebar layout across responsive breakpoints.
+
+### Fixed
+
+- Kept mobile upload, toolbar, drawer, analysis, and export controls inside a
+  375 x 667 viewport without clipping or unnecessary page navigation.
+- Kept export color and numeric inputs, secondary actions, and primary actions
+  at consistent touch-friendly heights.
+- Constrained illustrated information tooltips to the mobile viewport.
+
 ## [0.2.2] - 2026-08-08
 
 ### Added
@@ -67,7 +103,8 @@ Validation uses deterministic synthetic images and clearly licensed public
 samples. It does not yet include private research images or claim coverage of
 every scientific imaging workflow.
 
-[Unreleased]: https://github.com/martin-lzh/ParticleLens/compare/v0.2.2...development
+[Unreleased]: https://github.com/martin-lzh/ParticleLens/compare/v0.3.0...development
+[0.3.0]: https://github.com/martin-lzh/ParticleLens/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/martin-lzh/ParticleLens/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/martin-lzh/ParticleLens/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/martin-lzh/ParticleLens/compare/v0.1.1...v0.2.0
