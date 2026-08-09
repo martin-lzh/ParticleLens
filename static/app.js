@@ -1,26 +1,40 @@
 import { cacheApplicationShell, clearRuntimeCache, createDetector } from "./detection.js";
 import {
   BarChart3,
+  Bubbles,
+  ChevronLeft,
+  ChevronUp,
+  CircleDot,
   CircleHelp,
   CirclePlus,
   createIcons,
+  Contrast,
+  Crosshair,
   Download,
   Eye,
   FileOutput,
   FileSpreadsheet,
+  Globe,
   Hand,
   ImageDown,
   ImagePlus,
+  LineChart,
   Maximize2,
+  Minus,
   MousePointer2,
   Move,
   PanelBottom,
   PanelLeft,
   PanelRight,
   PanelTop,
+  Play,
+  Plus,
+  RotateCcw,
   Ruler,
   ScanLine,
   ShieldCheck,
+  SlidersHorizontal,
+  Sun,
   Table2,
   Trash2,
   TriangleAlert,
@@ -99,9 +113,11 @@ const state = {
     ),
     showHistogram: true,
     showCumulative: true,
-    showParetoOverlay: true,
+    showParetoOverlay: !compactLayout.matches,
     showScaleLegend: true,
     showOriginal: false,
+    mobileDrawerCollapsed: false,
+    mobileParameter: "brightness",
     panelWidths: {
       left: initialPanelWidths.left,
       right: initialPanelWidths.right,
@@ -140,6 +156,39 @@ const els = {
   rightPanelResizeHandle: document.getElementById("rightPanelResizeHandle"),
   rightToggle: document.getElementById("rightToggle"),
   panelBackdrop: document.getElementById("panelBackdrop"),
+  mobileTuningDrawer: document.getElementById("mobileTuningDrawer"),
+  mobileDrawerToggle: document.getElementById("mobileDrawerToggle"),
+  mobileTuningContent: document.getElementById("mobileTuningContent"),
+  mobileParameterTabs: Array.from(document.querySelectorAll("[data-mobile-parameter]")),
+  mobileParameterTitle: document.getElementById("mobileParameterTitle"),
+  mobileParameterReset: document.getElementById("mobileParameterReset"),
+  mobileSingleParameter: document.getElementById("mobileSingleParameter"),
+  mobileParameterValue: document.getElementById("mobileParameterValue"),
+  mobileParameterRange: document.getElementById("mobileParameterRange"),
+  mobileParameterDecrease: document.getElementById("mobileParameterDecrease"),
+  mobileParameterIncrease: document.getElementById("mobileParameterIncrease"),
+  mobileParameterMin: document.getElementById("mobileParameterMin"),
+  mobileParameterNeutral: document.getElementById("mobileParameterNeutral"),
+  mobileParameterMax: document.getElementById("mobileParameterMax"),
+  mobileParameterDescription: document.getElementById("mobileParameterDescription"),
+  mobileDiameterParameter: document.getElementById("mobileDiameterParameter"),
+  mobileMinDiameterValue: document.getElementById("mobileMinDiameterValue"),
+  mobileMaxDiameterValue: document.getElementById("mobileMaxDiameterValue"),
+  mobileMinDiameterPx: document.getElementById("mobileMinDiameterPx"),
+  mobileMaxDiameterPx: document.getElementById("mobileMaxDiameterPx"),
+  mobileMinDiameterRange: document.getElementById("mobileMinDiameterRange"),
+  mobileMaxDiameterRange: document.getElementById("mobileMaxDiameterRange"),
+  mobileDiameterTrack: document.getElementById("mobileDiameterTrack"),
+  mobileAllSettings: document.getElementById("mobileAllSettings"),
+  mobileFitView: document.getElementById("mobileFitView"),
+  mobileRunDetect: document.getElementById("mobileRunDetect"),
+  mobileOriginalPreview: document.getElementById("mobileOriginalPreview"),
+  mobileScaleReadout: document.getElementById("mobileScaleReadout"),
+  mobileAnalysisBack: document.getElementById("mobileAnalysisBack"),
+  mobileSettingsBack: document.getElementById("mobileSettingsBack"),
+  mobileAnalysisLanguage: document.getElementById("mobileAnalysisLanguage"),
+  mobileParetoExport: document.getElementById("mobileParetoExport"),
+  rightTabExport: document.getElementById("rightTabExport"),
   quickToolbar: document.querySelector(".quick-toolbar"),
   quickToolButtons: Array.from(document.querySelectorAll("[data-canvas-tool]")),
   quickFitView: document.getElementById("quickFitView"),
@@ -164,6 +213,8 @@ const els = {
   hintText: document.getElementById("hintText"),
   table: document.getElementById("particleTable"),
   countStat: document.getElementById("countStat"),
+  mobileCountStat: document.getElementById("mobileCountStat"),
+  mobileTableCount: document.getElementById("mobileTableCount"),
   meanStat: document.getElementById("meanStat"),
   medianStat: document.getElementById("medianStat"),
   rangeStat: document.getElementById("rangeStat"),
@@ -273,6 +324,33 @@ const messages = {
     "nav.resizeToolsPanel": "调整识别设置面板宽度",
     "nav.resizeDataPanel": "调整分析与导出面板宽度",
     "nav.languageToggle": "切换到 English",
+    "mobile.live": "实时",
+    "mobile.tuningAria": "图像调节控件",
+    "mobile.parameterAria": "图像参数",
+    "mobile.collapseTuning": "收起图像调节控件",
+    "mobile.expandTuning": "展开图像调节控件",
+    "mobile.diameter": "粒径",
+    "mobile.diameterRange": "粒径范围",
+    "mobile.contrast": "对比度",
+    "mobile.reset": "重置",
+    "mobile.decrease": "减小数值",
+    "mobile.increase": "增大数值",
+    "mobile.minimum": "最小值",
+    "mobile.maximum": "最大值",
+    "mobile.allSettings": "全部设置",
+    "mobile.image": "图像",
+    "mobile.analysis": "分析",
+    "mobile.data": "数据",
+    "mobile.particles": "个颗粒",
+    "mobile.detectionComplete": "识别完成",
+    "mobile.visibleArea": "可见面积",
+    "mobile.exportResults": "导出结果",
+    "mobile.goToExport": "前往导出页",
+    "mobile.brightnessDescription": "调节整体图像亮度。",
+    "mobile.contrastDescription": "调节明暗层次，不修改源图像。",
+    "mobile.gammaDescription": "调节中间调亮度，同时保留黑点和白点。",
+    "mobile.sensitivityDescription": "调节检测器的形状置信阈值。",
+    "mobile.diameterDescription": "只识别这个粒径范围内的颗粒。",
     "language.target": "EN",
     "manual.open": "鼠标与触控操作说明",
     "manual.close": "关闭操作说明",
@@ -508,6 +586,33 @@ const messages = {
     "nav.resizeToolsPanel": "Resize detection settings panel",
     "nav.resizeDataPanel": "Resize analysis and export panel",
     "nav.languageToggle": "Switch to Chinese",
+    "mobile.live": "Live",
+    "mobile.tuningAria": "Image tuning controls",
+    "mobile.parameterAria": "Image parameters",
+    "mobile.collapseTuning": "Collapse image tuning controls",
+    "mobile.expandTuning": "Expand image tuning controls",
+    "mobile.diameter": "Diameter",
+    "mobile.diameterRange": "Diameter range",
+    "mobile.contrast": "Contrast",
+    "mobile.reset": "Reset",
+    "mobile.decrease": "Decrease value",
+    "mobile.increase": "Increase value",
+    "mobile.minimum": "Minimum",
+    "mobile.maximum": "Maximum",
+    "mobile.allSettings": "All settings",
+    "mobile.image": "Image",
+    "mobile.analysis": "Analysis",
+    "mobile.data": "Data",
+    "mobile.particles": "particles",
+    "mobile.detectionComplete": "Detection complete",
+    "mobile.visibleArea": "Visible area",
+    "mobile.exportResults": "Export results",
+    "mobile.goToExport": "Go to Export tab",
+    "mobile.brightnessDescription": "Adjust overall image brightness.",
+    "mobile.contrastDescription": "Adjust tonal separation without changing the source image.",
+    "mobile.gammaDescription": "Adjust midtone brightness while preserving black and white points.",
+    "mobile.sensitivityDescription": "Control the detector's shape-confidence threshold.",
+    "mobile.diameterDescription": "Limit detection to particles within this size range.",
     "language.target": "中文",
     "manual.open": "Mouse and touch controls",
     "manual.close": "Close controls",
@@ -743,6 +848,167 @@ function updateAdjustmentReadouts() {
   els.brightnessValue.textContent = String(Number(els.brightness.value));
   els.contrastAdjustmentValue.textContent = String(Number(els.contrastAdjustment.value));
   els.gammaValue.textContent = Number(els.gamma.value).toFixed(2);
+  syncMobileControls();
+}
+
+function mobileParameterConfig(name = state.ui.mobileParameter) {
+  const configs = {
+    brightness: {
+      titleKey: "adjustments.brightness",
+      descriptionKey: "mobile.brightnessDescription",
+      input: els.brightness,
+      reset: 0,
+      format: (value) => String(Math.round(value)),
+      minLabel: "-100",
+      maxLabel: "+100",
+      neutralLabel: "",
+    },
+    contrast: {
+      titleKey: "adjustments.manualContrast",
+      descriptionKey: "mobile.contrastDescription",
+      input: els.contrastAdjustment,
+      reset: 0,
+      format: (value) => String(Math.round(value)),
+      minLabel: "-100",
+      maxLabel: "+100",
+      neutralLabel: "",
+    },
+    gamma: {
+      titleKey: "adjustments.gamma",
+      descriptionKey: "mobile.gammaDescription",
+      input: els.gamma,
+      reset: 1,
+      format: (value) => Number(value).toFixed(2),
+      minLabel: "0.20",
+      maxLabel: "3.00",
+      neutralLabel: "1.00",
+    },
+    sensitivity: {
+      titleKey: "labels.sensitivity",
+      descriptionKey: "mobile.sensitivityDescription",
+      input: els.sensitivity,
+      reset: Number(els.sensitivity.defaultValue),
+      format: (value) => Number(value).toFixed(2),
+      minLabel: "0.01",
+      maxLabel: "0.98",
+      neutralLabel: "",
+    },
+  };
+  return configs[name] || configs.brightness;
+}
+
+function setInputValue(input, value) {
+  input.value = String(value);
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+function updateMobileDiameterTrack() {
+  const min = Number(els.mobileMinDiameterRange.min);
+  const max = Number(els.mobileMinDiameterRange.max);
+  const low = Number(els.mobileMinDiameterRange.value);
+  const high = Number(els.mobileMaxDiameterRange.value);
+  const span = Math.max(0.001, max - min);
+  els.mobileDiameterTrack.style.setProperty("--range-start", `${((low - min) / span) * 100}%`);
+  els.mobileDiameterTrack.style.setProperty("--range-end", `${((high - min) / span) * 100}%`);
+}
+
+function syncMobileControls() {
+  const isDiameter = state.ui.mobileParameter === "diameter";
+  els.mobileTuningDrawer.classList.toggle("collapsed", state.ui.mobileDrawerCollapsed);
+  els.mobileDrawerToggle.setAttribute("aria-expanded", String(!state.ui.mobileDrawerCollapsed));
+  els.mobileDrawerToggle.dataset.i18nAria = state.ui.mobileDrawerCollapsed
+    ? "mobile.expandTuning"
+    : "mobile.collapseTuning";
+  els.mobileDrawerToggle.setAttribute("aria-label", t(els.mobileDrawerToggle.dataset.i18nAria));
+  els.mobileTuningContent.inert = state.ui.mobileDrawerCollapsed;
+  els.mobileTuningContent.setAttribute("aria-hidden", String(state.ui.mobileDrawerCollapsed));
+
+  for (const tab of els.mobileParameterTabs) {
+    const active = tab.dataset.mobileParameter === state.ui.mobileParameter;
+    tab.classList.toggle("active", active);
+    tab.setAttribute("aria-selected", String(active));
+    tab.tabIndex = active ? 0 : -1;
+  }
+
+  els.mobileSingleParameter.hidden = isDiameter;
+  els.mobileDiameterParameter.hidden = !isDiameter;
+  els.mobileParameterTitle.textContent = isDiameter ? t("mobile.diameterRange") : t(mobileParameterConfig().titleKey);
+  els.mobileParameterDescription.textContent = t(
+    isDiameter ? "mobile.diameterDescription" : mobileParameterConfig().descriptionKey,
+  );
+
+  if (isDiameter) {
+    const currentMax = Math.max(200, Math.ceil(Number(els.maxDiameter.value) || 200));
+    for (const range of [els.mobileMinDiameterRange, els.mobileMaxDiameterRange]) {
+      range.max = String(currentMax);
+      range.disabled = !state.image;
+    }
+    els.mobileMinDiameterRange.value = els.minDiameter.value;
+    els.mobileMaxDiameterRange.value = els.maxDiameter.value;
+    els.mobileMinDiameterValue.textContent = Number(els.minDiameter.value).toFixed(1).replace(/\.0$/, "");
+    els.mobileMaxDiameterValue.textContent = Number(els.maxDiameter.value).toFixed(1).replace(/\.0$/, "");
+    els.mobileMinDiameterPx.textContent = state.micronsPerPx
+      ? (Number(els.minDiameter.value) / state.micronsPerPx).toFixed(0)
+      : "—";
+    els.mobileMaxDiameterPx.textContent = state.micronsPerPx
+      ? (Number(els.maxDiameter.value) / state.micronsPerPx).toFixed(0)
+      : "—";
+    updateMobileDiameterTrack();
+  } else {
+    const config = mobileParameterConfig();
+    const source = config.input;
+    els.mobileParameterRange.min = source.min;
+    els.mobileParameterRange.max = source.max;
+    els.mobileParameterRange.step = source.step;
+    els.mobileParameterRange.value = source.value;
+    els.mobileParameterRange.disabled = source.disabled || !state.image;
+    els.mobileParameterValue.textContent = config.format(source.value);
+    els.mobileParameterMin.textContent = config.minLabel;
+    els.mobileParameterMax.textContent = config.maxLabel;
+    els.mobileParameterNeutral.textContent = config.neutralLabel;
+  }
+
+  const hasImage = Boolean(state.image);
+  els.mobileParameterReset.disabled = !hasImage;
+  els.mobileParameterDecrease.disabled = !hasImage || isDiameter;
+  els.mobileParameterIncrease.disabled = !hasImage || isDiameter;
+  els.mobileFitView.disabled = !hasImage;
+  els.mobileOriginalPreview.disabled = !hasImage;
+  els.mobileRunDetect.disabled = els.runDetect.disabled;
+  els.mobileScaleReadout.textContent = state.micronsPerPx
+    ? `${state.micronsPerPx.toFixed(4)} ${t("unit.umPerPx")}`
+    : t("scale.unset");
+}
+
+function setMobileParameter(name, { focus = false } = {}) {
+  if (!["brightness", "contrast", "gamma", "sensitivity", "diameter"].includes(name)) return;
+  state.ui.mobileParameter = name;
+  syncMobileControls();
+  if (focus) {
+    els.mobileParameterTabs.find((tab) => tab.dataset.mobileParameter === name)?.focus();
+  }
+}
+
+function stepMobileParameter(direction) {
+  if (state.ui.mobileParameter === "diameter") return;
+  const config = mobileParameterConfig();
+  const input = config.input;
+  const step = Number(input.step) || 1;
+  const min = Number(input.min);
+  const max = Number(input.max);
+  const next = Math.min(max, Math.max(min, Number(input.value) + step * direction));
+  setInputValue(input, next);
+}
+
+function resetMobileParameter() {
+  if (state.ui.mobileParameter === "diameter") {
+    setInputValue(els.minDiameter, els.minDiameter.defaultValue);
+    setInputValue(els.maxDiameter, els.maxDiameter.defaultValue);
+  } else {
+    const config = mobileParameterConfig();
+    setInputValue(config.input, config.reset);
+  }
+  syncMobileControls();
 }
 
 function setAdjustmentControlsEnabled(enabled) {
@@ -756,10 +1022,12 @@ function setAdjustmentControlsEnabled(enabled) {
   ]) {
     control.disabled = !enabled;
   }
+  syncMobileControls();
 }
 
 function syncOriginalPreviewButton() {
   els.quickOriginalPreview.setAttribute("aria-pressed", String(state.ui.showOriginal));
+  els.mobileOriginalPreview.setAttribute("aria-pressed", String(state.ui.showOriginal));
 }
 
 function setOriginalPreview(active) {
@@ -945,15 +1213,39 @@ function closeActionManual() {
   if (els.actionManualDialog.open) els.actionManualDialog.close();
 }
 
+function fitFrame() {
+  const frame = { x: 0, y: 0, width: els.canvas.width, height: els.canvas.height };
+  if (!compactLayout.matches || !els.mobileTuningDrawer.offsetHeight) return frame;
+  const dpr = window.devicePixelRatio || 1;
+  const canvasRect = els.canvas.getBoundingClientRect();
+  const topbarRect = document.querySelector(".topbar").getBoundingClientRect();
+  const drawerRect = els.mobileTuningDrawer.getBoundingClientRect();
+  const top = Math.max(canvasRect.top, topbarRect.bottom);
+  const bottom = Math.min(canvasRect.bottom, drawerRect.top);
+  if (bottom - top < 80) return frame;
+  return {
+    x: 0,
+    y: (top - canvasRect.top) * dpr,
+    width: els.canvas.width,
+    height: (bottom - top) * dpr,
+  };
+}
+
+function fitScaleForFrame(frame) {
+  const widthScale = frame.width / state.image.naturalWidth;
+  const heightScale = frame.height / state.image.naturalHeight;
+  return compactLayout.matches && !state.ui.mobileDrawerCollapsed
+    ? Math.max(widthScale, heightScale)
+    : Math.min(widthScale, heightScale);
+}
+
 function fitTransform() {
   if (!state.image) return { scale: 1, ox: 0, oy: 0 };
-  const fitScale = Math.min(
-    els.canvas.width / state.image.naturalWidth,
-    els.canvas.height / state.image.naturalHeight
-  );
+  const frame = fitFrame();
+  const fitScale = fitScaleForFrame(frame);
   const scale = fitScale * state.view.zoom;
-  const ox = (els.canvas.width - state.image.naturalWidth * scale) / 2;
-  const oy = (els.canvas.height - state.image.naturalHeight * scale) / 2;
+  const ox = frame.x + (frame.width - state.image.naturalWidth * scale) / 2;
+  const oy = frame.y + (frame.height - state.image.naturalHeight * scale) / 2;
   return { scale, ox: ox + state.view.panX, oy: oy + state.view.panY };
 }
 
@@ -1104,13 +1396,11 @@ function zoomAt(factor, center = null) {
   };
 
   state.view.zoom = Math.min(8, Math.max(0.25, state.view.zoom * factor));
-  const fitScale = Math.min(
-    els.canvas.width / state.image.naturalWidth,
-    els.canvas.height / state.image.naturalHeight
-  );
+  const frame = fitFrame();
+  const fitScale = fitScaleForFrame(frame);
   const scale = fitScale * state.view.zoom;
-  const baseOx = (els.canvas.width - state.image.naturalWidth * scale) / 2;
-  const baseOy = (els.canvas.height - state.image.naturalHeight * scale) / 2;
+  const baseOx = frame.x + (frame.width - state.image.naturalWidth * scale) / 2;
+  const baseOy = frame.y + (frame.height - state.image.naturalHeight * scale) / 2;
   state.view.panX = canvasCenter.x - imagePoint.x * scale - baseOx;
   state.view.panY = canvasCenter.y - imagePoint.y * scale - baseOy;
   updateZoomReadout();
@@ -1377,6 +1667,8 @@ function updateStats() {
   const distribution = distributionParticles();
   const values = distribution.map(diameterUm).filter((v) => v > 0).sort((a, b) => a - b);
   els.countStat.textContent = distribution.length.toString();
+  els.mobileCountStat.textContent = distribution.length.toString();
+  els.mobileTableCount.textContent = distribution.length.toString();
   const summary = summarizeDiameters(values);
   if (!summary) {
     els.meanStat.textContent = "-";
@@ -1403,6 +1695,7 @@ function updateStats() {
   renderTable();
   renderPareto(values);
   renderScaleLegend();
+  syncMobileControls();
 }
 
 function syncScaleInputState() {
@@ -1694,6 +1987,7 @@ async function renderPareto(inputValues = null) {
   }
 
   const Plotly = await loadPlotly();
+  if (els.paretoPlot.classList.contains("is-empty")) els.paretoPlot.textContent = "";
   els.paretoPlot.classList.remove("is-empty");
   Plotly.react(els.paretoPlot, traces, paretoLayout(false, Boolean(series)), paretoConfig(false));
   if (showOverlay) {
@@ -1797,6 +2091,7 @@ function updateQuickToolbar() {
   if (state.statusKey !== "status.running") {
     els.runDetect.disabled = !hasImage || !state.detector || !state.micronsPerPx;
   }
+  syncMobileControls();
 }
 
 function setToolbarPositionMenu(open) {
@@ -2287,6 +2582,10 @@ function syncPanels() {
     "panels-open",
     compactPanelOpen,
   );
+  els.mobileTuningDrawer.inert = compactPanelOpen;
+  els.mobileTuningDrawer.setAttribute("aria-hidden", String(compactPanelOpen));
+  els.appShell.classList.toggle("mobile-drawer-collapsed", state.ui.mobileDrawerCollapsed);
+  syncMobileControls();
 }
 
 function closeCompactPanels() {
@@ -2371,6 +2670,91 @@ els.quickOriginalPreview.addEventListener("keyup", (event) => {
 });
 els.quickOriginalPreview.addEventListener("blur", () => setOriginalPreview(false));
 els.quickOriginalPreview.addEventListener("click", (event) => event.preventDefault());
+els.mobileOriginalPreview.addEventListener("pointerdown", (event) => {
+  if (els.mobileOriginalPreview.disabled || event.button !== 0) return;
+  event.preventDefault();
+  try {
+    els.mobileOriginalPreview.setPointerCapture(event.pointerId);
+  } catch {
+    // Synthetic pointer events may not have an active platform pointer to capture.
+  }
+  setOriginalPreview(true);
+});
+for (const eventName of ["pointerup", "pointercancel", "lostpointercapture"]) {
+  els.mobileOriginalPreview.addEventListener(eventName, () => setOriginalPreview(false));
+}
+els.mobileOriginalPreview.addEventListener("keydown", (event) => {
+  if (![" ", "Enter"].includes(event.key) || event.repeat) return;
+  event.preventDefault();
+  setOriginalPreview(true);
+});
+els.mobileOriginalPreview.addEventListener("keyup", (event) => {
+  if (![" ", "Enter"].includes(event.key)) return;
+  event.preventDefault();
+  setOriginalPreview(false);
+});
+els.mobileOriginalPreview.addEventListener("blur", () => setOriginalPreview(false));
+els.mobileOriginalPreview.addEventListener("click", (event) => event.preventDefault());
+
+els.mobileDrawerToggle.addEventListener("click", () => {
+  state.ui.mobileDrawerCollapsed = !state.ui.mobileDrawerCollapsed;
+  syncMobileControls();
+  resizeCanvas();
+  setTimeout(resizeCanvas, 230);
+});
+
+els.mobileParameterTabs.forEach((button, index) => {
+  button.addEventListener("click", (event) => {
+    setMobileParameter(button.dataset.mobileParameter);
+    if (event.detail !== 0) button.blur();
+  });
+  button.addEventListener("keydown", (event) => {
+    let nextIndex = null;
+    if (event.key === "ArrowLeft") nextIndex = (index - 1 + els.mobileParameterTabs.length) % els.mobileParameterTabs.length;
+    if (event.key === "ArrowRight") nextIndex = (index + 1) % els.mobileParameterTabs.length;
+    if (event.key === "Home") nextIndex = 0;
+    if (event.key === "End") nextIndex = els.mobileParameterTabs.length - 1;
+    if (nextIndex === null) return;
+    event.preventDefault();
+    setMobileParameter(els.mobileParameterTabs[nextIndex].dataset.mobileParameter, { focus: true });
+  });
+});
+
+els.mobileParameterRange.addEventListener("input", () => {
+  setInputValue(mobileParameterConfig().input, els.mobileParameterRange.value);
+});
+els.mobileParameterDecrease.addEventListener("click", () => stepMobileParameter(-1));
+els.mobileParameterIncrease.addEventListener("click", () => stepMobileParameter(1));
+els.mobileParameterReset.addEventListener("click", resetMobileParameter);
+
+els.mobileMinDiameterRange.addEventListener("input", () => {
+  const high = Number(els.mobileMaxDiameterRange.value);
+  const next = Math.min(Number(els.mobileMinDiameterRange.value), Math.max(0.1, high - 0.1));
+  setInputValue(els.minDiameter, next);
+  syncMobileControls();
+});
+els.mobileMaxDiameterRange.addEventListener("input", () => {
+  const low = Number(els.mobileMinDiameterRange.value);
+  const next = Math.max(Number(els.mobileMaxDiameterRange.value), low + 0.1);
+  setInputValue(els.maxDiameter, next);
+  syncMobileControls();
+});
+
+els.mobileAllSettings.addEventListener("click", () => {
+  state.ui.leftCollapsed = false;
+  state.ui.rightOpen = false;
+  syncPanels();
+});
+els.mobileFitView.addEventListener("click", resetView);
+els.mobileRunDetect.addEventListener("click", () => els.runDetect.click());
+els.mobileAnalysisBack.addEventListener("click", () => {
+  state.ui.rightOpen = false;
+  syncPanels();
+});
+els.mobileSettingsBack.addEventListener("click", () => {
+  state.ui.leftCollapsed = true;
+  syncPanels();
+});
 els.resetAdjustments.addEventListener("click", () => {
   const changed = Number(els.brightness.value) !== 0
     || Number(els.contrastAdjustment.value) !== 0
@@ -2439,6 +2823,7 @@ els.actionManualDialog.addEventListener("keydown", (event) => {
   setActionManualTab(els.actionManualTabs[nextIndex].dataset.manualTab, { focus: true });
 });
 els.languageToggle.addEventListener("click", toggleLanguage);
+els.mobileAnalysisLanguage.addEventListener("click", toggleLanguage);
 els.leftToggle.addEventListener("click", () => {
   state.ui.leftCollapsed = !state.ui.leftCollapsed;
   if (compactLayout.matches && !state.ui.leftCollapsed) state.ui.rightOpen = false;
@@ -2481,6 +2866,17 @@ function setRightTab(nextTab, { focus = false } = {}) {
     panel.classList.toggle("active", active);
     panel.hidden = !active;
   }
+  if (compactLayout.matches) {
+    const scroller = els.rightPanel.querySelector(".panel-inner");
+    const resetAnalysisScroll = () => {
+      scroller.scrollTop = 0;
+      window.scrollTo(0, 0);
+      if (!focus) nextTab.blur();
+    };
+    resetAnalysisScroll();
+    requestAnimationFrame(resetAnalysisScroll);
+    setTimeout(resetAnalysisScroll, 250);
+  }
   if (focus) nextTab.focus({ preventScroll: true });
   resizePareto();
 }
@@ -2498,6 +2894,7 @@ rightTabs.forEach((button, index) => {
     setRightTab(rightTabs[nextIndex], { focus: true });
   });
 });
+els.mobileParetoExport.addEventListener("click", () => setRightTab(els.rightTabExport, { focus: true }));
 
 els.paretoBinCount.value = String(state.ui.paretoBinCount);
 els.paretoBinCountValue.textContent = String(state.ui.paretoBinCount);
@@ -2971,25 +3368,39 @@ async function bootstrap() {
   createIcons({
     icons: {
       BarChart3,
+      Bubbles,
+      ChevronLeft,
+      ChevronUp,
+      CircleDot,
       CircleHelp,
       CirclePlus,
+      Contrast,
+      Crosshair,
       Download,
       Eye,
       FileOutput,
       FileSpreadsheet,
+      Globe,
       Hand,
       ImageDown,
       ImagePlus,
+      LineChart,
       Maximize2,
+      Minus,
       MousePointer2,
       Move,
       PanelBottom,
       PanelLeft,
       PanelRight,
       PanelTop,
+      Play,
+      Plus,
+      RotateCcw,
       Ruler,
       ScanLine,
       ShieldCheck,
+      SlidersHorizontal,
+      Sun,
       Table2,
       Trash2,
       TriangleAlert,

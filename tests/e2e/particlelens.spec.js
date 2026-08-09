@@ -238,7 +238,7 @@ test("keeps information tooltips inside narrow viewports", async ({ page }) => {
   ]) {
     await page.setViewportSize(viewport);
     await openReadyApp(page);
-    await page.locator("#leftToggle").click();
+    await page.locator("#mobileAllSettings").click();
     await openAdvancedSettings(page);
 
     for (const trigger of await page.locator(".info-point:not([hidden]) .info-point-trigger").all()) {
@@ -744,7 +744,7 @@ test("presents sidebars as panel toggles and analysis views as tabs", async ({ p
   await expect(rightTabs).toHaveCount(3);
   const tableTab = page.locator("#rightTabTable");
   const paretoTab = page.locator("#rightTabPareto");
-  await expect(tableTab.locator(".tab-label")).toBeVisible();
+  await expect(tableTab.locator(".desktop-data-label")).toBeVisible();
   await expect(paretoTab.locator(".tab-label")).toBeVisible();
   await expect(tableTab).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#rightPanelTable")).toBeVisible();
@@ -888,7 +888,7 @@ test("resizes desktop sidebars from their inner edges and restores their widths"
     .toBeCloseTo(savedWidths.right, 0);
 });
 
-test("adapts the workspace for mobile and supports touch canvas gestures", async ({ page }) => {
+test("uses the canvas-first mobile workspace, collapsible tuning drawer, and hold-for-original preview", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openReadyApp(page);
 
@@ -897,71 +897,72 @@ test("adapts the workspace for mobile and supports touch canvas gestures", async
   await expect(page.locator("#rightPanelResizeHandle")).toBeHidden();
   await expect(page.locator("#leftToggle")).toHaveAttribute("aria-expanded", "false");
   const topbarBox = await page.locator(".topbar").boundingBox();
-  expect(topbarBox?.height).toBeGreaterThanOrEqual(100);
+  expect(topbarBox?.height).toBeCloseTo(64, 0);
+  await expect(page.locator(".quick-toolbar")).toBeHidden();
+  await expect(page.locator("#mobileTuningDrawer")).toBeVisible();
+  await expect(page.locator("#mobileDrawerToggle")).toHaveAttribute("aria-expanded", "true");
+  await expect(page.locator("[data-mobile-parameter='brightness']")).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await expect(page.locator(".mobile-parameter-tab")).toHaveCount(5);
 
-  const quickToolbar = page.locator(".quick-toolbar");
-  const initialToolbarBox = await quickToolbar.boundingBox();
-  expect(initialToolbarBox?.height).toBeGreaterThan(initialToolbarBox?.width);
-  for (const position of ["right", "top", "left", "bottom"]) {
-    await page.locator("#quickToolbarPosition").click();
-    await page.locator(`[data-toolbar-position='${position}']`).click();
-    await expect(page.locator(".app-shell")).toHaveAttribute("data-toolbar-position", position);
-  }
-  const bottomToolbarBox = await quickToolbar.boundingBox();
-  expect(bottomToolbarBox?.width).toBeGreaterThan(bottomToolbarBox?.height);
-  expect(
-    await page.evaluate(() => localStorage.getItem("particleLensToolbarPosition")),
-  ).toBe("bottom");
-  await page.setViewportSize({ width: 320, height: 844 });
-  await page.waitForTimeout(250);
-  const narrowToolbarBox = await quickToolbar.boundingBox();
-  expect(narrowToolbarBox?.x).toBeGreaterThanOrEqual(0);
-  expect((narrowToolbarBox?.x || 0) + (narrowToolbarBox?.width || 0)).toBeLessThanOrEqual(320);
-  await page.setViewportSize({ width: 390, height: 844 });
-
-  await page.locator("#leftToggle").click();
-  await expect(page.locator("#leftToggle")).toHaveAttribute("aria-expanded", "true");
-  await expect.poll(
-    async () => page.locator("#leftPanel").evaluate(
-      (element) => getComputedStyle(element).transform,
-    ),
-  ).toBe("none");
-  await expect.poll(
-    async () => (await page.locator("#leftPanel").boundingBox()).x,
-  ).toBeCloseTo(0, 0);
-  const portraitPanelBox = await page.locator("#leftPanel").boundingBox();
-  expect(portraitPanelBox.x).toBeCloseTo(0, 0);
-  expect(portraitPanelBox.y).toBeCloseTo(topbarBox.height, 0);
-  expect(portraitPanelBox.width).toBeCloseTo(390, 0);
-  expect(portraitPanelBox.height).toBeCloseTo(844 - topbarBox.height, 0);
-  const portraitGridColumnCount = await page
-    .locator("#leftPanel .control-group.first > .grid-two")
-    .evaluate(
-      (element) => getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/).length,
+  for (const parameter of ["contrast", "gamma", "sensitivity", "diameter", "brightness"]) {
+    await page.locator(`[data-mobile-parameter='${parameter}']`).click();
+    await expect(page.locator(`[data-mobile-parameter='${parameter}']`)).toHaveAttribute(
+      "aria-selected",
+      "true",
     );
-  expect(portraitGridColumnCount).toBe(2);
-  await expect(page.locator(".workspace")).toHaveAttribute("aria-hidden", "true");
-  await expect(page.locator("#rightToggle")).toHaveAttribute("aria-expanded", "false");
+  }
 
-  await page.locator("#rightToggle").click();
-  await expect(page.locator("#rightToggle")).toHaveAttribute("aria-expanded", "true");
-  await expect(page.locator("#leftToggle")).toHaveAttribute("aria-expanded", "false");
-  const rightPageBox = await page.locator("#rightPanel").boundingBox();
-  expect(rightPageBox.x).toBeCloseTo(0, 0);
-  expect(rightPageBox.width).toBeCloseTo(390, 0);
+  await page.locator("#mobileDrawerToggle").click();
+  await expect(page.locator("#mobileTuningDrawer")).toHaveClass(/collapsed/);
+  await expect(page.locator("#mobileDrawerToggle")).toHaveAttribute("aria-expanded", "false");
+  await expect(page.locator("#mobileTuningContent")).toHaveAttribute("aria-hidden", "true");
+  await page.locator("#mobileDrawerToggle").click();
+  await expect(page.locator("#mobileTuningDrawer")).not.toHaveClass(/collapsed/);
 
-  await page.locator("#leftToggle").click();
-  await expect(page.locator("#leftToggle")).toHaveAttribute("aria-expanded", "true");
-  await expect(page.locator("#rightToggle")).toHaveAttribute("aria-expanded", "false");
   await page.locator("#imageInput").setInputFiles({
     name: "synthetic.bmp",
     mimeType: "image/bmp",
     buffer: syntheticBitmap(),
   });
   await expect(page.locator("#imageName")).toHaveText("synthetic.bmp");
-  await expect(page.locator("#leftToggle")).toHaveAttribute("aria-expanded", "false");
+  await expect(page.locator("#mobileOriginalPreview")).toBeEnabled();
+  await page.locator("#mobileParameterRange").fill("35");
+  await expect(page.locator("#brightness")).toHaveValue("35");
+  const processedPreview = await page.locator("#imageCanvas").screenshot();
+  await page.locator("#mobileOriginalPreview").dispatchEvent("pointerdown", {
+    bubbles: true,
+    pointerId: 1,
+    pointerType: "touch",
+    isPrimary: true,
+    button: 0,
+    buttons: 1,
+  });
+  await expect(page.locator("#mobileOriginalPreview")).toHaveAttribute("aria-pressed", "true");
+  const originalPreview = await page.locator("#imageCanvas").screenshot();
+  expect(Buffer.compare(processedPreview, originalPreview)).not.toBe(0);
+  await page.locator("#mobileOriginalPreview").dispatchEvent("pointerup", {
+    bubbles: true,
+    pointerId: 1,
+    pointerType: "touch",
+    isPrimary: true,
+    button: 0,
+    buttons: 0,
+  });
+  await expect(page.locator("#mobileOriginalPreview")).toHaveAttribute("aria-pressed", "false");
 
-  await page.locator("#leftToggle").click();
+  await page.locator("#mobileAllSettings").click();
+  await expect(page.locator("#leftToggle")).toHaveAttribute("aria-expanded", "true");
+  await expect(page.locator(".workspace")).toHaveAttribute("aria-hidden", "true");
+  await expect.poll(async () => (await page.locator("#leftPanel").boundingBox()).x)
+    .toBeCloseTo(0, 0);
+  const portraitPanelBox = await page.locator("#leftPanel").boundingBox();
+  expect(portraitPanelBox.x).toBeCloseTo(0, 0);
+  expect(portraitPanelBox.y).toBeCloseTo(0, 0);
+  expect(portraitPanelBox.width).toBeCloseTo(390, 0);
+  expect(portraitPanelBox.height).toBeCloseTo(844, 0);
   await openAdvancedSettings(page);
   await page.locator("#contrastMode").selectOption("none");
   await page.locator("#sensitivity").fill("0.7");
@@ -969,12 +970,29 @@ test("adapts the workspace for mobile and supports touch canvas gestures", async
   await page.locator("#maxDiameter").fill("80");
   await expect(page.locator("#micronsPerPixel")).toHaveValue("0.625");
   await expect(page.locator("#runDetect")).toBeEnabled();
-  await page.locator("#runDetect").click();
+  await page.locator("#mobileSettingsBack").click();
+  await expect(page.locator("#leftToggle")).toHaveAttribute("aria-expanded", "false");
+  await page.locator("#mobileRunDetect").click();
   await expect(page.locator("#statusBadge")).toHaveText(/已识别|Detected/, {
     timeout: 60_000,
   });
 
-  await page.locator("#leftToggle").click();
+  await page.locator("#rightToggle").click();
+  await expect(page.locator("#rightToggle")).toHaveAttribute("aria-expanded", "true");
+  await expect.poll(async () => (await page.locator("#rightPanel").boundingBox()).x)
+    .toBeCloseTo(0, 0);
+  const rightPageBox = await page.locator("#rightPanel").boundingBox();
+  expect(rightPageBox.x).toBeCloseTo(0, 0);
+  expect(rightPageBox.width).toBeCloseTo(390, 0);
+  await expect(page.locator("#rightPanel .navigation-tab")).toHaveCount(3);
+  for (const tab of ["pareto", "export", "table"]) {
+    await page.locator(`.navigation-tab[data-right-tab='${tab}']`).click();
+    await expect(page.locator(`.navigation-tab[data-right-tab='${tab}']`)).toHaveClass(/active/);
+  }
+  await page.locator("#mobileAnalysisBack").click();
+  await expect(page.locator("#rightToggle")).toHaveAttribute("aria-expanded", "false");
+
+  await page.locator("#mobileDrawerToggle").click();
   const canvas = page.locator("#imageCanvas");
   const box = await canvas.boundingBox();
   expect(box).toBeTruthy();
@@ -998,27 +1016,76 @@ test("adapts the workspace for mobile and supports touch canvas gestures", async
   await canvas.dispatchEvent("pointerup", { ...pointer(1, 150, 380, true), buttons: 0 });
   await expect(page.locator("#zoomReadout")).not.toHaveText(zoomBefore);
 
-  await page.locator("#quickPanTool").click();
-  await expect(page.locator("#quickPanTool")).toHaveAttribute("aria-pressed", "true");
-  const beforePan = await canvas.screenshot();
-  await canvas.dispatchEvent("pointerdown", pointer(3, 60, 650, true));
-  await canvas.dispatchEvent("pointermove", pointer(3, 115, 610, true));
-  await canvas.dispatchEvent("pointerup", { ...pointer(3, 115, 610, true), buttons: 0 });
-  const afterPan = await canvas.screenshot();
-  expect(Buffer.compare(beforePan, afterPan)).not.toBe(0);
-
-  await page.locator("#quickFitView").click();
+  await page.locator("#mobileDrawerToggle").click();
+  await page.locator("#mobileFitView").click();
   await expect(page.locator("#zoomReadout")).toHaveText("100%");
-  await page.locator("#quickDrawTool").click();
-  await expect(page.locator("#quickDrawTool")).toHaveAttribute("aria-pressed", "true");
-  const rows = page.locator("#particleTable tr");
-  await canvas.dispatchEvent("pointerdown", pointer(4, 125, 560, true));
-  await canvas.dispatchEvent("pointermove", pointer(4, 190, 560, true));
-  await canvas.dispatchEvent("pointerup", { ...pointer(4, 190, 560, true), buttons: 0 });
-  await expect(rows).toHaveCount(4);
-  await expect(page.locator("#quickDeleteSelected")).toBeEnabled();
-  await page.locator("#quickDeleteSelected").click();
-  await expect(rows).toHaveCount(3);
+});
+
+test("keeps the complete mobile workflow usable in an iPhone SE viewport", async ({ page }) => {
+  const viewport = { width: 375, height: 667 };
+  await page.setViewportSize(viewport);
+  await openReadyApp(page);
+
+  const expectInsideViewport = async (selector) => {
+    const box = await page.locator(selector).boundingBox();
+    expect(box, `${selector} should be visible`).toBeTruthy();
+    expect(box.x, `${selector} should not be clipped on the left`).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width, `${selector} should not be clipped on the right`).toBeLessThanOrEqual(
+      viewport.width + 1,
+    );
+    expect(box.y, `${selector} should not be clipped above the viewport`).toBeGreaterThanOrEqual(0);
+    expect(box.y + box.height, `${selector} should fit above the fold`).toBeLessThanOrEqual(
+      viewport.height + 1,
+    );
+  };
+
+  await page.locator("#imageInput").setInputFiles({
+    name: "synthetic.bmp",
+    mimeType: "image/bmp",
+    buffer: syntheticBitmap(),
+  });
+  await expect(page.locator("#imageName")).toHaveText("synthetic.bmp");
+
+  for (const parameter of ["brightness", "contrast", "gamma", "sensitivity", "diameter"]) {
+    await page.locator(`[data-mobile-parameter='${parameter}']`).click();
+    await expectInsideViewport("#mobileParameterDescription");
+    await expectInsideViewport("#mobileAllSettings");
+    await expectInsideViewport("#mobileFitView");
+    await expectInsideViewport("#mobileRunDetect");
+  }
+
+  await page.locator("#mobileDrawerToggle").click();
+  await page.waitForTimeout(300);
+  await expectInsideViewport("#mobileDrawerToggle");
+  await page.locator("#mobileDrawerToggle").click();
+  await page.waitForTimeout(300);
+  await expectInsideViewport("#mobileRunDetect");
+
+  await page.locator("#mobileRunDetect").click();
+  await expect(page.locator("#statusBadge")).toHaveText(/已识别|Detected/, {
+    timeout: 60_000,
+  });
+  await page.locator("#rightToggle").click();
+  await page.waitForTimeout(250);
+
+  await expectInsideViewport(".right-panel-heading");
+  await expectInsideViewport(".mobile-results-overview");
+  await expectInsideViewport(".right-panel .stats");
+  await expectInsideViewport(".right-panel .navigation-tabs");
+  await expectInsideViewport(".mobile-table-summary");
+
+  await page.locator("#rightTabPareto").click();
+  await expectInsideViewport(".pareto-controls");
+  await expectInsideViewport("#paretoPlot");
+  await expectInsideViewport("#downloadPareto");
+  await expectInsideViewport("#mobileParetoExport");
+
+  await page.locator("#rightTabExport").click();
+  await expectInsideViewport("#labelLimit");
+  await expectInsideViewport(".export-options");
+  await expectInsideViewport(".export-padding-options");
+  await expectInsideViewport(".export-actions");
+  await expectInsideViewport("#exportAll");
 });
 
 test("switches language and restores the app shell offline", async ({ page }) => {
