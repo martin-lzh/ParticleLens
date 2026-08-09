@@ -138,6 +138,7 @@ let previewInFlight = false;
 let previewPending = false;
 let previewGeneration = 0;
 let exportInFlight = false;
+let mobileDrawerDrag = null;
 
 async function loadPlotly() {
   if (plotlyApi) return plotlyApi;
@@ -329,6 +330,8 @@ const messages = {
     "mobile.parameterAria": "图像参数",
     "mobile.collapseTuning": "收起图像调节控件",
     "mobile.expandTuning": "展开图像调节控件",
+    "mobile.imageSettings": "图像设置",
+    "mobile.processingParameters": "处理参数",
     "mobile.diameter": "粒径",
     "mobile.diameterRange": "粒径范围",
     "mobile.contrast": "对比度",
@@ -591,6 +594,8 @@ const messages = {
     "mobile.parameterAria": "Image parameters",
     "mobile.collapseTuning": "Collapse image tuning controls",
     "mobile.expandTuning": "Expand image tuning controls",
+    "mobile.imageSettings": "Image settings",
+    "mobile.processingParameters": "Processing parameters",
     "mobile.diameter": "Diameter",
     "mobile.diameterRange": "Diameter range",
     "mobile.contrast": "Contrast",
@@ -978,6 +983,41 @@ function syncMobileControls() {
   els.mobileScaleReadout.textContent = state.micronsPerPx
     ? `${state.micronsPerPx.toFixed(4)} ${t("unit.umPerPx")}`
     : t("scale.unset");
+}
+
+function mobileDrawerCollapsedOffset() {
+  const style = getComputedStyle(els.mobileTuningDrawer);
+  const peekHeight = Number.parseFloat(style.getPropertyValue("--mobile-drawer-peek")) || 78;
+  const safeBottom = Number.parseFloat(style.paddingBottom) || 0;
+  return Math.max(0, els.mobileTuningDrawer.offsetHeight - peekHeight - safeBottom);
+}
+
+function snapMobileDrawer(collapsed, { animateFromDrag = false } = {}) {
+  state.ui.mobileDrawerCollapsed = collapsed;
+  syncMobileControls();
+  els.mobileTuningDrawer.classList.remove("dragging");
+
+  const finish = () => {
+    els.mobileTuningDrawer.style.removeProperty("transform");
+    resizeCanvas();
+    setTimeout(resizeCanvas, 230);
+  };
+  if (animateFromDrag) requestAnimationFrame(finish);
+  else finish();
+}
+
+function finishMobileDrawerDrag({ cancelled = false } = {}) {
+  if (!mobileDrawerDrag) return;
+  const drag = mobileDrawerDrag;
+  mobileDrawerDrag = null;
+
+  let collapsed = drag.startedCollapsed;
+  if (!cancelled && drag.maxOffset > 0) {
+    const progress = drag.offset / drag.maxOffset;
+    if (progress <= 0.38) collapsed = false;
+    else if (progress >= 0.62) collapsed = true;
+  }
+  snapMobileDrawer(collapsed, { animateFromDrag: true });
 }
 
 function setMobileParameter(name, { focus = false } = {}) {
@@ -2696,12 +2736,67 @@ els.mobileOriginalPreview.addEventListener("keyup", (event) => {
 els.mobileOriginalPreview.addEventListener("blur", () => setOriginalPreview(false));
 els.mobileOriginalPreview.addEventListener("click", (event) => event.preventDefault());
 
-els.mobileDrawerToggle.addEventListener("click", () => {
-  state.ui.mobileDrawerCollapsed = !state.ui.mobileDrawerCollapsed;
-  syncMobileControls();
-  resizeCanvas();
-  setTimeout(resizeCanvas, 230);
+els.mobileDrawerToggle.addEventListener("pointerdown", (event) => {
+  if (!compactLayout.matches || event.button !== 0) return;
+  event.preventDefault();
+  const maxOffset = mobileDrawerCollapsedOffset();
+  const expandedTop = window.innerHeight - els.mobileTuningDrawer.offsetHeight;
+  const currentOffset = Math.min(
+    maxOffset,
+    Math.max(0, els.mobileTuningDrawer.getBoundingClientRect().top - expandedTop),
+  );
+  mobileDrawerDrag = {
+    pointerId: event.pointerId,
+    startY: event.clientY,
+    offset: currentOffset,
+    startOffset: currentOffset,
+    maxOffset,
+    startedCollapsed: state.ui.mobileDrawerCollapsed,
+  };
+  els.mobileTuningDrawer.classList.add("dragging");
+  els.mobileTuningDrawer.style.transform = `translateY(${currentOffset}px)`;
+  try {
+    els.mobileDrawerToggle.setPointerCapture(event.pointerId);
+  } catch {
+    // Synthetic pointer events may not have an active platform pointer to capture.
+  }
 });
+
+els.mobileDrawerToggle.addEventListener("pointermove", (event) => {
+  if (!mobileDrawerDrag || event.pointerId !== mobileDrawerDrag.pointerId) return;
+  event.preventDefault();
+  mobileDrawerDrag.offset = Math.min(
+    mobileDrawerDrag.maxOffset,
+    Math.max(0, mobileDrawerDrag.startOffset + event.clientY - mobileDrawerDrag.startY),
+  );
+  els.mobileTuningDrawer.style.transform = `translateY(${mobileDrawerDrag.offset}px)`;
+});
+
+els.mobileDrawerToggle.addEventListener("pointerup", (event) => {
+  if (!mobileDrawerDrag || event.pointerId !== mobileDrawerDrag.pointerId) return;
+  event.preventDefault();
+  finishMobileDrawerDrag();
+});
+
+els.mobileDrawerToggle.addEventListener("pointercancel", () => {
+  finishMobileDrawerDrag({ cancelled: true });
+});
+
+els.mobileDrawerToggle.addEventListener("lostpointercapture", () => {
+  finishMobileDrawerDrag({ cancelled: true });
+});
+
+els.mobileDrawerToggle.addEventListener("keydown", (event) => {
+  if (["ArrowUp", "PageUp", "Home"].includes(event.key)) {
+    event.preventDefault();
+    snapMobileDrawer(false);
+  }
+  if (["ArrowDown", "PageDown", "End"].includes(event.key)) {
+    event.preventDefault();
+    snapMobileDrawer(true);
+  }
+});
+els.mobileDrawerToggle.addEventListener("click", (event) => event.preventDefault());
 
 els.mobileParameterTabs.forEach((button, index) => {
   button.addEventListener("click", (event) => {

@@ -21,6 +21,7 @@
 .mobile-canvas-status,
 .mobile-original-preview,
 .mobile-tuning-drawer,
+.mobile-drawer-collapsed-label,
 .mobile-analysis-back,
 .mobile-settings-back,
 .mobile-analysis-title,
@@ -202,6 +203,7 @@
   }
 
   .mobile-tuning-drawer {
+    --mobile-drawer-peek: 78px;
     position: fixed;
     right: 0;
     bottom: 0;
@@ -221,7 +223,11 @@
   }
 
   .mobile-tuning-drawer.collapsed {
-    transform: translateY(calc(100% - 54px - var(--safe-bottom)));
+    transform: translateY(calc(100% - var(--mobile-drawer-peek) - var(--safe-bottom)));
+  }
+
+  .mobile-tuning-drawer.dragging {
+    transition: none;
   }
 
   .app-shell.panels-open .mobile-tuning-drawer,
@@ -233,27 +239,97 @@
   .mobile-drawer-toggle {
     position: absolute;
     top: 0;
-    left: 50%;
+    left: 0;
     z-index: 2;
-    display: grid;
-    place-items: center;
-    width: 76px;
-    min-width: 76px;
-    height: 30px;
-    min-height: 30px;
+    display: block;
+    width: 100%;
+    min-width: 100%;
+    height: 34px;
+    min-height: 34px;
     padding: 0;
     border: 0;
     background: transparent;
-    transform: translateX(-50%);
+    cursor: ns-resize;
+    touch-action: none;
   }
 
-  .mobile-drawer-toggle span {
+  .mobile-drawer-handle {
+    position: absolute;
+    top: 10px;
+    left: 50%;
     display: block;
     width: 34px;
     height: 5px;
     margin: 0;
     border-radius: 999px;
     background: #858e95;
+    transform: translateX(-50%);
+    transition: width 160ms ease, background 160ms ease;
+  }
+
+  .mobile-drawer-toggle:focus-visible .mobile-drawer-handle,
+  .mobile-tuning-drawer.dragging .mobile-drawer-handle {
+    width: 46px;
+    background: #b6bec4;
+  }
+
+  .mobile-tuning-drawer.collapsed .mobile-drawer-toggle {
+    height: var(--mobile-drawer-peek);
+    min-height: var(--mobile-drawer-peek);
+  }
+
+  .mobile-drawer-collapsed-label {
+    position: absolute;
+    right: 16px;
+    bottom: 8px;
+    left: 16px;
+    display: none;
+    grid-template-columns: 34px minmax(0, 1fr) 24px;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    color: var(--text);
+    text-align: left;
+  }
+
+  .mobile-tuning-drawer.collapsed .mobile-drawer-collapsed-label {
+    display: grid;
+  }
+
+  .mobile-drawer-collapsed-label > svg:first-child {
+    width: 24px;
+    height: 24px;
+    color: var(--accent);
+  }
+
+  .mobile-drawer-collapsed-label > span {
+    display: grid;
+    gap: 1px;
+    min-width: 0;
+  }
+
+  .mobile-drawer-collapsed-label strong,
+  .mobile-drawer-collapsed-label small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-drawer-collapsed-label strong {
+    font-size: 14px;
+    line-height: 1.25;
+  }
+
+  .mobile-drawer-collapsed-label small {
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.2;
+  }
+
+  .mobile-drawer-collapsed-label > svg:last-child {
+    width: 20px;
+    height: 20px;
+    color: var(--muted);
   }
 
   .mobile-tuning-content {
@@ -261,6 +337,13 @@
     grid-template-rows: 80px minmax(138px, 1fr) 42px 64px;
     height: 100%;
     padding-top: 26px;
+    transition: opacity 120ms ease;
+  }
+
+  .mobile-tuning-drawer.collapsed .mobile-tuning-content {
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
   }
 
   .mobile-parameter-tabs {
@@ -4235,6 +4318,7 @@ button:disabled {
   }
 
   .right-panel .tabs.icon-tabs {
+    margin-top: 10px;
     margin-bottom: 12px;
   }
 
@@ -4389,7 +4473,8 @@ button:disabled {
   }
 
   .right-panel .tabs.icon-tabs {
-    margin-bottom: 8px;
+    margin-top: 8px;
+    margin-bottom: 6px;
   }
 
   .right-panel .tabs.icon-tabs .tab {

@@ -54,3 +54,5 @@ Use a compact icon-only control matching this reference. Pressing and holding sh
 - [Data at 375 × 667](qa/implementation-iphone-se-data.png)
 - [Distribution at 375 × 667](qa/implementation-iphone-se-distribution.png)
 - [Export at 375 × 667](qa/implementation-iphone-se-export.png)
+- [Collapsed image-settings entry at 375 × 667](qa/implementation-iphone-se-drawer-collapsed.png)
+- [Analysis tab spacing at 375 × 667](qa/implementation-iphone-se-analysis-tab-gap.png)

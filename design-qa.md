@@ -42,6 +42,8 @@
 - Data: `docs/design/mobile/qa/implementation-iphone-se-data.png`
 - Distribution: `docs/design/mobile/qa/implementation-iphone-se-distribution.png`
 - Export: `docs/design/mobile/qa/implementation-iphone-se-export.png`
+- Collapsed image-settings entry: `docs/design/mobile/qa/implementation-iphone-se-drawer-collapsed.png`
+- Analysis tab spacing: `docs/design/mobile/qa/implementation-iphone-se-analysis-tab-gap.png`
 
 At 375 × 667, the five tuning tabs, selected-parameter content, All settings, Fit view, and Run Detection remain in the initial viewport. The analysis header, result summary, four statistics, tabs, distribution plot/actions, and complete export form/actions remain horizontally unclipped; all primary task actions are reachable without opening a second page.
 
@@ -84,6 +86,10 @@ The post-fix 390 × 844 captures have no overlapping controls, clipped required 
 
 The short-screen density rules were verified at the iPhone SE baseline of 375 × 667. The initial automated check exposed only transition-in-progress geometry when the drawer and analysis page were measured immediately after opening; the regression now waits for the 180–230 ms UI transitions before asserting final layout bounds. Stable-state screenshots and bounding-box assertions confirm that required controls are not clipped.
 
+### Iteration 5 — passed
+
+Browser annotations identified three P2 usability issues: the collapsed drawer had no descriptive entry label, the analysis tabs visually touched the statistics row, and the drawer changed state by click instead of a physical pull gesture. The collapsed state now exposes a dedicated “Image settings / Processing parameters” title row while hiding the expanded controls; the analysis tabs have an 8–10 px responsive top gap; and the handle tracks vertical pointer movement before snapping through two hysteresis thresholds (expand at ≤ 38%, collapse at ≥ 62%, otherwise return to the starting state). Clicking the handle no longer changes state. Keyboard users retain Arrow/Page/Home/End controls. Post-fix evidence is in the two iPhone SE screenshots above.
+
 ## Primary interactions tested
 
 - Open a microscope image and render the live canvas.
@@ -95,6 +101,8 @@ The short-screen density rules were verified at the iPhone SE baseline of 375 ×
 - Switch analysis tabs, restore the top position, and use the distribution-to-export action.
 - Verify 390 × 844 pinch zoom and Fit view through the mobile regression test.
 - Verify every tuning state and the Data, Distribution, and Export primary actions at 375 × 667 through a dedicated iPhone SE regression test.
+- Verify shallow and committed upward/downward drawer pulls against both snap thresholds, and verify that a click alone does not change state.
+- Verify at least 6 px of stable separation between the statistics row and analysis tabs at 375 × 667.
 
 ## Verification
 

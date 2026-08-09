@@ -106,6 +106,23 @@ async function openReadyApp(page, url = "./") {
   await expect(page.locator("#imageMenuTrigger")).toBeEnabled();
 }
 
+async function dragMobileDrawer(page, direction, requestedDistance = null) {
+  const handle = page.locator("#mobileDrawerToggle");
+  const handleBox = await handle.boundingBox();
+  const drawerBox = await page.locator("#mobileTuningDrawer").boundingBox();
+  expect(handleBox).toBeTruthy();
+  expect(drawerBox).toBeTruthy();
+  const startX = handleBox.x + handleBox.width / 2;
+  const startY = handleBox.y + Math.min(18, handleBox.height / 2);
+  const distance = (requestedDistance ?? Math.min(220, drawerBox.height * 0.66))
+    * (direction === "collapse" ? 1 : -1);
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  await page.mouse.move(startX, startY + distance, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForTimeout(300);
+}
+
 async function openAdvancedSettings(page) {
   const settings = page.locator("#advancedSettings");
   if (!(await settings.evaluate((element) => element.open))) {
@@ -916,11 +933,19 @@ test("uses the canvas-first mobile workspace, collapsible tuning drawer, and hol
   }
 
   await page.locator("#mobileDrawerToggle").click();
+  await expect(page.locator("#mobileDrawerToggle")).toHaveAttribute("aria-expanded", "true");
+  await dragMobileDrawer(page, "collapse", 70);
+  await expect(page.locator("#mobileDrawerToggle")).toHaveAttribute("aria-expanded", "true");
+  await dragMobileDrawer(page, "collapse");
   await expect(page.locator("#mobileTuningDrawer")).toHaveClass(/collapsed/);
   await expect(page.locator("#mobileDrawerToggle")).toHaveAttribute("aria-expanded", "false");
   await expect(page.locator("#mobileTuningContent")).toHaveAttribute("aria-hidden", "true");
-  await page.locator("#mobileDrawerToggle").click();
+  await expect(page.locator("#mobileDrawerCollapsedLabel")).toBeVisible();
+  await dragMobileDrawer(page, "expand", 70);
+  await expect(page.locator("#mobileDrawerToggle")).toHaveAttribute("aria-expanded", "false");
+  await dragMobileDrawer(page, "expand");
   await expect(page.locator("#mobileTuningDrawer")).not.toHaveClass(/collapsed/);
+  await expect(page.locator("#mobileDrawerCollapsedLabel")).toBeHidden();
 
   await page.locator("#imageInput").setInputFiles({
     name: "synthetic.bmp",
@@ -992,7 +1017,7 @@ test("uses the canvas-first mobile workspace, collapsible tuning drawer, and hol
   await page.locator("#mobileAnalysisBack").click();
   await expect(page.locator("#rightToggle")).toHaveAttribute("aria-expanded", "false");
 
-  await page.locator("#mobileDrawerToggle").click();
+  await dragMobileDrawer(page, "collapse");
   const canvas = page.locator("#imageCanvas");
   const box = await canvas.boundingBox();
   expect(box).toBeTruthy();
@@ -1016,7 +1041,7 @@ test("uses the canvas-first mobile workspace, collapsible tuning drawer, and hol
   await canvas.dispatchEvent("pointerup", { ...pointer(1, 150, 380, true), buttons: 0 });
   await expect(page.locator("#zoomReadout")).not.toHaveText(zoomBefore);
 
-  await page.locator("#mobileDrawerToggle").click();
+  await dragMobileDrawer(page, "expand");
   await page.locator("#mobileFitView").click();
   await expect(page.locator("#zoomReadout")).toHaveText("100%");
 });
@@ -1054,11 +1079,10 @@ test("keeps the complete mobile workflow usable in an iPhone SE viewport", async
     await expectInsideViewport("#mobileRunDetect");
   }
 
-  await page.locator("#mobileDrawerToggle").click();
-  await page.waitForTimeout(300);
+  await dragMobileDrawer(page, "collapse");
   await expectInsideViewport("#mobileDrawerToggle");
-  await page.locator("#mobileDrawerToggle").click();
-  await page.waitForTimeout(300);
+  await expectInsideViewport("#mobileDrawerCollapsedLabel");
+  await dragMobileDrawer(page, "expand");
   await expectInsideViewport("#mobileRunDetect");
 
   await page.locator("#mobileRunDetect").click();
@@ -1073,6 +1097,9 @@ test("keeps the complete mobile workflow usable in an iPhone SE viewport", async
   await expectInsideViewport(".right-panel .stats");
   await expectInsideViewport(".right-panel .navigation-tabs");
   await expectInsideViewport(".mobile-table-summary");
+  const statsBox = await page.locator(".right-panel .stats").boundingBox();
+  const tabsBox = await page.locator(".right-panel .navigation-tabs").boundingBox();
+  expect(tabsBox.y - (statsBox.y + statsBox.height)).toBeGreaterThanOrEqual(6);
 
   await page.locator("#rightTabPareto").click();
   await expectInsideViewport(".pareto-controls");

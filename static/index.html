@@ -282,7 +282,15 @@
           aria-label="Collapse tuning controls"
           data-i18n-aria="mobile.collapseTuning"
         >
-          <span aria-hidden="true"></span>
+          <span class="mobile-drawer-handle" aria-hidden="true"></span>
+          <span id="mobileDrawerCollapsedLabel" class="mobile-drawer-collapsed-label" aria-hidden="true">
+            <i data-lucide="sliders-horizontal" aria-hidden="true"></i>
+            <span>
+              <strong data-i18n="mobile.imageSettings">Image settings</strong>
+              <small data-i18n="mobile.processingParameters">Processing parameters</small>
+            </span>
+            <i data-lucide="chevron-up" aria-hidden="true"></i>
+          </span>
         </button>
 
         <div id="mobileTuningContent" class="mobile-tuning-content">
