@@ -138,6 +138,19 @@ jobs:
             kill "$(cat /tmp/particlelens-vite.pid)" || true
           fi
 
+  release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs:
+      - python-tests
+      - frontend-tests
+      - browser-parity
+      - pages-build
+      - windows-package
+      - safari-smoke
+    permissions:
+      contents: write
+    uses: ./.github/workflows/release.yml
+
   cloudflare-preview:
     name: cloudflare-preview
     if: >-
