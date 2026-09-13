@@ -162,9 +162,9 @@ The Windows build also requires
 This creates:
 
 ```text
-release/ParticleLens-Windows-Setup-v0.3.0.exe
-release/ParticleLens-Windows-v0.3.0.zip
-release/ParticleLens-Windows-OneFile-v0.3.0.exe
+release/ParticleLens-Windows-Setup-v0.3.1.exe
+release/ParticleLens-Windows-v0.3.1.zip
+release/ParticleLens-Windows-OneFile-v0.3.1.exe
 release/SHA256SUMS.txt
 ```
 
