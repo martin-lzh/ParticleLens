@@ -152,6 +152,14 @@ Base64. Existing CLI arguments remain compatible.
 
 ## Windows release
 
+Merging a version bump from `development` into `main` automatically publishes
+`v<package.json version>` to GitHub Releases after all six CI test and build jobs
+succeed. The release uses that run's tested Windows installer, portable executable,
+ZIP, and SHA256 checksums, with notes from the matching changelog section.
+Published versions are left unchanged. If publication fails, rerun the failed CI
+job to resume the draft release. No separate tag push or release token is needed.
+
+
 The Windows build also requires
 [Inno Setup 6](https://jrsoftware.org/isinfo.php).
 

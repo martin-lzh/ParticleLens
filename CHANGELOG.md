@@ -6,6 +6,11 @@ All notable changes are documented here. Versions follow Semantic Versioning.
 
 ## [0.3.1] - 2026-09-13
 
+### Added
+
+- Automatically publish GitHub Releases with tested Windows packages and checksums
+  after version bumps reach main and CI succeeds.
+
 ### Security
 
 - Updated Vitest and its mocker to 5.0.0 to fix redirect-mock path traversal
