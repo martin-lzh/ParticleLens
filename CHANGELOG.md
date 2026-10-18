@@ -4,6 +4,13 @@ All notable changes are documented here. Versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+### Security
+
+- Updated brace-expansion to 5.0.12 to fix denial-of-service vulnerabilities in
+  brace expansion parsing in development dependencies.
+- Updated source-map-js to 1.2.2 to fix an event-loop denial of service through
+  indexed source-map section offsets in the build toolchain.
+
 ## [0.3.1] - 2026-09-13
 
 ### Added
