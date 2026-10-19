@@ -4,6 +4,15 @@ All notable changes are documented here. Versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-10-18
+
+### Security
+
+- Updated brace-expansion to 5.0.12 to fix denial-of-service vulnerabilities in
+  brace expansion parsing in development dependencies.
+- Updated source-map-js to 1.2.2 to fix an event-loop denial of service through
+  indexed source-map section offsets in the build toolchain.
+
 ## [0.3.1] - 2026-09-13
 
 ### Added
@@ -117,7 +126,8 @@ Validation uses deterministic synthetic images and clearly licensed public
 samples. It does not yet include private research images or claim coverage of
 every scientific imaging workflow.
 
-[Unreleased]: https://github.com/martin-lzh/ParticleLens/compare/v0.3.1...development
+[Unreleased]: https://github.com/martin-lzh/ParticleLens/compare/v0.3.2...development
+[0.3.2]: https://github.com/martin-lzh/ParticleLens/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/martin-lzh/ParticleLens/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/martin-lzh/ParticleLens/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/martin-lzh/ParticleLens/compare/v0.2.1...v0.2.2
